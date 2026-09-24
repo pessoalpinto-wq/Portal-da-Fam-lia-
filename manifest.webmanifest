@@ -1,0 +1,13 @@
+{
+  "name": "Portal da Família",
+  "short_name": "Família",
+  "description": "Tarefas, agenda, horários escolares, projectos e viagens da família.",
+  "lang": "pt-PT",
+  "start_url": "./index.html#/painel",
+  "display": "standalone",
+  "background_color": "#f6f7fb",
+  "theme_color": "#4f46e5",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

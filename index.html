@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#4f46e5">
+  <meta name="description" content="Portal da Família — tarefas, agenda, horários escolares, projectos, viagens e muito mais.">
+  <title>Portal da Família</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a href="#/painel" class="brand">
+      <img src="icon.svg" alt="" width="32" height="32">
+      <span>Portal da Família</span>
+    </a>
+    <label class="whoami">
+      <span>Sou</span>
+      <select id="current-user" aria-label="Quem está a usar o portal"></select>
+    </label>
+  </header>
+
+  <nav class="nav" id="nav" aria-label="Secções"></nav>
+
+  <main id="view" class="view" tabindex="-1"></main>
+
+  <dialog id="dialog" class="dialog"></dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <input type="file" id="import-file" accept="application/json" hidden>
+
+  <script src="js/utils.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/views.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
