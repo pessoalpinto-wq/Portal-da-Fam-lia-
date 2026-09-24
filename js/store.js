@@ -123,6 +123,8 @@
     return s;
   }
 
+  const ROLE_RANK = { pai: 0, mae: 1 };
+
   function normalize(obj) {
     const base = EMPTY();
     const s = { ...base, ...(obj || {}) };
@@ -131,48 +133,246 @@
     });
     if (!s.meals || typeof s.meals !== 'object') s.meals = {};
     s.members.forEach((m) => { m.points = Number(m.points) || 0; });
+    // Ordem natural: pai, mãe e depois os filhos do mais velho para o mais novo.
+    s.members.sort((a, b) => (ROLE_RANK[a.role] ?? 2) - (ROLE_RANK[b.role] ?? 2)
+      || (a.birthday || '9999').localeCompare(b.birthday || '9999'));
     if (!s.members.some((m) => m.id === s.currentUser)) s.currentUser = s.members[0]?.id || null;
     return s;
   }
 
-  function load() {
-    try {
-      const raw = localStorage.getItem(KEY);
-      if (raw) return normalize(JSON.parse(raw));
-    } catch (e) {
-      console.warn('Não foi possível ler os dados guardados', e);
-    }
-    return seed();
+  /* ---------- Conversão estado <-> itens (uma linha por item no Supabase) ---------- */
+  const COLLS = ['members', 'events', 'tasks', 'rewards', 'redemptions', 'classes', 'exams',
+    'projects', 'trips', 'shopping', 'notes', 'contacts'];
+  const keyOf = (r) => `${r.coll}/${r.id}`;
+
+  function toItems(s) {
+    const out = [];
+    COLLS.forEach((c) => (s[c] || []).forEach((x) => out.push({ coll: c, id: String(x.id), data: x })));
+    Object.entries(s.meals || {}).forEach(([id, data]) => out.push({ coll: 'meals', id: String(id), data }));
+    return out;
   }
 
-  let state = load();
-  const listeners = [];
+  function applyRow(s, r) {
+    if (r.coll === 'meals') {
+      if (r.deleted) delete s.meals[r.id];
+      else s.meals[r.id] = r.data;
+      return;
+    }
+    const list = s[r.coll];
+    if (!Array.isArray(list)) return;
+    const i = list.findIndex((x) => String(x.id) === r.id);
+    if (r.deleted) {
+      if (i >= 0) list.splice(i, 1);
+    } else if (i >= 0) {
+      list[i] = r.data;
+    } else {
+      list.push(r.data);
+    }
+  }
 
-  function persist() {
+  const snapshot = (s) => new Map(toItems(s).map((it) => [keyOf(it), { it, json: JSON.stringify(it.data) }]));
+
+  /* ---------- Estado e persistência local ---------- */
+  function readJSON(key) {
     try {
-      localStorage.setItem(KEY, JSON.stringify(state));
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      return null;
+    }
+  }
+  function writeJSON(key, value) {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
     } catch (e) {
       console.warn('Não foi possível guardar os dados', e);
     }
   }
+
+  let state = normalize(readJSON(KEY) || seed());
+  let remote = null; // { client, familyId, memberId, role, clientId, channel }
+  const listeners = [];
+  const syncListeners = [];
+  let syncStatus = 'local';
+
+  const cacheKey = () => (remote ? `portal-familia-cache-${remote.familyId}` : KEY);
+  const persist = () => writeJSON(cacheKey(), state);
 
   function emit() {
     persist();
     listeners.forEach((fn) => fn(state));
   }
 
+  function setSync(status, detail) {
+    syncStatus = status;
+    syncListeners.forEach((fn) => fn(status, detail));
+  }
+
+  /* ---------- Sincronização com o Supabase ---------- */
+  const OUTBOX_KEY = 'portal-familia-outbox';
+  let outbox = new Map();
+  let flushing = false;
+  let flushTimer = null;
+
+  const saveOutbox = () => remote && writeJSON(`${OUTBOX_KEY}-${remote.familyId}`, [...outbox.values()]);
+
+  function queue(rows) {
+    if (!rows.length) return;
+    rows.forEach((r) => outbox.set(keyOf(r), r));
+    saveOutbox();
+    setSync('saving');
+    clearTimeout(flushTimer);
+    flushTimer = setTimeout(flush, 250);
+  }
+
+  async function flush() {
+    if (!remote || flushing || !outbox.size) return;
+    flushing = true;
+    const batch = [...outbox.values()];
+    let error = null;
+    try {
+      ({ error } = await remote.client.from('items').upsert(batch.map((r) => ({
+        family_id: remote.familyId, coll: r.coll, id: r.id, data: r.data, deleted: r.deleted, client_id: remote.clientId,
+      }))));
+    } catch (e) {
+      error = e;
+    }
+    flushing = false;
+    if (!error) {
+      batch.forEach((r) => { if (outbox.get(keyOf(r)) === r) outbox.delete(keyOf(r)); });
+      saveOutbox();
+      if (outbox.size) flush();
+      else setSync('ok');
+    } else if (error.code === '42501') {
+      // Sem permissão (ex.: filha a tentar mudar pontos): descarta e repõe o que está no servidor.
+      outbox.clear();
+      saveOutbox();
+      setSync('ok', 'Não tens permissão para essa alteração.');
+      await reload();
+    } else {
+      console.warn('Sincronização falhou', error);
+      setSync('offline');
+    }
+  }
+
+  async function fetchAll() {
+    const rows = [];
+    const PAGE = 1000;
+    for (let from = 0; ; from += PAGE) {
+      const { data, error } = await remote.client.from('items')
+        .select('coll,id,data,deleted').eq('family_id', remote.familyId).eq('deleted', false)
+        .order('coll').order('id').range(from, from + PAGE - 1);
+      if (error) throw error;
+      rows.push(...data);
+      if (data.length < PAGE) return rows;
+    }
+  }
+
+  async function reload() {
+    if (!remote) return;
+    try {
+      const rows = await fetchAll();
+      const s = EMPTY();
+      rows.forEach((r) => applyRow(s, r));
+      outbox.forEach((r) => applyRow(s, r)); // alterações locais ainda por enviar
+      s.currentUser = remote.memberId;
+      state = normalize(s);
+      state.currentUser = remote.memberId;
+      emit();
+      setSync(outbox.size ? 'saving' : 'ok');
+      flush();
+    } catch (e) {
+      console.warn('Não foi possível carregar os dados', e);
+      setSync('offline');
+    }
+  }
+
+  function onRemoteChange(row) {
+    if (!remote || !row || row.client_id === remote.clientId) return;
+    if (outbox.has(keyOf(row))) return; // a nossa versão local é mais recente
+    applyRow(state, row);
+    const cur = state.currentUser;
+    state = normalize(state);
+    state.currentUser = cur;
+    emit();
+  }
+
+  async function connect({ client, familyId, memberId, role }) {
+    remote = { client, familyId, memberId, role, clientId: uid() };
+    outbox = new Map((readJSON(`${OUTBOX_KEY}-${familyId}`) || []).map((r) => [keyOf(r), r]));
+    const cached = readJSON(cacheKey());
+    if (cached) {
+      state = normalize(cached);
+      state.currentUser = memberId;
+      emit();
+    }
+    await reload();
+    let subscribedOnce = false;
+    remote.channel = client.channel(`items-${familyId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'items', filter: `family_id=eq.${familyId}` },
+        (p) => onRemoteChange(p.new))
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          if (subscribedOnce) reload(); // voltou a ligar: apanhar o que mudou entretanto
+          subscribedOnce = true;
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          setSync('offline');
+        }
+      });
+    window.addEventListener('online', () => reload());
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') reload(); });
+    setInterval(() => { if (outbox.size) flush(); }, 15000);
+  }
+
   window.Store = {
     uid,
+    toItems,
     get state() { return state; },
-    update(fn) { fn(state); emit(); },
+    get isRemote() { return !!remote; },
+    get syncStatus() { return syncStatus; },
+    get familyId() { return remote?.familyId || null; },
+    /** Pais gerem tudo; filhos precisam de aprovação para pontos e recompensas. */
+    isParent() {
+      if (remote) return remote.role === 'parent';
+      const me = state.members.find((m) => m.id === state.currentUser);
+      return !me || ['pai', 'mae'].includes(me.role);
+    },
+    update(fn) {
+      const before = remote ? snapshot(state) : null;
+      fn(state);
+      if (remote) {
+        state.currentUser = remote.memberId;
+        const after = snapshot(state);
+        const rows = [];
+        after.forEach((v, k) => {
+          const b = before.get(k);
+          if (!b || b.json !== v.json) rows.push({ coll: v.it.coll, id: v.it.id, data: JSON.parse(v.json), deleted: false });
+        });
+        before.forEach((v, k) => {
+          if (!after.has(k)) rows.push({ coll: v.it.coll, id: v.it.id, data: JSON.parse(v.json), deleted: true });
+        });
+        queue(rows);
+      }
+      emit();
+    },
     subscribe(fn) { listeners.push(fn); },
+    onSync(fn) { syncListeners.push(fn); },
+    connect,
+    reload,
+    /** Dados locais deste dispositivo (para levar para a família na nuvem). */
+    localSnapshot() { return normalize(readJSON(KEY) || seed()); },
     exportJSON() { return JSON.stringify(state, null, 2); },
     importJSON(text) { state = normalize(JSON.parse(text)); emit(); },
     resetToExample() { state = seed(); emit(); },
     wipe() {
-      const members = state.members.map((m) => ({ ...m, points: 0 }));
-      state = normalize({ members, currentUser: state.currentUser });
-      emit();
+      const keep = new Set(['members', 'rewards']);
+      Store.update((s) => {
+        Object.keys(EMPTY()).forEach((k) => {
+          if (Array.isArray(s[k]) && !keep.has(k)) s[k] = [];
+        });
+        s.meals = {};
+        s.members.forEach((m) => { m.points = 0; });
+      });
     },
   };
   persist();

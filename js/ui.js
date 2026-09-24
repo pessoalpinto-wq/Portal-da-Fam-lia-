@@ -167,15 +167,18 @@
     return from;
   }
 
-  function completeTask(id) {
+  /** Dá os pontos e fecha (ou reagenda) a tarefa. Só pais alteram pontos. */
+  function applyCompletion(id) {
     let msg = '';
     Store.update((s) => {
       const t = s.tasks.find((x) => x.id === id);
       if (!t) return;
-      const who = s.members.find((m) => m.id === t.assignee);
+      const byId = t.pending?.by || t.assignee;
+      const who = s.members.find((m) => m.id === byId);
       const pts = Number(t.points) || 0;
       if (who) who.points += pts;
-      t.history = [...(t.history || []), { date: today(), by: t.assignee, points: pts }].slice(-50);
+      t.history = [...(t.history || []), { date: t.pending?.date || today(), by: byId, points: pts }].slice(-50);
+      delete t.pending;
       if (!t.repeat || t.repeat === 'none') {
         t.done = true;
         t.doneAt = today();
@@ -189,20 +192,80 @@
     toast(msg);
   }
 
+  function completeTask(id) {
+    if (Store.isParent()) {
+      applyCompletion(id);
+      return;
+    }
+    Store.update((s) => {
+      const t = s.tasks.find((x) => x.id === id);
+      if (t) t.pending = { by: s.currentUser, date: today() };
+    });
+    toast('Feito! À espera de aprovação dos pais ⏳');
+  }
+
+  const approveTask = (id) => applyCompletion(id);
+
+  function rejectTask(id) {
+    Store.update((s) => {
+      const t = s.tasks.find((x) => x.id === id);
+      if (t) delete t.pending;
+    });
+    toast('Tarefa devolvida.');
+  }
+
   function reopenTask(id) {
+    if (!Store.isParent()) {
+      toast('Só os pais podem reabrir tarefas.');
+      return;
+    }
     Store.update((s) => {
       const t = s.tasks.find((x) => x.id === id);
       if (!t || !t.done) return;
-      const who = s.members.find((m) => m.id === t.assignee);
       const last = (t.history || []).pop();
+      const who = s.members.find((m) => m.id === (last?.by || t.assignee));
       if (who && last) who.points = Math.max(0, who.points - (Number(last.points) || 0));
       t.done = false;
       t.doneAt = '';
     });
   }
 
+  /** Troca de pontos: pais trocam logo, filhos fazem um pedido. */
+  function redeem(rewardId) {
+    const s = S();
+    const r = s.rewards.find((x) => x.id === rewardId);
+    const me = member(s.currentUser);
+    if (!r || !me || me.points < r.cost) return;
+    const parent = Store.isParent();
+    if (!confirm(parent ? `Trocar ${r.cost} pontos por "${r.title}"?` : `Pedir aos pais "${r.title}" (${r.cost} pontos)?`)) return;
+    Store.update((st) => {
+      if (parent) st.members.find((m) => m.id === me.id).points -= r.cost;
+      st.redemptions.push({
+        id: Store.uid(), memberId: me.id, title: r.title, cost: r.cost, date: today(), status: parent ? 'approved' : 'pending',
+      });
+    });
+    toast(parent ? `🎁 ${me.name} trocou pontos por: ${r.title}` : 'Pedido enviado aos pais ⏳');
+  }
+
+  function decideRedemption(id, approve) {
+    let msg = '';
+    Store.update((s) => {
+      const x = s.redemptions.find((r) => r.id === id);
+      if (!x || x.status !== 'pending') return;
+      const who = s.members.find((m) => m.id === x.memberId);
+      if (approve && who && who.points < x.cost) {
+        msg = `${who.name} já não tem pontos suficientes.`;
+        return;
+      }
+      if (approve && who) who.points -= x.cost;
+      x.status = approve ? 'approved' : 'rejected';
+      msg = approve ? `🎁 Aprovado: ${x.title}` : 'Pedido recusado.';
+    });
+    toast(msg);
+  }
+
   window.UI = {
     member, memberOptions, chip, chips, avatar, colorOf, toast, openForm, editItem,
-    eventsOn, classesOn, itemsOn, completeTask, reopenTask,
+    eventsOn, classesOn, itemsOn, completeTask, reopenTask, approveTask, rejectTask, redeem, decideRedemption,
   };
 })();

@@ -17,6 +17,7 @@
       <img src="icon.svg" alt="" width="32" height="32">
       <span>Portal da Família</span>
     </a>
+    <span id="sync" class="sync" role="status" hidden></span>
     <label class="whoami">
       <span>Sou</span>
       <select id="current-user" aria-label="Quem está a usar o portal"></select>
@@ -31,10 +32,13 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <input type="file" id="import-file" accept="application/json" hidden>
 
+  <script src="js/vendor/supabase.js"></script>
+  <script src="js/config.js"></script>
   <script src="js/utils.js"></script>
   <script src="js/store.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/views.js"></script>
+  <script src="js/cloud.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

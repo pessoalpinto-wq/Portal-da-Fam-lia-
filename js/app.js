@@ -20,11 +20,46 @@
 
   function renderUser() {
     const s = S();
+    $('#current-user').disabled = Store.isRemote;
     $('#current-user').innerHTML = s.members.map((m) =>
       `<option value="${m.id}" ${m.id === s.currentUser ? 'selected' : ''}>${esc(m.emoji)} ${esc(m.name)}</option>`).join('');
   }
 
+  const SYNC_LABEL = {
+    local: ['', 'Só neste dispositivo'],
+    ok: ['ok', 'Sincronizado'],
+    saving: ['saving', 'A guardar…'],
+    offline: ['offline', 'Sem ligação — as alterações serão enviadas depois'],
+  };
+  function renderSync(status = Store.syncStatus) {
+    const [cls, label] = SYNC_LABEL[status] || SYNC_LABEL.local;
+    const el = $('#sync');
+    el.className = `sync ${cls}`;
+    el.title = label;
+    el.hidden = !Store.isRemote;
+    el.setAttribute('aria-label', label);
+  }
+  Store.onSync((status, detail) => {
+    renderSync(status);
+    if (detail) toast(detail);
+  });
+
+  async function fillInviteCodes() {
+    const el = $('#invite-codes');
+    if (!el) return;
+    const codes = await Cloud.inviteCodes();
+    if (!codes || !document.body.contains(el)) return;
+    el.innerHTML = `<h3 class="sub">Convidar a família</h3>
+      <p class="small">Cada pessoa cria a sua conta no portal e usa o código certo:</p>
+      <div class="invite"><span>👨👩 Pais</span><code>${esc(codes.parent_code)}</code>
+        <button class="btn small ghost" data-action="copy" data-text="${esc(codes.parent_code)}">Copiar</button></div>
+      <div class="invite"><span>👧 Filhas/os</span><code>${esc(codes.child_code)}</code>
+        <button class="btn small ghost" data-action="copy" data-text="${esc(codes.child_code)}">Copiar</button></div>
+      <p class="small muted">O código dos pais dá acesso total — partilha-o só com o pai/mãe.</p>`;
+  }
+
   function render() {
+    if (document.body.classList.contains('gate')) return;
     const [, , label, view] = currentRoute();
     const main = $('#view');
     const scroll = window.scrollY;
@@ -32,6 +67,8 @@
     document.title = `${label} · Portal da Família`;
     renderNav();
     renderUser();
+    renderSync();
+    fillInviteCodes();
     window.scrollTo(0, scroll);
   }
 
@@ -86,20 +123,16 @@
     'edit-task': taskForm,
     'complete-task': (el) => completeTask(el.dataset.id),
     'reopen-task': (el) => reopenTask(el.dataset.id),
+    'approve-task': (el) => UI.approveTask(el.dataset.id),
+    'reject-task': (el) => UI.rejectTask(el.dataset.id),
+    'approve-redeem': (el) => UI.decideRedemption(el.dataset.id, true),
+    'reject-redeem': (el) => UI.decideRedemption(el.dataset.id, false),
+    'pending-info': () => toast('Já está feita — à espera que o pai ou a mãe aprove ⏳'),
+    noop: () => {},
     'task-filter': (el) => { VS.taskFilter = el.dataset.id; render(); },
     'add-reward': edit('rewards', 'reward', 'recompensa', () => ({ cost: 20 })),
     'edit-reward': edit('rewards', 'reward', 'recompensa', () => ({ cost: 20 })),
-    redeem: (el) => {
-      const r = S().rewards.find((x) => x.id === el.dataset.id);
-      const me = S().members.find((m) => m.id === S().currentUser);
-      if (!r || !me || me.points < r.cost) return;
-      if (!confirm(`Trocar ${r.cost} pontos por "${r.title}"?`)) return;
-      Store.update((s) => {
-        s.members.find((m) => m.id === me.id).points -= r.cost;
-        s.redemptions.push({ id: Store.uid(), memberId: me.id, title: r.title, cost: r.cost, date: today() });
-      });
-      toast(`🎁 ${me.name} trocou pontos por: ${r.title}`);
-    },
+    redeem: (el) => UI.redeem(el.dataset.id),
 
     'add-class': classForm,
     'edit-class': classForm,
@@ -175,6 +208,7 @@
     'edit-contact': edit('contacts', 'contact', 'contacto', () => ({})),
 
     'edit-member': (el) => {
+      if (!Store.isParent()) return;
       const m = S().members.find((x) => x.id === el.dataset.id);
       if (!m) return;
       UI.openForm({
@@ -184,10 +218,23 @@
         onSubmit: (data) => Store.update((s) => Object.assign(s.members.find((x) => x.id === m.id), data)),
       });
     },
+    'sign-out': () => { if (confirm('Terminar sessão neste dispositivo?')) Cloud.signOut(); },
+    'go-cloud': () => Cloud.goToLogin(),
+    copy: async (el) => {
+      try {
+        await navigator.clipboard.writeText(el.dataset.text);
+        toast('Copiado 📋');
+      } catch (e) {
+        prompt('Copia o código:', el.dataset.text);
+      }
+    },
     export: () => download(`portal-familia-${today()}.json`, Store.exportJSON()),
     import: () => $('#import-file').click(),
     reset: () => { if (confirm('Substituir todos os dados pelos dados de exemplo?')) { Store.resetToExample(); toast('Dados de exemplo repostos.'); } },
-    wipe: () => { if (confirm('Apagar TUDO (excepto os membros da família)? Esta acção não pode ser desfeita.')) { Store.wipe(); toast('Portal limpo.'); } },
+    wipe: () => {
+      const msg = `Apagar TUDO (excepto os membros e as recompensas)${Store.isRemote ? ' para toda a família' : ''}? Esta acção não pode ser desfeita.`;
+      if (confirm(msg)) { Store.wipe(); toast('Portal limpo.'); }
+    },
   };
 
   document.addEventListener('click', (e) => {
@@ -254,5 +301,5 @@
     }
   });
 
-  render();
+  Cloud.boot(render);
 })();

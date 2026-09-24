@@ -4,21 +4,47 @@ Um portal para uma família de 4 (pai, mãe e duas filhas de 16 e 12 anos) organ
 o dia-a-dia num só sítio: agenda, horários da escola, tarefas, projectos, viagens,
 compras, refeições e recados.
 
-## Como usar (já!)
+## Como usar
 
-1. Abre o `index.html` no navegador (funciona com duplo clique, sem instalar nada).
-2. Em **Definições** muda os nomes, as cores, os emojis e as datas de nascimento.
-3. No topo escolhe **"Sou …"** para o portal saber quem está a usar.
-4. Substitui os horários de exemplo em **Escola** pelos horários reais.
+1. Abre o `index.html` no navegador (ou o endereço do GitHub Pages, ver abaixo).
+2. **Pai ou mãe:** carrega em "Criar conta", depois em **"Sou pai/mãe e quero criar a família"**.
+   Podes levar os dados que já tinhas neste dispositivo.
+3. Em **Definições** aparecem dois **códigos de convite**:
+   - código dos **pais** → para o outro pai/mãe (acesso total);
+   - código das **filhas** → para as filhas (acesso com aprovação).
+4. Cada pessoa cria a sua conta no seu telemóvel, escreve o código e escolhe quem é.
+5. Pronto: tudo o que alguém muda aparece nos outros aparelhos **em tempo real**. 🎉
 
-Para usar no telemóvel como uma app basta publicar o repositório com **GitHub Pages**
-(Settings → Pages → branch) e, no telemóvel, "Adicionar ao ecrã principal".
+Também dá para usar sem conta ("Continuar sem conta"), com os dados só nesse dispositivo.
 
-> ⚠️ **Nesta primeira versão os dados ficam guardados em cada dispositivo.**
-> Em Definições há "Exportar/Importar cópia" para passar os dados entre dispositivos.
-> A sincronização automática entre os 4 telemóveis é a Fase 2 (ver abaixo).
+### ⚙️ Configuração necessária no Supabase (uma vez, 1 minuto)
 
-## O que já está incluído (Fase 1)
+O servidor gratuito de email do Supabase só envia emails para membros da equipa do projecto,
+por isso é preciso **desligar a confirmação por email** para as filhas conseguirem criar conta:
+
+1. Abrir <https://supabase.com/dashboard/project/gymxmrgptzqygfupadvw/auth/providers>
+2. **Email** → desligar **"Confirm email"** → **Save**.
+
+### 📱 Usar no telemóvel como uma app
+
+No GitHub: **Settings → Pages → Branch: `main` (ou este ramo) → `/ (root)` → Save**.
+Uns minutos depois o portal fica em `https://pessoalpinto-wq.github.io/Portal-da-Fam-lia-/`.
+No telemóvel, abrir esse endereço e escolher **"Adicionar ao ecrã principal"**.
+
+## Pais e filhas: quem pode fazer o quê
+
+| | Pais | Filhas |
+|---|---|---|
+| Agenda, escola, projectos, viagens, compras, refeições, mural | ✅ | ✅ |
+| Marcar tarefa como feita | ✅ dá logo os pontos | ⏳ fica **à espera de aprovação** |
+| Trocar pontos por recompensas | ✅ | ⏳ faz um **pedido** que os pais aprovam |
+| Alterar pontos, membros da família e recompensas | ✅ | ❌ (bloqueado no servidor) |
+| Ver códigos de convite | ✅ | ❌ |
+
+As regras estão na própria base de dados (Row Level Security), por isso não dá para as contornar
+mexendo na página. Cada família só vê os seus dados.
+
+## O que está incluído
 
 | Secção | Para quê |
 |---|---|
@@ -36,14 +62,10 @@ Para usar no telemóvel como uma app basta publicar o repositório com **GitHub 
 
 ## Proposta de evolução
 
-### Fase 2 — Partilha em tempo real (a mais importante)
-- Backend partilhado (proposta: **Supabase** — gratuito para este volume, com base de
-  dados, autenticação e tempo real). A camada de dados já está isolada em `js/store.js`
-  para esta troca ser simples.
-- **Login para cada um** (email ou link mágico) e perfis com permissões:
-  pais gerem tudo; filhas criam os seus compromissos, marcam tarefas como feitas e
-  pedem recompensas, que os pais **aprovam**.
-- Tarefas marcadas pelas filhas ficam "à espera de validação" antes de darem pontos.
+### ✅ Fase 2 — Partilha em tempo real (feito)
+- Supabase (base de dados + contas + tempo real), com login para cada um, convites e aprovações dos pais.
+- Funciona sem internet: as alterações ficam guardadas e são enviadas quando a ligação voltar
+  (bolinha no topo: 🟢 sincronizado, 🟠 a guardar, 🔴 sem ligação).
 
 ### Fase 3 — Notificações e integrações
 - Lembretes no telemóvel (PWA com notificações): "Amanhã há teste de Matemática",
@@ -64,14 +86,21 @@ Para usar no telemóvel como uma app basta publicar o repositório com **GitHub 
 
 ## Estrutura técnica
 
-HTML + CSS + JavaScript simples, sem dependências nem compilação.
+HTML + CSS + JavaScript simples, sem compilação. Backend: Supabase (projecto `portal-da-familia`).
 
 ```
-index.html            página principal
-css/styles.css        estilos (claro/escuro automático, adaptado a telemóvel)
-js/utils.js           datas e utilitários
-js/store.js           dados (localStorage, exportar/importar, dados de exemplo)
-js/ui.js              componentes (formulários, avisos) e regras (tarefas, agenda)
-js/views.js           as secções do portal
-js/app.js             navegação e acções
+index.html                 página principal
+css/styles.css             estilos (claro/escuro automático, adaptado a telemóvel)
+js/config.js               endereço e chave pública do Supabase
+js/utils.js                datas e utilitários
+js/store.js                dados: cache local + sincronização em tempo real com o Supabase
+js/ui.js                   componentes (formulários, avisos) e regras (tarefas, aprovações, agenda)
+js/views.js                as secções do portal
+js/cloud.js                contas, criar família, entrar com código
+js/app.js                  navegação e acções
+js/vendor/supabase.js      biblioteca supabase-js (MIT)
+supabase/migrations/       esquema da base de dados e regras de segurança
 ```
+
+Cada item (tarefa, compromisso, aula…) é uma linha na tabela `items` (`coll` = tipo, `data` = conteúdo).
+Os itens apagados ficam marcados com `deleted = true`, o que permite sincronizar bem entre aparelhos.

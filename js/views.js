@@ -90,6 +90,7 @@
       { name: 'emoji', label: 'Emoji', half: true },
       { name: 'color', label: 'Cor', type: 'color', half: true },
       { name: 'birthday', label: 'Data de nascimento', type: 'date', half: true },
+      { name: 'role', label: 'Papel na família', type: 'select', half: true, options: [['pai', 'Pai'], ['mae', 'Mãe'], ['filha', 'Filha'], ['filho', 'Filho'], ['outro', 'Outro']] },
     ],
   };
 
@@ -110,14 +111,17 @@
   function taskRow(t) {
     const overdue = !t.done && t.due && t.due < today();
     const meta = [
+      !t.done && t.pending ? `⏳ feita por ${member(t.pending.by)?.name || '?'}, à espera de aprovação` : '',
       t.done ? `feita ${relDay(t.doneAt || today())}` : (t.due ? relDay(t.due) : 'sem data'),
       REPEAT_LABEL[t.repeat] || '',
       t.points ? `⭐ ${t.points}` : '',
       t.category || '',
     ].filter(Boolean).join(' · ');
-    return `<li class="task ${t.done ? 'done' : ''} ${overdue ? 'overdue' : ''}">
-      <button class="check" data-action="${t.done ? 'reopen-task' : 'complete-task'}" data-id="${t.id}"
-        aria-label="${t.done ? 'Marcar como por fazer' : 'Marcar como feita'}">${t.done ? '✔' : ''}</button>
+    const pending = !t.done && t.pending;
+    const action = t.done ? 'reopen-task' : pending ? (Store.isParent() ? 'approve-task' : 'pending-info') : 'complete-task';
+    const label = t.done ? 'Marcar como por fazer' : pending ? 'À espera de aprovação' : 'Marcar como feita';
+    return `<li class="task ${t.done ? 'done' : ''} ${pending ? 'pending' : ''} ${overdue ? 'overdue' : ''}">
+      <button class="check" data-action="${action}" data-id="${t.id}" aria-label="${label}" title="${label}">${t.done ? '✔' : pending ? '⏳' : ''}</button>
       <button class="task-main" data-action="edit-task" data-id="${t.id}">
         <span class="title">${esc(t.title)}</span><span class="meta">${esc(meta)}</span>
       </button>
@@ -145,6 +149,24 @@
       <span class="lname">${esc(m.name)}</span>
       <span class="bar"><span style="width:${(m.points / max) * 100}%;background:${esc(m.color)}"></span></span>
       <b>${m.points}</b></li>`).join('')}</ol>`;
+  }
+
+  /** Tarefas feitas pelas filhas e pedidos de recompensas à espera dos pais. */
+  function approvals() {
+    const s = S();
+    const tasks = s.tasks.filter((t) => !t.done && t.pending);
+    const reds = s.redemptions.filter((r) => r.status === 'pending');
+    if (!tasks.length && !reds.length) return '';
+    const parent = Store.isParent();
+    const btns = (a, r, id) => (parent ? `<span class="approve-btns">
+      <button class="btn small primary" data-action="${a}" data-id="${id}">Aprovar</button>
+      <button class="btn small ghost" data-action="${r}" data-id="${id}">Recusar</button></span>` : '<span class="muted small">⏳ à espera</span>');
+    return card(`🙋 ${parent ? 'Para aprovar' : 'À espera dos pais'} (${tasks.length + reds.length})`, `<ul class="list">
+      ${tasks.map((t) => `<li class="approval">${avatar(t.pending.by, 'sm')}<span class="title">✅ ${esc(t.title)}
+        <small class="muted">· ⭐ ${Number(t.points) || 0}</small></span>${btns('approve-task', 'reject-task', t.id)}</li>`).join('')}
+      ${reds.map((r) => `<li class="approval">${avatar(r.memberId, 'sm')}<span class="title">🎁 ${esc(r.title)}
+        <small class="muted">· ⭐ ${r.cost}</small></span>${btns('approve-redeem', 'reject-redeem', r.id)}</li>`).join('')}
+    </ul>`, { cls: 'approvals' });
   }
 
   function pendingTasks(filterFn = () => true) {
@@ -196,6 +218,7 @@
       <p class="muted">${esc(fmtLongDate(t))}</p></div>
       <div class="quick">${addBtn('add-event', 'Compromisso')}${addBtn('add-task', 'Tarefa')}${addBtn('add-note', 'Recado')}</div></div>
       <div class="grid">
+        ${approvals()}
         ${card('📅 Hoje', hojeBody, { cls: 'span2' })}
         ${card('🎒 Na escola hoje', escolaBody)}
         ${card(`✅ As minhas tarefas`, mineBody, { action: '<a href="#/tarefas" class="link">Ver todas</a>' })}
@@ -315,12 +338,14 @@
 
     const filters = [['mine', 'As minhas'], ['all', 'Todas'], ...s.members.map((m) => [m.id, `${m.emoji} ${m.name}`]), ['none', 'Por atribuir']];
     const me = member(s.currentUser);
-    const rewards = s.rewards.map((r) => `<li class="reward"><button class="reward-main" data-action="edit-reward" data-id="${r.id}">
+    const parent = Store.isParent();
+    const rewards = s.rewards.map((r) => `<li class="reward"><button class="reward-main" data-action="${parent ? 'edit-reward' : 'noop'}" data-id="${r.id}">
         <span>${esc(r.title)}</span><small class="muted">⭐ ${r.cost}</small></button>
         <button class="btn small ${me && me.points >= r.cost ? 'primary' : ''}" data-action="redeem" data-id="${r.id}"
-          ${me && me.points >= r.cost ? '' : 'disabled'}>Trocar</button></li>`).join('');
-    const hist = [...s.redemptions].reverse().slice(0, 6).map((r) =>
-      `<li>${avatar(r.memberId, 'sm')} ${esc(r.title)} <small class="muted">· ${esc(fmtDate(r.date))}</small></li>`).join('');
+          ${me && me.points >= r.cost ? '' : 'disabled'}>${parent ? 'Trocar' : 'Pedir'}</button></li>`).join('');
+    const STATUS = { pending: '⏳', approved: '✔', rejected: '✕' };
+    const hist = [...s.redemptions].filter((r) => r.status !== 'pending').reverse().slice(0, 6).map((r) =>
+      `<li>${avatar(r.memberId, 'sm')} ${STATUS[r.status] || '✔'} ${esc(r.title)} <small class="muted">· ${esc(fmtDate(r.date))}</small></li>`).join('');
 
     return `<div class="page-head"><h1>Tarefas</h1><div class="quick">${addBtn('add-task', 'Tarefa')}</div></div>
       <div class="filters">${filters.map(([v, l]) => `<button class="filter ${f === v ? 'active' : ''}" data-action="task-filter" data-id="${esc(v)}">${esc(l)}</button>`).join('')}</div>
@@ -331,9 +356,10 @@
           ${done.length ? `<details class="done-list"><summary>Concluídas recentemente (${done.length})</summary><ul class="list">${done.map(taskRow).join('')}</ul></details>` : ''}
         </section>
         <div class="stack">
+          ${approvals()}
           ${card('⭐ Pontos', leaderboard())}
           ${card('🎁 Recompensas', `<p class="muted small">Troca os teus pontos${me ? ` (tens <b>${me.points}</b>)` : ''}.</p><ul class="rewards">${rewards}</ul>
-            ${hist ? `<h3 class="sub">Últimas trocas</h3><ul class="hist">${hist}</ul>` : ''}`, { action: addBtn('add-reward') })}
+            ${hist ? `<h3 class="sub">Últimas trocas</h3><ul class="hist">${hist}</ul>` : ''}`, { action: parent ? addBtn('add-reward') : '' })}
         </div>
       </div>`;
   }
@@ -482,19 +508,35 @@
   /* ---------- Definições ---------- */
   function definicoes() {
     const s = S();
+    const parent = Store.isParent();
+    const cloud = window.Cloud?.info() || {};
+    const accountCard = Store.isRemote
+      ? card('☁️ Conta e partilha', `<p class="small">Ligado como <b>${esc(cloud.email || '')}</b>
+          (${esc(member(s.currentUser)?.name || '')}, ${parent ? 'pai/mãe' : 'filha/o'}). Tudo o que fazem sincroniza
+          automaticamente entre os telemóveis e computadores da família.</p>
+          ${parent ? `<div id="invite-codes" class="invites"><p class="muted small">A carregar códigos de convite…</p></div>` : ''}
+          ${cloud.accounts?.length ? `<h3 class="sub">Contas ligadas</h3><p>${cloud.accounts.map((a) => UI.chip(a.member_id)).join('')}</p>` : ''}
+          <div class="btn-row"><button class="btn ghost" data-action="sign-out">Terminar sessão</button></div>`)
+      : card('☁️ Partilhar com a família', window.Cloud?.configured
+        ? `<p class="small">Os dados estão só neste dispositivo. Entra ou cria uma conta para partilhar o portal
+            com a família em tempo real, cada um no seu telemóvel.</p>
+            <div class="btn-row"><button class="btn primary" data-action="go-cloud">Entrar / criar conta</button></div>`
+        : '<p class="small">A partilha na nuvem ainda não está configurada (ver <code>js/config.js</code>).</p>');
     return `<div class="page-head"><h1>Definições</h1></div>
       <div class="grid two">
+        ${accountCard}
         ${card('👪 A família', `<ul class="list">${s.members.map((m) => `<li class="member-row">${avatar(m.id)}
           <div><b>${esc(m.name)}</b><br><small class="muted">${m.birthday ? `🎂 ${esc(fmtDate(m.birthday))}` : 'Sem data de nascimento'} · ⭐ ${m.points}</small></div>
-          <button class="btn small ghost" data-action="edit-member" data-id="${m.id}">Editar</button></li>`).join('')}</ul>`)}
-        ${card('💾 Dados', `<p class="small">Nesta versão os dados ficam guardados <b>neste dispositivo</b>. Para passar para outro telemóvel/computador,
-          exporta um ficheiro e importa-o lá.</p>
+          ${parent ? `<button class="btn small ghost" data-action="edit-member" data-id="${m.id}">Editar</button>` : ''}</li>`).join('')}</ul>
+          ${parent ? '' : '<p class="small muted">Só os pais podem alterar os membros.</p>'}`)}
+        ${card('💾 Cópia de segurança', `<p class="small">Descarrega uma cópia de todos os dados${Store.isRemote ? '' : `.
+          Enquanto não usam a nuvem, também serve para passar os dados para outro dispositivo`}.</p>
           <div class="btn-row"><button class="btn" data-action="export">⬇️ Exportar cópia</button>
-          <button class="btn" data-action="import">⬆️ Importar cópia</button></div>
-          <h3 class="sub">Zona de perigo</h3>
-          <div class="btn-row"><button class="btn ghost" data-action="reset">Repor dados de exemplo</button>
+          ${Store.isRemote ? '' : '<button class="btn" data-action="import">⬆️ Importar cópia</button>'}</div>
+          ${parent ? `<h3 class="sub">Zona de perigo</h3>
+          <div class="btn-row">${Store.isRemote ? '' : '<button class="btn ghost" data-action="reset">Repor dados de exemplo</button>'}
           <button class="btn danger" data-action="wipe">Começar do zero</button></div>
-          <p class="small muted">"Começar do zero" apaga tudo excepto os membros da família.</p>`)}
+          <p class="small muted">"Começar do zero" apaga tudo excepto os membros da família e as recompensas.</p>` : ''}`)}
       </div>`;
   }
 

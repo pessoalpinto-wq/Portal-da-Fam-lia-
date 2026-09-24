@@ -383,3 +383,47 @@ input[type=color] { padding: .15rem; height: 2.4rem; }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; scroll-behavior: auto !important; }
 }
+
+/* ---------- Entrada / conta ---------- */
+body.gate .nav, body.gate .whoami, body.gate .sync { display: none; }
+body.gate .view { margin-left: 0; }
+.gate-wrap { display: grid; place-items: center; min-height: calc(100vh - 120px); }
+.gate-card { width: min(460px, 100%); padding: 1.5rem; }
+.gate-logo { display: flex; align-items: center; gap: .75rem; margin-bottom: .75rem; }
+.gate-logo h1 { font-size: 1.4rem; }
+.gate-form { display: grid; gap: .75rem; margin-top: .75rem; }
+.gate-form input:not([type=checkbox]):not([type=radio]), .gate-form select { width: 100%; }
+.gate-options { display: grid; gap: .75rem; margin-top: 1rem; }
+.gate-opt { border: 1px solid var(--border); border-radius: 12px; padding: .75rem 1rem; }
+.gate-opt summary { cursor: pointer; }
+.gate-switch { text-align: center; margin-top: 1rem; }
+.gate-card hr { border: 0; border-top: 1px solid var(--border); margin: 1.25rem 0 .75rem; }
+.btn.block { width: 100%; justify-content: center; }
+.linkish { font: inherit; background: none; border: 0; color: var(--primary); cursor: pointer; padding: 0; text-decoration: underline; }
+.linkish.muted { color: var(--muted); display: block; margin: 0 auto; }
+.error { color: var(--danger); font-weight: 600; margin: 0; }
+.notice { background: var(--primary-soft); border-radius: 10px; padding: .6rem .8rem; }
+.check-line { display: flex; gap: .5rem; align-items: flex-start; cursor: pointer; }
+.check-line input { margin-top: .2rem; flex: none; }
+.code-input { text-transform: uppercase; letter-spacing: .15em; font-family: ui-monospace, monospace; }
+.chip-check input[type=radio]:disabled + span { opacity: .45; cursor: not-allowed; }
+
+/* ---------- Sincronização ---------- */
+.sync { width: .7rem; height: .7rem; border-radius: 50%; background: var(--muted); flex: none; }
+.sync.ok { background: var(--ok); }
+.sync.saving { background: var(--warn); animation: pulse 1s infinite alternate; }
+.sync.offline { background: var(--danger); }
+@keyframes pulse { to { opacity: .35; } }
+.whoami select:disabled { opacity: 1; appearance: none; -webkit-appearance: none; cursor: default; }
+
+/* ---------- Aprovações e convites ---------- */
+.approvals { border-color: color-mix(in srgb, var(--warn) 55%, var(--border)); }
+.approval { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; background: var(--surface-2); border-radius: 10px; padding: .4rem .5rem; }
+.approval .title { flex: 1; min-width: 8rem; }
+.approve-btns { display: flex; gap: .3rem; }
+.task.pending .check { border-color: var(--warn); background: color-mix(in srgb, var(--warn) 15%, var(--surface)); font-size: .8rem; }
+.task.pending .meta { color: var(--warn); }
+.invites { margin: .5rem 0; }
+.invite { display: flex; align-items: center; gap: .6rem; margin: .4rem 0; }
+.invite span { min-width: 6.5rem; font-weight: 600; font-size: .9rem; }
+.invite code { font-size: 1.1rem; letter-spacing: .15em; background: var(--surface-2); padding: .2rem .5rem; border-radius: 6px; }
