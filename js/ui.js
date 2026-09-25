@@ -32,6 +32,20 @@
     toastTimer = setTimeout(() => el.classList.remove('show'), Math.max(2600, String(msg).length * 55));
   }
 
+  /* ---------- Festa (confettis) ---------- */
+  /** Mostra um cartão de parabéns com confettis. Fecha com [data-action=celebrate-close]. */
+  function celebrate(title, bodyHTML, button = 'Boa! 💪') {
+    if (document.querySelector('.celebrate')) return;
+    const box = document.createElement('div');
+    box.className = 'celebrate';
+    box.setAttribute('role', 'dialog');
+    box.setAttribute('aria-label', 'Parabéns');
+    const confetti = Array.from({ length: 36 }, (_, i) => `<i style="--x:${(i * 37) % 100}vw;--d:${(i % 7) * 0.12}s;--r:${(i * 53) % 360}deg">${['🎉', '⭐', '✨', '🎊'][i % 4]}</i>`).join('');
+    box.innerHTML = `${confetti}<div class="celebrate-card"><h2>${esc(title)}</h2>${bodyHTML}
+      <button class="btn primary" data-action="celebrate-close">${esc(button)}</button></div>`;
+    document.body.appendChild(box);
+  }
+
   /* ---------- Formulário genérico em diálogo ---------- */
   function fieldHTML(f, value) {
     const v = value ?? f.default ?? '';
@@ -287,6 +301,6 @@
 
   window.UI = {
     member, memberOptions, chip, chips, avatar, colorOf, toast, openForm, editItem,
-    eventsOn, classesOn, itemsOn, completeTask, reopenTask, approveTask, rejectTask, redeem, decideRedemption,
+    eventsOn, classesOn, itemsOn, celebrate, completeTask, reopenTask, approveTask, rejectTask, redeem, decideRedemption,
   };
 })();

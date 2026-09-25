@@ -663,3 +663,36 @@ button.link { font: inherit; font-size: .85rem; background: none; border: 0; col
   .bill-amount { margin-right: auto; }
 }
 @media (prefers-color-scheme: dark) { .fin-tile.save b { color: #f472b6; } }
+
+/* ---------- Poupança: porquinho, Banco dos Pais, medalhas ---------- */
+.pig-goal { display: flex; gap: .7rem; align-items: center; }
+.pig { width: 104px; flex: none; overflow: visible; }
+.pig-body { fill: #fbcfe8; }
+.pig-line { fill: none; stroke: #db2777; stroke-width: 2.5; }
+.pig-leg, .pig-ear { fill: #f9a8d4; stroke: #db2777; stroke-width: 2.5; stroke-linejoin: round; }
+.pig-tail { fill: none; stroke: #db2777; stroke-width: 2.5; stroke-linecap: round; }
+.pig-dot { fill: #831843; }
+.pig-slot { fill: #831843; }
+.pig-fill { opacity: .55; transition: y .6s ease; }
+.pig-wave { opacity: .7; animation: pig-wave 2.4s ease-in-out infinite alternate; }
+@keyframes pig-wave { to { transform: translateX(-12px); } }
+.pig-pct { font: 800 17px system-ui, sans-serif; fill: #831843; }
+.pig-info { flex: 1; min-width: 0; display: grid; gap: .15rem; }
+.pig-info .goal-main { justify-content: flex-start; }
+.pig-juros { color: #0e7490; }
+.pig-btns { display: flex; align-items: center; gap: .6rem; margin-top: .2rem; flex-wrap: wrap; }
+.saver { margin: .5rem 0 .2rem; background: color-mix(in srgb, #f59e0b 10%, var(--surface)); border-radius: 10px; padding: .45rem .65rem; }
+.saver summary { cursor: pointer; font-size: .9rem; }
+.saver .medals { margin-top: .5rem; }
+.bank { margin-bottom: 1rem; border: 1px dashed color-mix(in srgb, #0e7490 45%, var(--border)); }
+.bank.on { border-style: solid; background: color-mix(in srgb, #06b6d4 8%, var(--surface)); }
+.bank-row { display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; }
+.bank-row > div { flex: 1; min-width: 200px; }
+.bank-row p { margin: .15rem 0 0; }
+.bank-ico { font-size: 2rem; }
+@media (prefers-color-scheme: dark) {
+  .pig-body { fill: #4a2338; } .pig-leg, .pig-ear { fill: #5b2a45; }
+  .pig-line, .pig-leg, .pig-ear, .pig-tail { stroke: #f472b6; }
+  .pig-dot, .pig-slot { fill: #fbcfe8; } .pig-pct { fill: #fdf2f8; } .pig-juros { color: #67e8f9; }
+}
+@media (prefers-reduced-motion: reduce) { .pig-wave { animation: none; } }

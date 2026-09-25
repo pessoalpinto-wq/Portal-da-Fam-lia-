@@ -1,7 +1,7 @@
 /* Fase 4: finanças, saúde & documentos, votações, memórias, boleias e datas especiais. */
 (function () {
   const {
-    esc, today, addDays, fmtDate, relDay, daysBetween, parseISO, DIAS, money,
+    esc, today, addDays, fmtDate, relDay, daysBetween, parseISO, DIAS, MESES, money,
   } = U;
   const { member, memberOptions, avatar, chip, colorOf, eventsOn } = UI;
   const { card, empty, addBtn, progress } = Views.h;
@@ -11,8 +11,9 @@
   const PARENT_ROLES = ['pai', 'mae'];
   const kids = () => S().members.filter((m) => !PARENT_ROLES.includes(m.role));
   const sum = (arr) => arr.reduce((n, x) => n + (Number(x.amount) || 0), 0);
-  const wallet = (memberId) => sum(S().money.filter((x) => x.memberId === memberId));
-  const goalSaved = (goalId) => -sum(S().money.filter((x) => x.goalId === goalId));
+  // Os juros do Banco dos Pais entram directamente no mealheiro (ver js/poupanca.js).
+  const wallet = (memberId) => Poupanca.wallet(S().money, memberId);
+  const goalSaved = (goalId) => Poupanca.goalSaved(S().money, goalId);
   const signed = (n) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${money(Math.abs(n))}`;
   const WEEKDAYS = DIAS.map((d, i) => [i, d]);
 
@@ -82,7 +83,7 @@
   /* ---------- Finanças ---------- */
   const KIND = {
     mesada: ['💰', 'Mesada'], oferta: ['🎁', 'Recebeu'], gasto: ['🛍️', 'Gastou'],
-    poupanca: ['🐷', 'Para o mealheiro'], levantamento: ['↩️', 'Do mealheiro'],
+    poupanca: ['🐷', 'Para o mealheiro'], levantamento: ['↩️', 'Do mealheiro'], juros: ['🏦', 'Juros'],
   };
   const activeAllowance = (a) => a && a.active !== 'nao' && a.active !== false && Number(a.amount) > 0;
 
@@ -108,6 +109,80 @@
       : `${wd === 0 || wd === 6 ? 'todos os' : 'todas as'} ${DIAS[wd].toLowerCase()}s`;
     const next = nextAllowance(a);
     return `Mesada de <b>${money(a.amount)}</b> ${when}${next ? ` · próxima ${next === today() ? '<b>hoje</b>' : esc(relDay(next))}` : ''}`;
+  }
+
+  const bank = () => (S().savings || []).find((x) => x.id === 'banco');
+  const pct = (a, b) => (Number(b) ? Math.max(0, Math.min(100, Math.round((a / Number(b)) * 100))) : 0);
+
+  /** Porquinho mealheiro que enche conforme a percentagem. */
+  function pig(p, color) {
+    const y = 88 - (p / 100) * 62; // nível do "líquido" dentro do corpo (26 = cheio, 88 = vazio)
+    const id = `pg${Math.random().toString(36).slice(2, 8)}`;
+    return `<svg class="pig" viewBox="0 0 120 100" role="img" aria-label="Mealheiro a ${p}%">
+      <defs><clipPath id="${id}"><ellipse cx="58" cy="57" rx="42" ry="31"/><ellipse cx="99" cy="58" rx="12" ry="10"/></clipPath></defs>
+      <rect x="22" y="78" width="11" height="16" rx="4" class="pig-leg"/><rect x="72" y="78" width="11" height="16" rx="4" class="pig-leg"/>
+      <path d="M17 50 q-12 -4 -7 -14" class="pig-tail"/>
+      <path d="M78 30 l8 -16 l6 20 z" class="pig-ear"/>
+      <ellipse cx="58" cy="57" rx="42" ry="31" class="pig-body"/>
+      <ellipse cx="99" cy="58" rx="12" ry="10" class="pig-body"/>
+      <g clip-path="url(#${id})"><rect x="0" y="${y}" width="120" height="100" class="pig-fill" style="fill:${esc(color)}"/>
+        <path d="M0 ${y} q15 -5 30 0 t30 0 t30 0 t30 0 v6 h-120 z" class="pig-wave" style="fill:${esc(color)}"/></g>
+      <ellipse cx="58" cy="57" rx="42" ry="31" class="pig-line"/>
+      <ellipse cx="99" cy="58" rx="12" ry="10" class="pig-line"/>
+      <circle cx="96" cy="56" r="1.8" class="pig-dot"/><circle cx="103" cy="56" r="1.8" class="pig-dot"/>
+      <circle cx="84" cy="44" r="2.6" class="pig-dot"/>
+      <rect x="44" y="23" width="22" height="4" rx="2" class="pig-slot"/>
+      <text x="56" y="64" text-anchor="middle" class="pig-pct">${p}%</text>
+    </svg>`;
+  }
+
+  function goalCard(g, k, bal) {
+    const parent = Store.isParent();
+    const sv = goalSaved(g.id);
+    const target = Number(g.target) || 0;
+    const p = pct(sv, target);
+    const pr = Poupanca.projection(S(), g, today());
+    const juros = S().money.filter((x) => x.goalId === g.id && x.kind === 'juros').reduce((n, x) => n + x.amount, 0);
+    const b = bank();
+    const nextJuros = Poupanca.bankOn(b) && sv > 0 && p < 100 ? Poupanca.interestOf(b, sv) : 0;
+    const when = pr.when ? `${MESES[Number(pr.when.slice(5)) - 1].toLowerCase()} de ${pr.when.slice(0, 4)}` : '';
+    return `<div class="goal pig-goal">
+      ${pig(p, k.color)}
+      <div class="pig-info">
+        <button class="goal-main" data-action="edit-goal" data-id="${g.id}"><span>${esc(g.emoji || '🐷')} <b>${esc(g.title)}</b></span></button>
+        <small>${money(sv)} de ${money(target)}${p >= 100 ? ' · <b>🎉 Conseguiste!</b>' : ` · faltam <b>${money(target - sv)}</b>`}</small>
+        ${p < 100 ? `<small class="muted">${pr.months ? `🔮 A este ritmo (${money(pr.perMonth)}/mês) chegas lá em <b>${esc(when)}</b>` : '🔮 Põe dinheiro regularmente e eu digo-te quando lá chegas.'}</small>` : ''}
+        ${nextJuros ? `<small class="pig-juros">🏦 Próximos juros: <b>+${money(nextJuros)}</b> a dia 1</small>` : ''}
+        ${juros ? `<small class="muted">🏦 Já ganhaste ${money(juros)} em juros</small>` : ''}
+        <span class="pig-btns">${bal > 0 && p < 100 ? `<button class="btn small" data-action="add-money" data-id="${k.id}" data-kind="poupanca" data-goal="${g.id}">🪙 Pôr</button>` : ''}
+          ${parent && sv > 0 ? `<button class="linkish" data-action="goal-withdraw" data-id="${g.id}">↩️ tirar</button>` : ''}</span>
+      </div>
+    </div>`;
+  }
+
+  /** Semanas seguidas a poupar e medalhas de poupança. */
+  function saverStrip(k) {
+    const st = Poupanca.stats(S(), k.id, today());
+    const got = new Set(Poupanca.medals(st));
+    return `<details class="saver"><summary>🔥 <b>${st.weeks}</b> semana${st.weeks === 1 ? '' : 's'} seguida${st.weeks === 1 ? '' : 's'} a poupar
+        · 🏅 ${got.size}/${Poupanca.MEDALS.length} medalhas</summary>
+      <ul class="medals" style="--c:${esc(k.color)}">${Poupanca.MEDALS.map((m) => `<li class="medal ${got.has(m.id) ? '' : 'locked'}" title="${esc(m.desc)}">
+        <span class="b-emoji">${got.has(m.id) ? m.emoji : '🔒'}</span><span class="b-name">${esc(m.name)}</span><small>${esc(m.desc)}</small></li>`).join('')}</ul>
+    </details>`;
+  }
+
+  function bankCard() {
+    const b = bank();
+    const on = Poupanca.bankOn(b);
+    const parent = Store.isParent();
+    if (!parent && !on) return '';
+    return `<section class="card bank ${on ? 'on' : ''}">
+      <div class="bank-row"><span class="bank-ico">🏦</span><div>
+        <b>Banco dos Pais</b>
+        <p class="small">${on ? `Cada mealheiro ganha <b>${Number(b.rate)}% de juros por mês</b>${Number(b.cap) ? ` (até ${money(b.cap)} por mealheiro)` : ''}, pagos a dia 1. Quanto mais cedo poupares, mais ganhas! 🌱`
+          : 'Paguem juros às filhas pelo que têm nos mealheiros: é a forma mais divertida de perceberem que poupar compensa.'}</p></div>
+        ${parent ? `<button class="btn small ${on ? '' : 'primary'}" data-action="edit-bank">${on ? 'Alterar' : 'Abrir o banco'}</button>` : ''}</div>
+    </section>`;
   }
 
   function kidWallet(k) {
@@ -146,22 +221,10 @@
         ${goals.length ? `<button class="btn small" data-action="add-money" data-id="${k.id}" data-kind="poupanca">🐷 Poupar</button>`
           : canGoal ? `<button class="btn small" data-action="add-goal" data-id="${k.id}">🐷 Criar mealheiro</button>` : ''}
       </div>
+      ${goals.length ? saverStrip(k) : ''}
 
       <h3 class="sub">🐷 Mealheiros ${goals.length && canGoal ? `<button class="linkish" data-action="add-goal" data-id="${k.id}">＋ novo</button>` : ''}</h3>
-      ${goals.map((g) => {
-        const sv = goalSaved(g.id);
-        const target = Number(g.target) || 0;
-        const pct = target ? Math.min(100, Math.round((sv / target) * 100)) : 0;
-        return `<div class="goal">
-          <button class="goal-main" data-action="edit-goal" data-id="${g.id}">
-            <span>${esc(g.emoji || '🐷')} <b>${esc(g.title)}</b></span>
-            <small>${money(sv)} de ${money(target)}</small></button>
-          <div class="progress"><span style="width:${pct}%"></span></div>
-          <div class="goal-foot"><small class="muted">${pct >= 100 ? '🎉 Objectivo cumprido!' : `faltam <b>${money(target - sv)}</b> · ${pct}%`}</small>
-            <span>${bal > 0 ? `<button class="linkish" data-action="add-money" data-id="${k.id}" data-kind="poupanca" data-goal="${g.id}">＋ pôr</button>` : ''}
-            ${parent && sv > 0 ? `<button class="linkish" data-action="goal-withdraw" data-id="${g.id}">↩️ tirar</button>` : ''}</span></div>
-        </div>`;
-      }).join('') || '<p class="empty small">Poupar para quê? Uma bicicleta, uns auscultadores, a viagem de finalistas… 🚲🎧✈️</p>'}
+      ${goals.map((g) => goalCard(g, k, bal)).join('') || '<p class="empty small">Poupar para quê? Uma bicicleta, uns auscultadores, a viagem de finalistas… 🚲🎧✈️</p>'}
 
       <h3 class="sub">📒 Movimentos</h3>
       ${inMonth.length ? `<p class="small fin-month">Este mês: <span class="pos">entrou ${money(got)}</span> · <span class="neg">gastou ${money(spent)}</span>${kept ? ` · poupou ${money(kept)}` : ''}</p>` : ''}
@@ -232,10 +295,13 @@
       <li><b>👛 Carteira</b> é o dinheiro que ${parent ? 'cada filha' : 'tens e'} pode gastar. A mesada entra aqui sozinha${Store.isRemote ? ', às 9h do dia certo' : ' (com a conta na nuvem)'}.</li>
       <li><b>🛍️ Gastei</b>: ${parent ? 'elas registam' : 'registas'} o que se gastou, para a carteira bater certo com o dinheiro real.</li>
       <li><b>🐷 Mealheiros</b> são objectivos (ex.: bicicleta). Poupar passa dinheiro da carteira para o mealheiro; só os pais o podem tirar de lá.</li>
+      <li><b>🧮 Arredondar</b>: ao registar um gasto, o troco até ao euro seguinte pode ir para o mealheiro (3,40 € → 0,60 € poupados).</li>
+      <li><b>🏦 Banco dos Pais</b>: se os pais o abrirem, os mealheiros ganham juros todos os meses.</li>
       ${parent ? '<li><b>＋ Dar dinheiro</b>: prendas, mesada extra, recompensa por uma nota boa…</li>' : ''}
     </ul></details>`;
     return `<div class="page-head"><h1>Finanças</h1></div>${tabs}
       ${tab === 'contas' ? billsView() : `${how}
+        ${bankCard()}
         <div class="grid two">${list.map(kidWallet).join('') || empty('Sem carteiras para mostrar.')}</div>`}`;
   }
 
@@ -460,5 +526,5 @@
   insertAfter('votacoes', ['memorias', '📸', 'Memórias', memorias]);
   insertAfter('memorias', ['saude', '🏥', 'Saúde & Docs', saude]);
 
-  Object.assign(Views, { painelExtra, agendaExtra, wallet, goalSaved, kids });
+  Object.assign(Views, { painelExtra, agendaExtra, wallet, goalSaved, kids, bank });
 })();

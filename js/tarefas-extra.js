@@ -303,17 +303,9 @@ window.TarefasExtra = function ({ render }) {
     const news = M.BADGES.filter((b) => now.badges.includes(b.id) && !seen.badges.includes(b.id));
     const up = now.lv > seen.lv;
     if (!news.length && !up) return;
-    const box = document.createElement('div');
-    box.className = 'celebrate';
-    box.setAttribute('role', 'dialog');
-    box.setAttribute('aria-label', 'Parabéns');
-    const confetti = Array.from({ length: 36 }, (_, i) => `<i style="--x:${(i * 37) % 100}vw;--d:${(i % 7) * 0.12}s;--r:${(i * 53) % 360}deg">${['🎉', '⭐', '✨', '🎊'][i % 4]}</i>`).join('');
-    box.innerHTML = `${confetti}<div class="celebrate-card">
-      <h2>Parabéns, ${esc(me.name)}! 🎉</h2>
+    UI.celebrate(`Parabéns, ${me.name}! 🎉`, `
       ${up ? `<p class="celebrate-big">${st.level.emoji}</p><p>Subiste para o <b>nível ${st.level.n}</b> — ${esc(st.level.name)}!</p>` : ''}
-      ${news.map((b) => `<p><span class="celebrate-badge">${b.emoji}</span> Nova medalha: <b>${esc(b.name)}</b><br><small class="muted">${esc(b.desc)}</small></p>`).join('')}
-      <button class="btn primary" data-action="celebrate-close">Boa! 💪</button></div>`;
-    document.body.appendChild(box);
+      ${news.map((b) => `<p><span class="celebrate-badge">${b.emoji}</span> Nova medalha: <b>${esc(b.name)}</b><br><small class="muted">${esc(b.desc)}</small></p>`).join('')}`);
   }
 
   /* ---------- Ligações ---------- */

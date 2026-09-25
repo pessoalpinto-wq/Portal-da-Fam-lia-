@@ -18,24 +18,37 @@ window.Fase4 = function ({ render, withButton }) {
       { name: 'amount', label: 'Valor (€)', type: 'number', min: 0.01, step: '0.01', required: true, half: true },
       { name: 'date', label: 'Data', type: 'date', required: true, half: true },
       ...(kind === 'poupanca' ? [{ name: 'goalId', label: 'Para o mealheiro', type: 'select', options: goals.map((g) => [g.id, `${g.emoji || '🐷'} ${g.title}`]) }] : []),
+      ...(kind === 'gasto' && goals.length ? [{ name: 'roundup', label: '🧮 Arredondar ao euro e pôr o troco no mealheiro?', type: 'select',
+        options: [['', 'Não'], ...goals.map((g) => [g.id, `Sim → ${g.emoji || '🐷'} ${g.title}`])] }] : []),
       { name: 'note', label: kind === 'gasto' ? 'Em quê?' : 'Nota', placeholder: kind === 'gasto' ? 'Ex.: lanche, cinema, livro' : kind === 'oferta' ? 'Ex.: prenda da avó, mesada extra' : '' },
     ];
     openForm({
       title: `${MONEY_TITLE[kind]} · ${member(memberId)?.name || ''}`,
       fields,
-      values: { date: today(), note: MONEY_NOTE[kind], goalId: el.dataset.goal || goals[0]?.id },
+      values: { date: today(), note: MONEY_NOTE[kind], goalId: el.dataset.goal || goals[0]?.id, roundup: goals[0]?.id || '' },
       submitLabel: 'Registar',
       onSubmit: (d) => {
         const amount = round2(Math.abs(d.amount));
         if (!amount) return;
         if (kind !== 'oferta' && amount > Views.wallet(memberId)
           && !confirm(`A carteira só tem ${money(Views.wallet(memberId))}. Registar mesmo assim?`)) return;
-        const goal = goals.find((g) => g.id === d.goalId);
-        Store.update((s) => s.money.push({
-          id: Store.uid(), memberId, date: d.date, kind, amount: kind === 'oferta' ? amount : -amount,
-          note: d.note || (goal ? `Para: ${goal.title}` : { oferta: 'Dinheiro dos pais', gasto: 'Gasto' }[kind]), ...(goal ? { goalId: goal.id } : {}),
-        }));
-        toast(kind === 'poupanca' ? '🐷 Boa! Mais perto do objectivo.' : 'Registado ✔');
+        const goal = kind === 'poupanca' ? goals.find((g) => g.id === d.goalId) : null;
+        const roundGoal = kind === 'gasto' ? goals.find((g) => g.id === d.roundup) : null;
+        const change = roundGoal ? round2(Math.ceil(amount - 1e-9) - amount) : 0;
+        const note = d.note || (goal ? `Para: ${goal.title}` : { oferta: 'Dinheiro dos pais', gasto: 'Gasto' }[kind]);
+        Store.update((s) => {
+          s.money.push({
+            id: Store.uid(), memberId, date: d.date, kind, amount: kind === 'oferta' ? amount : -amount, note, ...(goal ? { goalId: goal.id } : {}),
+          });
+          if (change > 0) {
+            s.money.push({
+              id: Store.uid(), memberId, date: d.date, kind: 'poupanca', amount: -change, goalId: roundGoal.id, roundup: true,
+              note: `🧮 Troco de "${note}"`,
+            });
+          }
+        });
+        toast(kind === 'poupanca' ? '🐷 Boa! Mais perto do objectivo.'
+          : change > 0 ? `Registado ✔ · 🧮 +${money(change)} para ${roundGoal.emoji || '🐷'} ${roundGoal.title}` : 'Registado ✔');
       },
     });
   }
@@ -113,6 +126,74 @@ window.Fase4 = function ({ render, withButton }) {
       }),
       onDelete: cur ? () => Store.update((s) => { s.allowances = s.allowances.filter((a) => a.memberId !== memberId); }) : null,
     });
+  }
+
+  /* ---------- Banco dos Pais ---------- */
+  function bankForm() {
+    if (!Store.isParent()) return;
+    const cur = Views.bank();
+    openForm({
+      title: '🏦 Banco dos Pais',
+      fields: [
+        { name: 'rate', label: 'Juros por mês (%)', type: 'number', min: 0, step: '0.5', required: true, half: true },
+        { name: 'cap', label: 'Máximo por mealheiro/mês (€, 0 = sem máximo)', type: 'number', min: 0, step: '0.5', half: true },
+        { name: 'active', label: 'Banco aberto?', type: 'select', options: [['sim', 'Sim'], ['nao', 'Não (fechado)']] },
+      ],
+      values: cur ? { ...cur, active: cur.active === 'nao' ? 'nao' : 'sim' } : { rate: 5, cap: 2, active: 'sim' },
+      submitLabel: 'Guardar',
+      onSubmit: (d) => Store.update((s) => {
+        const b = s.savings.find((x) => x.id === 'banco');
+        const data = {
+          id: 'banco', rate: round2(Math.max(0, d.rate)), cap: round2(Math.max(0, d.cap)), active: d.active,
+          // Os juros contam a partir do mês em que o banco abriu (pagos no dia 1 do mês seguinte).
+          since: b?.since && b.active !== 'nao' ? b.since : today().slice(0, 7),
+        };
+        if (b) Object.assign(b, data);
+        else s.savings.push(data);
+      }),
+    });
+  }
+
+  /** Os pais pagam os juros que faltam (ids fixos: nunca em duplicado). */
+  function payInterest() {
+    if (!Store.isParent() || typeof Poupanca === 'undefined') return;
+    const due = Poupanca.interestDue(S(), today());
+    if (!due.length) return;
+    Store.update((s) => {
+      const have = new Set(s.money.map((x) => x.id));
+      due.filter((x) => !have.has(x.id)).forEach((x) => s.money.push(x));
+    });
+    toast(`🏦 Juros do Banco dos Pais pagos: ${due.map((x) => `${member(x.memberId)?.name || ''} +${money(x.amount)}`).join(' · ')}`);
+  }
+
+  /** Festa quando o mealheiro passa 25/50/75/100 % ou há medalha nova (só para quem poupa). */
+  function savingsParty() {
+    const s = S();
+    const me = member(s.currentUser);
+    if (!me || typeof Poupanca === 'undefined') return;
+    const goals = s.goals.filter((g) => g.memberId === me.id);
+    if (!goals.length) return;
+    const key = `pf-poupanca-${me.id}`;
+    const now = {
+      goals: Object.fromEntries(goals.map((g) => [g.id, Poupanca.milestone(Views.goalSaved(g.id), g.target)])),
+      medals: Poupanca.medals(Poupanca.stats(s, me.id, today())),
+    };
+    let seen = null;
+    try { seen = JSON.parse(localStorage.getItem(key) || 'null'); } catch { /* sem armazenamento */ }
+    try { localStorage.setItem(key, JSON.stringify(now)); } catch { /* sem armazenamento */ }
+    if (!seen) return;
+    const lines = [];
+    goals.forEach((g) => {
+      const m = now.goals[g.id];
+      if (m > (seen.goals?.[g.id] ?? m)) {
+        lines.push(m >= 100
+          ? `<p class="celebrate-big">🏆</p><p>Encheste o mealheiro <b>${esc(g.emoji || '🐷')} ${esc(g.title)}</b>! Pede aos pais para o ir comprar!</p>`
+          : `<p class="celebrate-big">🐷</p><p>O mealheiro <b>${esc(g.title)}</b> já vai em <b>${m}%</b>!</p>`);
+      }
+    });
+    Poupanca.MEDALS.filter((m) => now.medals.includes(m.id) && !(seen.medals || []).includes(m.id)).forEach((m) =>
+      lines.push(`<p><span class="celebrate-badge">${m.emoji}</span> Nova medalha: <b>${esc(m.name)}</b><br><small class="muted">${esc(m.desc)}</small></p>`));
+    if (lines.length) UI.celebrate(`Boa poupança, ${me.name}! 🎉`, lines.join(''));
   }
 
   const BILL_MONTHS = { monthly: 1, bimonthly: 2, quarterly: 3, yearly: 12 };
@@ -240,6 +321,7 @@ window.Fase4 = function ({ render, withButton }) {
     'edit-bill': (el) => editItem('bills', el.dataset.id, { title: 'conta', fields: Forms.bill() }),
     'pay-bill': payBill,
     'fin-tab': (el) => { VS.finTab = el.dataset.id; render(); },
+    'edit-bank': bankForm,
 
     'add-date': () => editItem('dates', null, { title: 'data especial', fields: Forms.sdate(), defaults: () => ({ knowYear: 'sim', kind: 'Aniversário' }) }),
     'edit-date': (el) => editItem('dates', el.dataset.id, { title: 'data especial', fields: Forms.sdate() }),
@@ -307,6 +389,8 @@ window.Fase4 = function ({ render, withButton }) {
 
   function afterRender(view) {
     if (view.querySelector('img[data-path]')) Photos.hydrate(view).catch((e) => console.warn(e));
+    payInterest();
+    savingsParty();
   }
 
   return { actions, inlineForms, onChange, afterRender };
