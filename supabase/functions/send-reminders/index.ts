@@ -1,9 +1,10 @@
 // Envia os lembretes da família por notificação (Web Push).
 // - Chamada pelo pg_cron de 10 em 10 minutos, com o cabeçalho x-cron-secret.
+//   Também paga as mesadas do dia (movimentos com id fixo: nunca paga duas vezes).
 // - Chamada pela app com { test: true } (utilizador autenticado) para enviar uma notificação de teste.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { importVapidKeys, sendPush } from '../_shared/webpush.js';
-import { computeReminders, lisbonNow } from '../_shared/reminders.js';
+import { allowanceNotices, computeAllowances, computeReminders, lisbonNow } from '../_shared/reminders.js';
 
 const SUBJECT = 'https://pessoalpinto-wq.github.io/Portal-da-Fam-lia-/';
 const cors = {
@@ -52,7 +53,8 @@ async function familyState(familyId: string) {
   for (let from = 0; ; from += 1000) {
     const { data, error } = await admin.from('items').select('coll,data')
       .eq('family_id', familyId).eq('deleted', false)
-      .in('coll', ['members', 'events', 'tasks', 'exams', 'trips', 'redemptions', 'classes'])
+      .in('coll', ['members', 'events', 'tasks', 'exams', 'trips', 'redemptions', 'classes',
+        'docs', 'bills', 'dates', 'health', 'polls', 'votes', 'allowances'])
       .order('coll').order('id').range(from, from + 999);
     if (error) throw error;
     data.forEach((r) => { (state[r.coll] ||= []).push(r.data); });
@@ -60,21 +62,44 @@ async function familyState(familyId: string) {
   }
 }
 
-async function runReminders(vapid: unknown) {
-  const { data: subs, error } = await admin.from('push_subscriptions').select('*');
+/** Paga as mesadas de hoje; devolve só as que foram criadas agora. */
+async function payAllowances(familyId: string, state: Record<string, unknown[]>, now: { date: string; minutes: number }) {
+  const due = computeAllowances({ state, now });
+  if (!due.length) return [];
+  const { data, error } = await admin.from('items')
+    .upsert(due.map((a) => ({ family_id: familyId, coll: 'money', id: a.id, data: a.data })),
+      { onConflict: 'family_id,coll,id', ignoreDuplicates: true })
+    .select('id');
   if (error) throw error;
+  const created = new Set((data || []).map((x) => x.id));
+  return due.filter((a) => created.has(a.id));
+}
+
+async function runReminders(vapid: unknown) {
+  const [{ data: subs, error }, { data: families, error: famErr }] = await Promise.all([
+    admin.from('push_subscriptions').select('*'),
+    admin.from('families').select('id'),
+  ]);
+  if (error) throw error;
+  if (famErr) throw famErr;
   const byFamily = new Map<string, Sub[]>();
   (subs as Sub[]).forEach((s) => byFamily.set(s.family_id, [...(byFamily.get(s.family_id) || []), s]));
   const now = lisbonNow();
-  const summary = { families: byFamily.size, candidates: 0, new: 0, delivered: 0, now };
+  const summary = { families: families.length, allowances: 0, candidates: 0, new: 0, delivered: 0, now };
 
-  for (const [familyId, famSubs] of byFamily) {
+  for (const { id: familyId } of families) {
+    const famSubs = byFamily.get(familyId) || [];
     const [{ data: profiles }, state] = await Promise.all([
       admin.from('profiles').select('user_id, member_id, role, notify').eq('family_id', familyId),
       familyState(familyId),
     ]);
+    const paid = await payAllowances(familyId, state, now);
+    summary.allowances += paid.length;
+    if (!famSubs.length) continue;
+
     const withDevice = new Set(famSubs.map((s) => s.user_id));
-    const reminders = computeReminders({ state, profiles: profiles || [], now }).filter((r) => withDevice.has(r.userId));
+    const reminders = [...computeReminders({ state, profiles: profiles || [], now }), ...allowanceNotices(paid, profiles || [])]
+      .filter((r) => withDevice.has(r.userId));
     summary.candidates += reminders.length;
     if (!reminders.length) continue;
 

@@ -22,7 +22,7 @@ Deno.serve(async (req) => {
   for (let from = 0; ; from += 1000) {
     const { data, error } = await admin.from('items').select('coll,data')
       .eq('family_id', fam.id).eq('deleted', false)
-      .in('coll', ['members', 'events', 'exams', 'trips', 'classes'])
+      .in('coll', ['members', 'events', 'exams', 'trips', 'classes', 'dates', 'docs', 'health'])
       .order('coll').order('id').range(from, from + 999);
     if (error) return new Response('Erro', { status: 500 });
     data.forEach((r) => { (state[r.coll] ||= []).push(r.data); });

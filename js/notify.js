@@ -12,7 +12,12 @@
     ['weekly', '🗓️ Resumo da semana', 'domingo às 20h'],
     ['approvals', '🙋 Pedidos e aprovações', 'na hora'],
     ['trips', '✈️ Viagens', '7 dias e 1 dia antes'],
-    ['birthdays', '🎂 Aniversários', 'na véspera'],
+    ['birthdays', '🎂 Aniversários e datas especiais', 'na véspera'],
+    ['polls', '🗳️ Novas votações', 'na hora'],
+    ['health', '🏥 Consultas e vacinas', 'na véspera'],
+    ['docs', '🔐 Documentos a expirar', '60, 30 e 7 dias antes'],
+    ['money', '💰 Mesada recebida', 'no dia'],
+    ['bills', '💶 Contas da casa', '3 dias antes (pais)'],
   ];
 
   const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent)

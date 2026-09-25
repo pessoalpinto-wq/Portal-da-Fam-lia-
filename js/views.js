@@ -95,7 +95,10 @@
   };
 
   /* ---------- Pedaços reutilizáveis ---------- */
-  const OPEN_ACTION = { event: 'edit-event', exam: 'edit-exam', task: 'edit-task', trip: 'goto-trip', bday: 'edit-member' };
+  const OPEN_ACTION = {
+    event: 'edit-event', exam: 'edit-exam', task: 'edit-task', trip: 'goto-trip', bday: 'edit-member',
+    sdate: 'edit-date', health: 'edit-health', doc: 'edit-doc', bill: 'edit-bill',
+  };
 
   function itemRow(it, date) {
     return `<li class="item" style="--c:${esc(colorOf(it.members))}">
@@ -219,6 +222,7 @@
       <div class="quick">${addBtn('add-event', 'Compromisso')}${addBtn('add-task', 'Tarefa')}${addBtn('add-note', 'Recado')}</div></div>
       <div class="grid">
         ${approvals()}
+        ${Views.painelExtra ? Views.painelExtra() : ''}
         ${card('📅 Hoje', hojeBody, { cls: 'span2' })}
         ${card('🎒 Na escola hoje', escolaBody)}
         ${card(`✅ As minhas tarefas`, mineBody, { action: '<a href="#/tarefas" class="link">Ver todas</a>' })}
@@ -277,7 +281,8 @@
             `<div class="school-row">${avatar(mm.id)}<div><b>${esc(mm.name)}</b> ${esc(cl[0].start)}–${esc(cl[cl.length - 1].end)}</div></div>`).join('')}` : ''}
           <div class="legend">${S().members.map((mm) => UI.chip(mm.id)).join('')}</div>
         </section>
-      </div>`;
+      </div>
+      ${Views.agendaExtra ? Views.agendaExtra() : ''}`;
   }
 
   /* ---------- Escola ---------- */
@@ -305,9 +310,24 @@
     const exams = s.exams.filter((x) => x.memberId === id).sort((a, b) => a.date.localeCompare(b.date));
     const up = exams.filter((x) => x.date >= t);
     const past = exams.filter((x) => x.date < t).reverse();
-    const examLi = (x) => `<li class="item" style="--c:${esc(colorOf([id]))}"><button class="item-main" data-action="edit-exam" data-id="${x.id}">
+    const examBtn = (x) => `<button class="item-main" data-action="edit-exam" data-id="${x.id}">
       <span class="when">${esc(fmtDate(x.date))}</span><span class="title">${esc(x.kind)}: ${esc(x.subject)}${x.notes ? ` — <span class="muted">${esc(x.notes)}</span>` : ''}</span>
-      ${x.grade ? `<span class="grade">${esc(x.grade)}</span>` : ''}</button></li>`;
+      ${x.grade ? `<span class="grade">${esc(x.grade)}</span>` : ''}</button>`;
+    const examLi = (x) => `<li class="item" style="--c:${esc(colorOf([id]))}">${examBtn(x)}</li>`;
+    // Próximos testes: com os tópicos a estudar e o progresso.
+    const examStudy = (x) => {
+      const topics = x.topics || [];
+      const done = topics.filter((tp) => tp.done).length;
+      return `<li class="exam-study"><div class="item" style="--c:${esc(colorOf([id]))}">${examBtn(x)}</div>
+        <div class="topics">
+          ${topics.length ? progress(done, topics.length) : '<small class="muted">📚 Divide a matéria em tópicos e vai marcando o que já estudaste.</small>'}
+          <ul class="steps">${topics.map((tp) => `<li class="${tp.done ? 'done' : ''}">
+            <label><input type="checkbox" data-action="toggle-topic" data-id="${x.id}" data-sub="${tp.id}" ${tp.done ? 'checked' : ''}> ${esc(tp.text)}</label>
+            <button class="icon-btn small" data-action="del-topic" data-id="${x.id}" data-sub="${tp.id}" aria-label="Remover tópico">✕</button></li>`).join('')}</ul>
+          <form class="inline-add" data-form="add-topic" data-id="${x.id}">
+            <input name="text" placeholder="Tópico a estudar…" required aria-label="Novo tópico"><button class="btn small">＋</button></form>
+        </div></li>`;
+    };
 
     return `<div class="page-head"><h1>Escola</h1>
       <div class="quick">${addBtn('add-class', 'Aula')}${addBtn('add-exam', 'Teste / trabalho')}</div></div>
@@ -317,7 +337,7 @@
         ${cls.length ? `<button class="btn small ghost" data-action="clear-classes">Limpar horário</button>` : ''}</header>
         <div class="timetable" style="--cols:${days.length}">${cols}</div></section>
       <div class="grid two">
-        ${card('📝 Próximos testes e trabalhos', up.length ? `<ul class="list">${up.map(examLi).join('')}</ul>` : empty('Nada agendado.'), { action: addBtn('add-exam') })}
+        ${card('📝 Próximos testes e trabalhos', up.length ? `<ul class="list">${up.map(examStudy).join('')}</ul>` : empty('Nada agendado.'), { action: addBtn('add-exam') })}
         ${card('📚 Histórico e notas', past.length ? `<ul class="list">${past.map(examLi).join('')}</ul>` : empty('Aqui aparecem os testes já feitos (podes registar a nota).'))}
       </div>`;
   }
@@ -403,7 +423,8 @@
         <header class="card-head"><h2>✈️ ${esc(tr.destination)}</h2><button class="icon-btn" data-action="edit-trip" data-id="${tr.id}" aria-label="Editar viagem">✎</button></header>
         <p class="meta-line"><span>${esc(fmtDate(tr.start))}${tr.end ? ` → ${esc(fmtDate(tr.end))}` : ''}${nights > 0 ? ` · ${nights} noites` : ''}</span>
           ${until > 0 ? `<span class="badge">faltam ${until} dias</span>` : until <= 0 && (tr.end || tr.start) >= t ? '<span class="badge">a decorrer</span>' : ''}</p>
-        <p class="meta-line">${chips(tr.members)}</p>
+        <p class="meta-line">${chips(tr.members)}${(S().photos || []).some((ph) => ph.tripId === tr.id)
+          ? `<a class="link" href="#/memorias" data-action="photos-trip" data-id="${tr.id}">📸 ${S().photos.filter((ph) => ph.tripId === tr.id).length} fotos</a>` : ''}</p>
         ${tr.lodging ? `<p>🏨 ${esc(tr.lodging)}</p>` : ''}
         ${tr.notes ? `<p class="muted pre">${esc(tr.notes)}</p>` : ''}
         <h3 class="sub">🧳 Mala e preparativos</h3>${progress(packDone, tr.packing.length)}
@@ -545,6 +566,8 @@
 
   window.Views = {
     VS, Forms,
+    /** Peças reutilizadas pelas vistas da Fase 4. */
+    h: { card, empty, addBtn, progress, itemRow, taskRow, leaderboard },
     routes: [
       ['painel', '🏠', 'Painel', painel],
       ['agenda', '📅', 'Agenda', agenda],

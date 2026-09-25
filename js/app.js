@@ -4,6 +4,7 @@
   const { editItem, toast, completeTask, reopenTask } = UI;
   const { VS, Forms, routes } = Views;
   const S = () => Store.state;
+  let fase4 = null; // acções da Fase 4 (js/actions-fase4.js)
 
   /* ---------- Navegação ---------- */
   const currentRoute = () => {
@@ -91,6 +92,7 @@
     renderSync();
     fillInviteCodes();
     fillPanels();
+    fase4?.afterRender(main);
     window.scrollTo(0, scroll);
   }
 
@@ -280,6 +282,7 @@
   // Checkboxes usam "change" para não interferir com o comportamento nativo.
   document.addEventListener('change', (e) => {
     const el = e.target;
+    if (fase4?.onChange(el)) return;
     if (el.matches('input[type=checkbox][data-action]')) {
       actions[el.dataset.action]?.(el);
     } else if (el.matches('[data-notify-pref]')) {
@@ -311,6 +314,10 @@
       s.notes.push({ id: Store.uid(), author: s.currentUser, text: d.text, date: today(), pinned: false });
     }),
   };
+
+  fase4 = window.Fase4({ render, withButton });
+  Object.assign(actions, fase4.actions);
+  Object.assign(inlineForms, fase4.inlineForms);
 
   document.addEventListener('submit', (e) => {
     const f = e.target.closest('form[data-form]');

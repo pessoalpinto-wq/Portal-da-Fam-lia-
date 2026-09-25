@@ -17,7 +17,12 @@ export const NOTIFY_TYPES = {
   weekly: 'Resumo da semana (domingo às 20h)',
   approvals: 'Pedidos e aprovações',
   trips: 'Viagens (7 dias e 1 dia antes)',
-  birthdays: 'Aniversários (na véspera)',
+  birthdays: 'Aniversários e datas especiais',
+  polls: 'Novas votações',
+  health: 'Consultas e vacinas (na véspera)',
+  docs: 'Documentos a expirar',
+  bills: 'Contas da casa (pais)',
+  money: 'Mesada recebida',
 };
 
 /** Data (AAAA-MM-DD) e minutos do dia em Lisboa. */
@@ -54,6 +59,7 @@ export function occursOn(e, date) {
 
 const DIAS = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
 const shortDate = (iso) => `${DIAS[weekday(iso)]}, ${Number(iso.slice(8))}/${Number(iso.slice(5, 7))}`;
+const money = (n) => `${(Math.round(Number(n) * 100) / 100).toFixed(2).replace('.', ',')} €`;
 const list = (arr, max = 3) => arr.slice(0, max).join(', ') + (arr.length > max ? ` e mais ${arr.length - max}` : '');
 
 /**
@@ -65,7 +71,8 @@ const list = (arr, max = 3) => arr.slice(0, max).join(', ') + (arr.length > max 
  */
 export function computeReminders({ state, profiles, now }) {
   const s = {
-    members: [], events: [], tasks: [], exams: [], trips: [], redemptions: [], classes: [], ...state,
+    members: [], events: [], tasks: [], exams: [], trips: [], redemptions: [], classes: [],
+    docs: [], bills: [], dates: [], health: [], polls: [], votes: [], ...state,
   };
   const nowAbs = at(now.date, now.minutes);
   const due = (iso, time) => {
@@ -107,8 +114,10 @@ export function computeReminders({ state, profiles, now }) {
       const recipients = profiles.filter((p) => p.member_id === x.memberId || p.role === 'parent');
       recipients.forEach((p) => {
         const mine = p.member_id === x.memberId;
+        const topics = x.topics || [];
+        const studied = topics.length ? ` · 📚 ${topics.filter((t) => t.done).length}/${topics.length} tópicos estudados` : '';
         push(p, 'exams', `ex:${x.id}:${x.date}`, `📝 Amanhã: ${x.kind} de ${x.subject}`,
-          `${mine ? 'Bom estudo! 💪' : name(x.memberId)}${x.notes ? ` · ${x.notes}` : ''}`, '#/escola');
+          `${mine ? 'Bom estudo! 💪' : name(x.memberId)}${studied}${!topics.length && x.notes ? ` · ${x.notes}` : ''}`, '#/escola');
       });
     });
   }
@@ -194,5 +203,88 @@ export function computeReminders({ state, profiles, now }) {
     });
   }
 
+  // Documentos: 60, 30 e 7 dias antes e no próprio dia, às 9h (pais e o dono do documento).
+  if (due(today, 9 * 60)) {
+    s.docs.filter((d) => d.expires).forEach((d) => {
+      const left = dayNum(d.expires) - dayNum(today);
+      if (![60, 30, 7, 0].includes(left)) return;
+      const who = d.memberId ? ` de ${name(d.memberId)}` : '';
+      profiles.filter((p) => p.role === 'parent' || p.member_id === d.memberId).forEach((p) => push(p, 'docs', `doc:${d.id}:${d.expires}:${left}`,
+        left ? `🔐 ${d.type}${who} expira daqui a ${left} dias` : `🔐 ${d.type}${who} expira hoje!`,
+        `Validade: ${shortDate(d.expires)}. Convém tratar da renovação.`, '#/saude'));
+    });
+
+    // Contas da casa: 3 dias antes e no próprio dia (só pais).
+    s.bills.filter((b) => b.due && !b.archived).forEach((b) => {
+      const left = dayNum(b.due) - dayNum(today);
+      if (left !== 3 && left !== 0) return;
+      parents.forEach((p) => push(p, 'bills', `bill:${b.id}:${b.due}:${left}`,
+        left ? `💶 ${b.title} vence daqui a 3 dias` : `💶 ${b.title} vence hoje`,
+        `${money(b.amount)}${b.auto ? ' · débito directo' : ''}`, '#/financas'));
+    });
+  }
+
+  // Datas especiais: 7 dias e 1 dia antes, às 20h, para todos.
+  if (due(today, 20 * 60)) {
+    s.dates.filter((d) => d.date).forEach((d) => {
+      [7, 1].forEach((n) => {
+        const day = addDays(today, n);
+        if (d.date.slice(5) !== day.slice(5)) return;
+        const years = d.knowYear !== false && d.knowYear !== 'nao' && d.date.slice(0, 4) < day.slice(0, 4) ? Number(day.slice(0, 4)) - Number(d.date.slice(0, 4)) : 0;
+        profiles.forEach((p) => push(p, 'birthdays', `sd:${d.id}:${day.slice(0, 4)}:${n}`,
+          `🎉 ${n === 1 ? 'Amanhã' : 'Daqui a uma semana'}: ${d.title}${years ? ` (${years} anos)` : ''}`,
+          d.gifts ? `💡 Ideias: ${d.gifts}` : 'Já pensaram no presente?', '#/agenda'));
+      });
+    });
+  }
+
+  // Saúde: próxima consulta / vacina / dose na véspera às 19h (a pessoa e os pais).
+  if (due(today, 19 * 60)) {
+    s.health.filter((h) => h.next === tomorrow).forEach((h) => {
+      profiles.filter((p) => p.role === 'parent' || p.member_id === h.memberId).forEach((p) => push(p, 'health', `hn:${h.id}:${h.next}`,
+        `🏥 Amanhã: ${h.nextLabel || h.title}`, `${name(h.memberId)}${h.notes ? ` · ${h.notes}` : ''}`, '#/saude'));
+    });
+  }
+
+  // Votações abertas: avisa quem ainda não votou (uma vez por votação).
+  s.polls.filter((v) => !v.closed && v.date >= addDays(today, -2)).forEach((v) => {
+    const voted = new Set(s.votes.filter((x) => x.pollId === v.id).map((x) => x.memberId));
+    profiles.filter((p) => p.member_id !== v.createdBy && !voted.has(p.member_id)).forEach((p) => push(p, 'polls', `poll:${v.id}`,
+      '🗳️ Nova votação na família', `${v.question} — ${name(v.createdBy)} quer saber a tua opinião`, '#/votacoes'));
+  });
+
+  return out;
+}
+
+const lastDayOfMonth = (iso) => {
+  const [y, m] = iso.split('-').map(Number);
+  return new Date(Date.UTC(y, m, 0)).getUTCDate();
+};
+
+/**
+ * Mesadas a pagar hoje (a partir das 9h). O id é determinístico, por isso pagar duas vezes é impossível.
+ * @returns {Array<{id, data}>} movimentos a criar na colecção "money"
+ */
+export function computeAllowances({ state, now }) {
+  if (now.minutes < 9 * 60) return [];
+  const today = now.date;
+  const day = Number(today.slice(8));
+  return (state.allowances || []).filter((a) => {
+    if (a.active === false || a.active === 'nao' || !(Number(a.amount) > 0) || (a.start && a.start > today)) return false;
+    if (a.frequency === 'monthly') return day === Math.min(Number(a.day) || 1, lastDayOfMonth(today));
+    return weekday(today) === Number(a.day ?? 6);
+  }).map((a) => {
+    const id = `allow-${a.memberId}-${today}`;
+    return { id, data: { id, memberId: a.memberId, amount: Number(a.amount), date: today, kind: 'mesada', note: 'Mesada' } };
+  });
+}
+
+/** Notificação "recebeste a mesada" para quem a recebeu. */
+export function allowanceNotices(entries, profiles) {
+  const out = [];
+  entries.forEach((e) => profiles.filter((p) => p.member_id === e.data.memberId && (p.notify || {}).money !== false).forEach((p) => {
+    out.push({ key: `money:${e.id}:${p.user_id}`, userId: p.user_id, type: 'money', title: `💰 Recebeste a mesada: ${money(e.data.amount)}`,
+      body: 'Já está na tua carteira. Que tal pôr uma parte no mealheiro? 🐷', url: '#/financas', tag: `money:${e.id}` });
+  }));
   return out;
 }

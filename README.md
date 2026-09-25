@@ -44,7 +44,12 @@ Em **Definições → Lembretes no telemóvel → Ligar lembretes** (em cada apa
 | 🗓️ Resumo da semana | domingo às 20h | cada um |
 | 🙋 Aprovações | na hora | pais (pedidos) e filhas (resposta) |
 | ✈️ Viagem | 7 dias e 1 dia antes | quem vai |
-| 🎂 Aniversário | na véspera às 20h | todos menos o aniversariante 😉 |
+| 🎂 Aniversário / 🎉 data especial | na véspera às 20h (datas: também 1 semana antes) | todos menos o aniversariante 😉 |
+| 💰 Mesada recebida | no dia, a partir das 9h | a filha |
+| 🔐 Documento a expirar | 60, 30, 7 dias antes e no dia | pais e o dono |
+| 💶 Conta da casa | 3 dias antes e no dia | pais |
+| 🏥 Consulta / vacina | na véspera às 19h | a pessoa e os pais |
+| 🗳️ Nova votação | na hora | quem ainda não votou |
 
 Cada pessoa escolhe o que quer receber. **No iPhone** (iOS 16.4 ou mais recente) é preciso primeiro
 instalar o portal: Safari → Partilhar → **Adicionar ao ecrã principal**, e abrir pelo ícone.
@@ -65,6 +70,10 @@ Na **Agenda** há também "⬇️ .ics" para descarregar a agenda num ficheiro (
 | Trocar pontos por recompensas | ✅ | ⏳ faz um **pedido** que os pais aprovam |
 | Alterar pontos, membros da família e recompensas | ✅ | ❌ (bloqueado no servidor) |
 | Ver códigos de convite | ✅ | ❌ |
+| Mesadas e contas da casa | ✅ | ❌ (as contas nem são visíveis) |
+| Dinheiro na carteira | ✅ dar e registar | só registar gastos / pôr no mealheiro da própria carteira |
+| Votar | só o próprio voto | só o próprio voto |
+| Apagar fotos | todas | só as que enviou |
 
 As regras estão na própria base de dados (Row Level Security), por isso não dá para as contornar
 mexendo na página. Cada família só vê os seus dados.
@@ -84,6 +93,13 @@ mexendo na página. Cada família só vê os seus dados.
 | 🍽️ **Refeições** | Plano semanal de almoços/jantares e quem cozinha. Ingredientes entre parênteses passam para a lista de compras com um clique. |
 | 📌 **Mural** | Recados para a família ("hoje chego tarde"), com possibilidade de afixar. |
 | 📞 **Contactos** | Escola, centro de saúde, explicadores, treinadores, emergência — com botão para ligar. |
+| 💰 **Finanças** | Carteira de cada filha, **mesada paga automaticamente** (semanal ou mensal), **mealheiros** com objectivos (bicicleta, telemóvel…), registo de gastos. **Contas da casa** com próximo pagamento e histórico — só os pais vêem. |
+| 🏥 **Saúde & Docs** | Ficha de saúde de cada um (alergias, medicação, grupo sanguíneo, médico), consultas e vacinas com a próxima data, e **validade dos documentos** (CC, passaporte, carta, seguros, inspecção, IUC) com aviso antes de expirar. |
+| 🗳️ **Votações** | Decisões em família — um voto por pessoa (garantido pelo servidor), resultados em tempo real. |
+| 📸 **Memórias** | Álbum privado da família, com fotos por viagem. As fotos são reduzidas no telemóvel antes de enviar. |
+| 🚗 **Boleias** | Na Agenda: compromissos das filhas dos próximos 7 dias, quem leva e botão "Eu levo"; aviso no Painel quando ninguém leva. |
+| 🎉 **Datas especiais** | Aniversários de avós, tios, amigos, casamento… com idade e ideias de presentes. |
+| 📚 **Estudo** | Em cada teste, a lista de tópicos a estudar com progresso — o lembrete da véspera diz quanto falta. |
 
 ## Proposta de evolução
 
@@ -99,16 +115,15 @@ mexendo na página. Cada família só vê os seus dados.
 - Sincronização nos dois sentidos com o Google Calendar ficou de fora: exige registar uma app na Google e passar
   pela verificação deles. O link de subscrição cobre o essencial.
 
-### Fase 4 — Mais ideias para uma família de 4
-- 💰 **Mesadas e finanças**: mesada de cada filha, poupanças para objectivos, despesas da casa e contas a pagar (água, luz, seguros, IUC).
-- 🏥 **Saúde**: consultas, vacinas, medicação, alergias, dentista/ortodontista.
-- 🚗 **Boleias e logística**: quem leva quem, com o calendário semanal de actividades extra-curriculares.
-- 📚 **Estudo**: plano de estudo para os testes, época de exames nacionais (a de 16 anos entra no 11.º/12.º), candidaturas ao ensino superior.
-- 🔐 **Documentos**: validade de cartões de cidadão, passaportes, cartas de condução, seguros — com aviso antes de expirar.
-- 🎂 **Datas especiais**: aniversários de avós, tios e amigos, com lista de ideias de presentes.
-- 🐶 **Animais** (se houver): vacinas, veterinário, turnos de passeio.
-- 🗳️ **Decisões em família**: votações rápidas (destino de férias, jantar de sábado, filme).
-- 📸 **Álbum/memórias** de viagens e momentos da família.
+### ✅ Fase 4 — Finanças, saúde, votações, memórias (feito)
+Mesadas e mealheiros, contas da casa, saúde e documentos, votações, álbum de fotos, boleias,
+datas especiais e tópicos de estudo.
+
+### Ideias para depois
+- 🐶 Animais: vacinas, veterinário, turnos de passeio.
+- 🎓 Candidaturas ao ensino superior (para a mais velha): prazos, médias, exames nacionais.
+- 💬 Converter pontos das tarefas em euros para a carteira (com taxa definida pelos pais).
+- 📊 Relatório mensal das despesas da casa por categoria.
 
 ## Estrutura técnica
 
@@ -125,12 +140,15 @@ js/views.js                as secções do portal
 js/cloud.js                contas, criar família, entrar com código
 js/app.js                  navegação e acções
 js/notify.js               lembretes (Web Push) e link do calendário
+js/views-fase4.js          finanças, saúde & documentos, votações, memórias, boleias, datas
+js/actions-fase4.js        acções dessas secções
+js/photos.js               fotos: redução no telemóvel, envio e links temporários
 js/vendor/supabase.js      biblioteca supabase-js (MIT)
 sw.js                      service worker: mostra as notificações
 icons/                     ícones da app (Android / iPhone)
 supabase/migrations/       esquema da base de dados e regras de segurança
 supabase/functions/
-  send-reminders/          envia os lembretes (chamada pelo pg_cron de 10 em 10 min)
+  send-reminders/          envia os lembretes e paga as mesadas (pg_cron, de 10 em 10 min)
   calendar/                calendário iCal para subscrever
   _shared/                 Web Push (RFC 8291/8292), regras dos lembretes, gerador .ics
 tests/                     testes (npm test)

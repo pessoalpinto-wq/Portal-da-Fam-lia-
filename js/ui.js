@@ -157,6 +157,20 @@
     s.members.filter((m) => m.birthday && m.birthday.slice(5) === date.slice(5)).forEach((m) => out.push({
       kind: 'bday', id: m.id, title: `🎂 Anos: ${m.name}`, members: [m.id],
     }));
+    (s.dates || []).filter((d) => d.date && d.date.slice(5) === date.slice(5)).forEach((d) => out.push({
+      kind: 'sdate', id: d.id, title: `🎉 ${d.title}`, members: [],
+    }));
+    (s.health || []).filter((h) => h.next === date).forEach((h) => out.push({
+      kind: 'health', id: h.id, title: `🏥 ${h.nextLabel || h.title}`, members: [h.memberId],
+    }));
+    (s.docs || []).filter((d) => d.expires === date).forEach((d) => out.push({
+      kind: 'doc', id: d.id, title: `🔐 Expira: ${d.type}`, members: d.memberId ? [d.memberId] : [],
+    }));
+    if (Store.isParent()) {
+      (s.bills || []).filter((b) => b.due === date && !b.archived).forEach((b) => out.push({
+        kind: 'bill', id: b.id, title: `💶 ${b.title}`, members: [],
+      }));
+    }
     return out.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
   }
 

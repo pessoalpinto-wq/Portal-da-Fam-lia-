@@ -43,3 +43,15 @@ test('linhas nunca passam de 75 octetos', () => {
   out.split('\r\n').forEach((l) => assert.ok(new TextEncoder().encode(l).length <= 75, l));
   assert.ok(out.includes('\r\n '), 'dobrou linhas');
 });
+
+test('datas especiais, documentos e saúde entram no calendário', () => {
+  const out = ICS.build({
+    ...state,
+    dates: [{ id: 'd1', title: 'Anos da avó', date: '1950-03-02', gifts: 'flores' }],
+    docs: [{ id: 'k1', type: 'Passaporte', memberId: 'pai', expires: '2027-01-10' }],
+    health: [{ id: 'h1', memberId: 'f12', title: 'Vacina', next: '2026-11-02', nextLabel: 'Vacina (2.ª dose)' }],
+  }, { memberId: 'f12', now });
+  assert.match(out, /UID:date-d1@portal-familia[\s\S]*RRULE:FREQ=YEARLY[\s\S]*SUMMARY:🎉 Anos da avó/);
+  assert.ok(!out.includes('doc-k1'), 'o passaporte do pai não entra no calendário da filha');
+  assert.match(out, /SUMMARY:🏥 Vacina \(2\.ª dose\)/);
+});

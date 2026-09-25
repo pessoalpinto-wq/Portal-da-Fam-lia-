@@ -26,6 +26,18 @@
     meals: {},
     notes: [],
     contacts: [],
+    // Fase 4
+    money: [],
+    allowances: [],
+    goals: [],
+    bills: [],
+    dates: [],
+    health: [],
+    healthcards: [],
+    docs: [],
+    polls: [],
+    votes: [],
+    photos: [],
   });
 
   function seed() {
@@ -120,6 +132,37 @@
       { name: 'SNS 24', category: 'Saúde', phone: '808 24 24 24', email: '', notes: 'Linha de saúde' },
       { name: 'Emergência', category: 'Emergência', phone: '112', email: '', notes: '' },
     ].map((x) => ({ id: uid(), ...x }));
+
+    // Finanças (exemplo): mesadas, um mealheiro e contas da casa.
+    s.allowances = [
+      { id: f12.id, memberId: f12.id, amount: 5, frequency: 'weekly', day: 6, active: true },
+      { id: f16.id, memberId: f16.id, amount: 30, frequency: 'monthly', day: 1, active: true },
+    ];
+    const bike = { id: uid(), memberId: f12.id, title: 'Bicicleta nova', target: 150, emoji: '🚲' };
+    s.goals = [bike];
+    s.money = [
+      { memberId: f12.id, amount: 20, date: addDays(t, -14), kind: 'oferta', note: 'Prenda da avó (exemplo)' },
+      { memberId: f12.id, amount: -12, date: addDays(t, -7), kind: 'poupanca', goalId: bike.id, note: 'Para a bicicleta' },
+      { memberId: f16.id, amount: 30, date: addDays(t, -20), kind: 'mesada', note: 'Mesada' },
+      { memberId: f16.id, amount: -6.5, date: addDays(t, -3), kind: 'gasto', note: 'Cinema' },
+    ].map((x) => ({ id: uid(), ...x }));
+    s.bills = [
+      { title: 'Electricidade', amount: 75, due: addDays(t, 5), repeat: 'monthly', category: 'Casa', auto: true },
+      { title: 'Internet e telemóveis', amount: 65, due: addDays(t, 12), repeat: 'monthly', category: 'Casa', auto: true },
+      { title: 'Seguro do carro', amount: 320, due: addDays(t, 80), repeat: 'yearly', category: 'Carro', auto: false },
+    ].map((x) => ({ id: uid(), history: [], ...x }));
+
+    // Saúde e documentos (exemplo).
+    s.health = [{ id: uid(), memberId: f12.id, date: addDays(t, -170), type: 'Dentista', title: 'Revisão no dentista', notes: '', next: addDays(t, 10), nextLabel: 'Dentista — revisão (exemplo)' }];
+    s.docs = [
+      { id: uid(), memberId: f16.id, type: 'Cartão de Cidadão', ref: '', expires: addDays(t, 50), notes: 'Exemplo — marcar renovação' },
+      { id: uid(), memberId: '', type: 'Inspecção do carro', ref: '', expires: addDays(t, 120), notes: '' },
+    ];
+    s.dates = [{ id: uid(), title: 'Anos da avó (exemplo)', date: `1952-${addDays(t, 20).slice(5)}`, knowYear: true, kind: 'Aniversário', gifts: 'Uma fotografia da família emoldurada' }];
+    s.polls = [{
+      id: uid(), question: 'Que filme vemos na sexta? 🍿', createdBy: mae.id, date: t, closed: false,
+      options: [{ id: 'a', text: 'Comédia' }, { id: 'b', text: 'Aventura' }, { id: 'c', text: 'Animação' }],
+    }];
     return s;
   }
 
@@ -142,7 +185,8 @@
 
   /* ---------- Conversão estado <-> itens (uma linha por item no Supabase) ---------- */
   const COLLS = ['members', 'events', 'tasks', 'rewards', 'redemptions', 'classes', 'exams',
-    'projects', 'trips', 'shopping', 'notes', 'contacts'];
+    'projects', 'trips', 'shopping', 'notes', 'contacts',
+    'money', 'allowances', 'goals', 'bills', 'dates', 'health', 'healthcards', 'docs', 'polls', 'votes', 'photos'];
   const keyOf = (r) => `${r.coll}/${r.id}`;
 
   function toItems(s) {
@@ -365,7 +409,9 @@
     importJSON(text) { state = normalize(JSON.parse(text)); emit(); },
     resetToExample() { state = seed(); emit(); },
     wipe() {
-      const keep = new Set(['members', 'rewards']);
+      // Mantém o que é "estrutural" da família; apaga o dia-a-dia.
+      const keep = new Set(['members', 'rewards', 'contacts', 'allowances', 'goals', 'money', 'bills',
+        'dates', 'health', 'healthcards', 'docs', 'photos']);
       Store.update((s) => {
         Object.keys(EMPTY()).forEach((k) => {
           if (Array.isArray(s[k]) && !keep.has(k)) s[k] = [];

@@ -105,6 +105,24 @@
         t.notes && `DESCRIPTION:${text(t.notes)}`]);
     });
 
+    (s.dates || []).forEach((d) => {
+      if (!d.date) return;
+      vevent(`date-${d.id}`, [...allDay(d.date), 'RRULE:FREQ=YEARLY', `SUMMARY:${text(`🎉 ${d.title}`)}`,
+        d.gifts && `DESCRIPTION:${text(`Ideias de presentes: ${d.gifts}`)}`]);
+    });
+
+    (s.docs || []).forEach((d) => {
+      if (!d.expires || (memberId && d.memberId && d.memberId !== memberId)) return;
+      const who = d.memberId ? ` (${names([d.memberId])})` : '';
+      vevent(`doc-${d.id}`, [...allDay(d.expires), `SUMMARY:${text(`🔐 Expira: ${d.type}${who}`)}`]);
+    });
+
+    (s.health || []).forEach((h) => {
+      if (!h.next || (memberId && h.memberId !== memberId)) return;
+      const who = memberId ? '' : ` (${names([h.memberId])})`;
+      vevent(`health-${h.id}`, [...allDay(h.next), `SUMMARY:${text(`🏥 ${h.nextLabel || h.title}${who}`)}`]);
+    });
+
     s.members.forEach((m) => {
       if (!m.birthday) return;
       vevent(`bday-${m.id}`, [...allDay(m.birthday), 'RRULE:FREQ=YEARLY', `SUMMARY:${text(`🎂 Anos: ${m.name}`)}`]);
