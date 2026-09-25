@@ -147,6 +147,7 @@ supabase/migrations/       esquema da base de dados e regras de segurança
 supabase/functions/
   send-reminders/          envia os lembretes e paga as mesadas (pg_cron, de 10 em 10 min)
   calendar/                calendário iCal para subscrever
+  register/                criar conta já confirmada (sem email de confirmação)
   _shared/                 Web Push (RFC 8291/8292), regras dos lembretes, gerador .ics
 tests/                     testes (npm test)
 ```
