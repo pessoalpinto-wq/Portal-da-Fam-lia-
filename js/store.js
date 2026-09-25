@@ -43,9 +43,9 @@
   function seed() {
     const s = EMPTY();
     const pai = { id: uid(), name: 'Pai', role: 'pai', emoji: '👨', color: '#3b82f6', birthday: '', points: 0 };
-    const mae = { id: uid(), name: 'Mãe', role: 'mae', emoji: '👩', color: '#ec4899', birthday: '', points: 0 };
-    const f16 = { id: uid(), name: 'Filha (16)', role: 'filha', emoji: '👱‍♀️', color: '#8b5cf6', birthday: '', points: 0 };
-    const f12 = { id: uid(), name: 'Filha (12)', role: 'filha', emoji: '👧', color: '#f59e0b', birthday: '', points: 0 };
+    const mae = { id: uid(), name: 'Cátia', role: 'mae', emoji: '👩', color: '#ec4899', birthday: '', points: 0 };
+    const f16 = { id: uid(), name: 'Mariana', role: 'filha', emoji: '👱‍♀️', color: '#8b5cf6', birthday: '', points: 0 };
+    const f12 = { id: uid(), name: 'Luísa', role: 'filha', emoji: '👧', color: '#f59e0b', birthday: '', points: 0 };
     s.members = [pai, mae, f16, f12];
     s.currentUser = mae.id;
 
@@ -93,7 +93,7 @@
     ].map((x) => ({ id: uid(), ...x }));
 
     s.projects = [{
-      id: uid(), title: 'Pintar o quarto da mais nova', description: 'Escolher cor, comprar material e pintar num fim de semana.',
+      id: uid(), title: 'Pintar o quarto da Luísa', description: 'Escolher cor, comprar material e pintar num fim de semana.',
       members: [pai.id, f12.id], deadline: addDays(t, 30),
       steps: [
         { id: uid(), text: 'Escolher a cor', done: true },
