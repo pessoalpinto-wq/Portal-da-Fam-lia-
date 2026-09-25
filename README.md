@@ -84,7 +84,7 @@ mexendo na página. Cada família só vê os seus dados.
 | 🏠 **Painel** | O dia de hoje num relance: compromissos, quem está na escola e a que horas sai, as minhas tarefas, próximos 7 dias, testes, pontos, recados, compras e contagem decrescente para a próxima viagem. |
 | 📅 **Agenda** | Calendário mensal partilhado com cor por pessoa. Compromissos com repetição (semanal/mensal/anual), local, participantes e **quem leva / vai buscar**. Mostra também testes, tarefas, viagens e aniversários. |
 | 🎒 **Escola** | Horário semanal de cada filha (dia de hoje destacado), testes/trabalhos/reuniões de pais e histórico com as notas obtidas. |
-| ✅ **Tarefas** | Tarefas domésticas atribuídas a cada pessoa, com data, repetição (diária/semanal/mensal) e **pontos ⭐**. Tarefas repetidas avançam sozinhas para a próxima data. |
+| ✅ **Tarefas** | Tarefas domésticas atribuídas a cada pessoa, com data, repetição (diária/semanal/mensal) e **pontos ⭐**. Tarefas repetidas avançam sozinhas para a próxima data. **💡 Ideias**: mais de 70 tarefas domésticas por zona da casa e idade, com dicas, que se juntam com um toque, e "Montar a semana" para os pais. **🏆 Conquistas**: níveis com XP (que não desce ao trocar pontos), dias seguidos com bónus, 16 medalhas, estrela da semana, desafio da família com prémio comum e festejos quando se sobe de nível. |
 | 🎁 **Recompensas** | Os pontos trocam-se por recompensas combinadas em família (escolher o filme, mais tempo de ecrã, escolher o jantar…). Ideal para motivar a mais nova — e a mais velha. |
 | 🛠️ **Projectos** | Obras, festas, trabalhos de grupo… divididos em passos, com prazo, participantes e barra de progresso. |
 | ✈️ **Viagens** | Datas, contagem decrescente, alojamento, lista de mala por pessoa, preparativos (documentos, seguros) e orçamento com despesas. |
@@ -134,6 +134,9 @@ css/styles.css             estilos (claro/escuro automático, adaptado a telemó
 js/config.js               endereço e chave pública do Supabase
 js/utils.js                datas e utilitários
 js/store.js                dados: cache local + sincronização em tempo real com o Supabase
+js/motivacao.js            níveis, dias seguidos, medalhas e desafios (calculados do histórico)
+js/ideias-tarefas.js       catálogo de ideias de tarefas domésticas
+js/tarefas-extra.js        separadores Ideias e Conquistas das Tarefas
 js/ui.js                   componentes (formulários, avisos) e regras (tarefas, aprovações, agenda)
 js/views.js                as secções do portal
 js/cloud.js                contas, criar família, entrar com código

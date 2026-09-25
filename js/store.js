@@ -41,6 +41,8 @@
     // Refeições: receitas da família e despensa
     recipes: [],
     pantry: [],
+    // Tarefas: desafios da família (só os pais criam)
+    challenges: [],
   });
 
   function seed() {
@@ -197,7 +199,7 @@
   const COLLS = ['members', 'events', 'tasks', 'rewards', 'redemptions', 'classes', 'exams',
     'projects', 'trips', 'shopping', 'notes', 'contacts',
     'money', 'allowances', 'goals', 'bills', 'dates', 'health', 'healthcards', 'docs', 'polls', 'votes', 'photos',
-    'recipes', 'pantry'];
+    'recipes', 'pantry', 'challenges'];
   const keyOf = (r) => `${r.coll}/${r.id}`;
 
   function toItems(s) {

@@ -368,7 +368,9 @@
     const hist = [...s.redemptions].filter((r) => r.status !== 'pending').reverse().slice(0, 6).map((r) =>
       `<li>${avatar(r.memberId, 'sm')} ${STATUS[r.status] || '✔'} ${esc(r.title)} <small class="muted">· ${esc(fmtDate(r.date))}</small></li>`).join('');
 
+    const hooks = window.Views.taskHooks || {};
     return `<div class="page-head"><h1>Tarefas</h1><div class="quick">${addBtn('add-task', 'Tarefa')}</div></div>
+      ${hooks.tabs?.() || ''}
       <div class="filters">${filters.map(([v, l]) => `<button class="filter ${f === v ? 'active' : ''}" data-action="task-filter" data-id="${esc(v)}">${esc(l)}</button>`).join('')}</div>
       <div class="grid two wide-left">
         <section class="card">
@@ -378,6 +380,7 @@
         </section>
         <div class="stack">
           ${approvals()}
+          ${hooks.side?.() || ''}
           ${card('⭐ Pontos', leaderboard())}
           ${card('🎁 Recompensas', `<p class="muted small">Troca os teus pontos${me ? ` (tens <b>${me.points}</b>)` : ''}.</p><ul class="rewards">${rewards}</ul>
             ${hist ? `<h3 class="sub">Últimas trocas</h3><ul class="hist">${hist}</ul>` : ''}`, { action: parent ? addBtn('add-reward') : '' })}

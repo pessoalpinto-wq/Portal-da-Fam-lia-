@@ -583,3 +583,55 @@ body.gate .view { margin-left: 0; }
 .web-hit { display: flex; align-items: center; gap: .6rem; background: var(--surface-2); border-radius: 10px; padding: .45rem .6rem; }
 .web-hit .t { flex: 1; min-width: 0; display: grid; }
 .web-hits { max-height: 26rem; overflow-y: auto; padding-right: .2rem; }
+
+/* ---------- Tarefas: ideias e motivação ---------- */
+button.link { font: inherit; font-size: .85rem; background: none; border: 0; color: var(--primary); cursor: pointer; padding: 0; }
+.idea-search { width: 100%; margin: 0 0 .4rem; }
+.ideas .idea { display: flex; align-items: center; gap: .6rem; background: var(--surface-2); border-radius: 10px; padding: .5rem .7rem; }
+.idea-main { flex: 1; min-width: 0; display: grid; gap: .1rem; }
+.idea-tip { color: var(--muted); font-size: .8rem; }
+.idea-has { color: var(--ok); font-size: .8rem; font-weight: 600; }
+.ideas .idea .btn { font-size: 1.1rem; line-height: 1; padding: .45rem .7rem; }
+.tips { margin: 0; padding-left: 1.1rem; display: grid; gap: .45rem; font-size: .9rem; }
+.xp { height: 10px; background: var(--surface-2); border-radius: 5px; overflow: hidden; margin: .35rem 0 .15rem; }
+.xp span { display: block; height: 100%; border-radius: 5px; background: var(--primary); transition: width .4s; }
+.xp.xp-lg { height: 14px; }
+.xp.xp-lg span { background: linear-gradient(90deg, #f59e0b, #ef4444, #8b5cf6); }
+.me-lvl { display: flex; gap: .7rem; align-items: center; }
+.me-lvl > div { flex: 1; min-width: 0; }
+.lvl-emoji { font-size: 2.2rem; line-height: 1; }
+.mini-rank { list-style: none; padding: 0; margin: .8rem 0 0; display: grid; gap: .35rem; }
+.mini-rank li { display: flex; align-items: center; gap: .45rem; flex-wrap: wrap; font-size: .9rem; }
+.mini-rank li span:not(.avatar) { font-weight: 600; }
+.challenge { border: 1px dashed color-mix(in srgb, #f59e0b 55%, var(--border)); border-radius: 12px; padding: .6rem .75rem; }
+.challenge + .challenge { margin-top: .6rem; }
+.challenge.done { border-style: solid; border-color: var(--ok); background: color-mix(in srgb, var(--ok) 8%, var(--surface)); }
+.challenge-head { display: flex; justify-content: space-between; align-items: center; gap: .5rem; }
+.challenge-prize { margin: .4rem 0 .2rem; font-size: .9rem; }
+.star-week { display: flex; align-items: center; gap: .7rem; padding: .6rem .7rem; border-radius: 12px; margin-bottom: .7rem;
+  background: color-mix(in srgb, #f59e0b 14%, var(--surface)); }
+.star-week > div { flex: 1; }
+.star-big { font-size: 2rem; animation: star-pulse 1.8s ease-in-out infinite; }
+@keyframes star-pulse { 50% { transform: scale(1.18) rotate(8deg); } }
+.leader.week li { grid-template-columns: 1.6rem auto 1fr auto; }
+.member-prog { border-top: 4px solid var(--c); }
+.member-prog h2 { display: flex; align-items: center; gap: .5rem; }
+.lvl-pill { font-size: .8rem; font-weight: 700; padding: .15rem .6rem; border-radius: 999px; background: color-mix(in srgb, var(--c) 18%, var(--surface)); white-space: nowrap; }
+.lvl-name { margin: -.3rem 0 0; font-weight: 600; color: var(--muted); font-size: .9rem; }
+.badges { list-style: none; padding: 0; margin: .6rem 0 0; display: grid; gap: .4rem; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+.badge { display: grid; justify-items: center; text-align: center; gap: .1rem; padding: .45rem .3rem; border-radius: 10px;
+  background: color-mix(in srgb, var(--c) 12%, var(--surface)); border: 1px solid color-mix(in srgb, var(--c) 35%, transparent); }
+.badge .b-emoji { font-size: 1.5rem; line-height: 1.2; }
+.badge .b-name { font-size: .75rem; font-weight: 700; line-height: 1.15; }
+.badge small { font-size: .66rem; color: var(--muted); line-height: 1.15; }
+.badge.locked { background: var(--surface-2); border-color: transparent; opacity: .55; filter: grayscale(1); }
+.celebrate { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: rgba(15, 18, 30, .55); overflow: hidden; padding: 16px; }
+.celebrate i { position: absolute; top: -2rem; left: var(--x); font-style: normal; font-size: 1.5rem; animation: confetti 2.6s var(--d) ease-in forwards; }
+@keyframes confetti { to { transform: translateY(110vh) rotate(var(--r)); } }
+.celebrate-card { position: relative; background: var(--surface); color: var(--text); border-radius: 18px; padding: 1.3rem 1.4rem; max-width: 360px; width: 100%;
+  text-align: center; box-shadow: 0 10px 40px rgba(0, 0, 0, .3); animation: pop .35s ease-out; }
+.celebrate-card h2 { margin: 0 0 .4rem; }
+.celebrate-big { font-size: 3.4rem; margin: .2rem 0; line-height: 1; }
+.celebrate-badge { font-size: 1.6rem; vertical-align: middle; }
+@keyframes pop { from { transform: scale(.7); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .celebrate i, .star-big, .celebrate-card { animation: none; } .celebrate i { display: none; } }

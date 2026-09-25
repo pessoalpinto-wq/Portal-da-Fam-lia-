@@ -4,7 +4,7 @@
   const { editItem, toast, completeTask, reopenTask } = UI;
   const { VS, Forms, routes } = Views;
   const S = () => Store.state;
-  let modules = []; // módulos extra: Fase 4 (js/actions-fase4.js), Refeições (js/refeicoes.js)
+  let modules = []; // módulos extra: Fase 4 (js/actions-fase4.js), Refeições (js/refeicoes.js), Tarefas (js/tarefas-extra.js)
 
   /* ---------- Navegação ---------- */
   const currentRoute = () => {
@@ -315,7 +315,7 @@
     }),
   };
 
-  modules = [window.Fase4, window.Refeicoes].filter(Boolean).map((make) => make({ render, withButton }));
+  modules = [window.Fase4, window.Refeicoes, window.TarefasExtra].filter(Boolean).map((make) => make({ render, withButton }));
   modules.forEach((m) => {
     Object.assign(actions, m.actions);
     Object.assign(inlineForms, m.inlineForms || {});

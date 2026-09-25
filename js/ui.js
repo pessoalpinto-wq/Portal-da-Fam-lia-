@@ -29,7 +29,7 @@
     el.textContent = msg;
     el.classList.add('show');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
+    toastTimer = setTimeout(() => el.classList.remove('show'), Math.max(2600, String(msg).length * 55));
   }
 
   /* ---------- Formulário genérico em diálogo ---------- */
@@ -191,8 +191,11 @@
       const who = s.members.find((m) => m.id === byId);
       const pts = Number(t.points) || 0;
       if (who) who.points += pts;
-      t.history = [...(t.history || []), { date: t.pending?.date || today(), by: byId, points: pts }].slice(-50);
+      const entry = { date: t.pending?.date || today(), by: byId, points: pts };
+      t.history = [...(t.history || []), entry].slice(-50);
       delete t.pending;
+      // Dias seguidos (bónus), XP e medalhas: ver js/motivacao.js.
+      const extra = who && globalThis.Motivacao ? Motivacao.onCompletion(s, who, entry) : null;
       if (!t.repeat || t.repeat === 'none') {
         t.done = true;
         t.doneAt = today();
@@ -202,6 +205,9 @@
         t.due = d;
       }
       msg = who && pts ? `Boa, ${who.name}! +${pts} pontos ⭐` : 'Tarefa concluída ✔';
+      if (extra?.bonus) msg += ` · 🔥 ${extra.streak} dias seguidos: +${extra.bonus} de bónus`;
+      if (extra?.levelUp) msg += ` · ${extra.level.emoji} Nível ${extra.level.n}!`;
+      if (extra?.newBadges.length) msg += ` · Medalha: ${extra.newBadges.map((b) => `${b.emoji} ${b.name}`).join(', ')}`;
     });
     toast(msg);
   }
@@ -215,7 +221,7 @@
       const t = s.tasks.find((x) => x.id === id);
       if (t) t.pending = { by: s.currentUser, date: today() };
     });
-    toast('Feito! À espera de aprovação dos pais ⏳');
+    toast(globalThis.Motivacao ? Motivacao.cheer() : 'Feito! À espera de aprovação dos pais ⏳');
   }
 
   const approveTask = (id) => applyCompletion(id);
@@ -238,7 +244,8 @@
       if (!t || !t.done) return;
       const last = (t.history || []).pop();
       const who = s.members.find((m) => m.id === (last?.by || t.assignee));
-      if (who && last) who.points = Math.max(0, who.points - (Number(last.points) || 0));
+      if (who && last) who.points = Math.max(0, who.points - (Number(last.points) || 0) - (Number(last.bonus) || 0));
+      globalThis.Motivacao?.onReopen(who, last);
       t.done = false;
       t.doneAt = '';
     });
