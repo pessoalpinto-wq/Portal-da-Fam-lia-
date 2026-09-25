@@ -80,81 +80,163 @@
   });
 
   /* ---------- Finanças ---------- */
+  const KIND = {
+    mesada: ['💰', 'Mesada'], oferta: ['🎁', 'Recebeu'], gasto: ['🛍️', 'Gastou'],
+    poupanca: ['🐷', 'Para o mealheiro'], levantamento: ['↩️', 'Do mealheiro'],
+  };
+  const activeAllowance = (a) => a && a.active !== 'nao' && a.active !== false && Number(a.amount) > 0;
+
+  /** Próxima data de pagamento da mesada (paga às 9h do dia certo). */
+  function nextAllowance(a) {
+    if (!activeAllowance(a)) return null;
+    const t = today();
+    const paidToday = S().money.some((x) => x.memberId === a.memberId && x.kind === 'mesada' && x.date === t);
+    for (let i = paidToday ? 1 : 0; i < 62; i++) {
+      const d = addDays(t, i);
+      if (a.frequency === 'monthly') {
+        const last = Number(addDays(`${U.addMonths(`${d.slice(0, 7)}-01`, 1)}`, -1).slice(8));
+        if (Number(d.slice(8)) === Math.min(Number(a.day) || 1, last)) return d;
+      } else if (U.weekday(d) === Number(a.day ?? 6)) return d;
+    }
+    return null;
+  }
+
   function allowanceText(a) {
-    if (!a || a.active === 'nao' || a.active === false) return 'Sem mesada';
+    if (!activeAllowance(a)) return a ? 'Mesada em pausa' : 'Ainda sem mesada';
     const wd = Number(a.day ?? 6);
-    const when = a.frequency === 'monthly' ? `todos os dias ${a.day || 1} do mês`
+    const when = a.frequency === 'monthly' ? `no dia ${a.day || 1} de cada mês`
       : `${wd === 0 || wd === 6 ? 'todos os' : 'todas as'} ${DIAS[wd].toLowerCase()}s`;
-    return `Mesada: <b>${money(a.amount)}</b> ${when}`;
+    const next = nextAllowance(a);
+    return `Mesada de <b>${money(a.amount)}</b> ${when}${next ? ` · próxima ${next === today() ? '<b>hoje</b>' : esc(relDay(next))}` : ''}`;
   }
 
   function kidWallet(k) {
     const s = S();
     const parent = Store.isParent();
+    const mine = k.id === s.currentUser;
     const bal = wallet(k.id);
     const a = s.allowances.find((x) => x.memberId === k.id);
     const goals = s.goals.filter((g) => g.memberId === k.id);
-    const moves = s.money.filter((x) => x.memberId === k.id).sort((x, y) => (y.date || '').localeCompare(x.date || '')).slice(0, 8);
-    const KIND = { mesada: '💰', gasto: '🛍️', poupanca: '🐷', oferta: '🎁', levantamento: '↩️' };
+    const saved = goals.reduce((n, g) => n + goalSaved(g.id), 0);
+    const all = s.money.filter((x) => x.memberId === k.id).sort((x, y) => (y.date || '').localeCompare(x.date || ''));
+    const month = today().slice(0, 7);
+    const inMonth = all.filter((x) => (x.date || '').slice(0, 7) === month);
+    const got = inMonth.filter((x) => ['mesada', 'oferta'].includes(x.kind)).reduce((n, x) => n + x.amount, 0);
+    const spent = -inMonth.filter((x) => x.kind === 'gasto').reduce((n, x) => n + x.amount, 0);
+    const kept = -inMonth.filter((x) => ['poupanca', 'levantamento'].includes(x.kind)).reduce((n, x) => n + x.amount, 0);
+    const move = (x) => {
+      const [ic, label] = KIND[x.kind] || ['•', ''];
+      return `<li><span>${ic} ${esc(x.note || label)} <small class="muted">· ${esc(fmtDate(x.date))}</small></span>
+        <b class="${x.amount < 0 ? 'neg' : 'pos'}">${signed(x.amount)}</b></li>`;
+    };
+    const canGoal = parent || mine;
+
     return `<section class="card wallet" style="--c:${esc(k.color)}">
-      <header class="card-head"><h2>${avatar(k.id)} ${esc(k.name)}</h2><span class="balance ${bal < 0 ? 'neg' : ''}">${money(bal)}</span></header>
-      <p class="small">${allowanceText(a)} ${parent ? `<button class="linkish" data-action="edit-allowance" data-id="${k.id}">${a ? 'alterar' : 'definir'}</button>` : ''}</p>
-      <div class="btn-row">
-        ${parent ? `<button class="btn small primary" data-action="add-money" data-id="${k.id}" data-kind="oferta">＋ Dar dinheiro</button>` : ''}
-        <button class="btn small" data-action="add-money" data-id="${k.id}" data-kind="gasto">🛍️ Registar gasto</button>
-        ${goals.length ? `<button class="btn small" data-action="add-money" data-id="${k.id}" data-kind="poupanca">🐷 Pôr no mealheiro</button>` : ''}
+      <header class="card-head"><h2>${avatar(k.id)} ${esc(k.name)}</h2>
+        <small class="muted">Total: <b>${money(bal + saved)}</b></small></header>
+      <div class="fin-totals">
+        <div class="fin-tile"><small>👛 Na carteira</small><b class="${bal < 0 ? 'neg' : ''}">${money(bal)}</b><small>pode gastar</small></div>
+        <div class="fin-tile save"><small>🐷 Nos mealheiros</small><b>${money(saved)}</b><small>guardado</small></div>
       </div>
-      <h3 class="sub">Mealheiros ${Store.isParent() || k.id === s.currentUser ? `<button class="linkish" data-action="add-goal" data-id="${k.id}">＋ novo</button>` : ''}</h3>
+      <p class="small fin-allow">${allowanceText(a)}
+        ${parent ? `<button class="linkish" data-action="edit-allowance" data-id="${k.id}">${a ? 'alterar' : 'definir mesada'}</button>` : ''}</p>
+      <div class="fin-actions">
+        ${parent ? `<button class="btn small primary" data-action="add-money" data-id="${k.id}" data-kind="oferta">＋ Dar dinheiro</button>` : ''}
+        <button class="btn small" data-action="add-money" data-id="${k.id}" data-kind="gasto">🛍️ Gastei</button>
+        ${goals.length ? `<button class="btn small" data-action="add-money" data-id="${k.id}" data-kind="poupanca">🐷 Poupar</button>`
+          : canGoal ? `<button class="btn small" data-action="add-goal" data-id="${k.id}">🐷 Criar mealheiro</button>` : ''}
+      </div>
+
+      <h3 class="sub">🐷 Mealheiros ${goals.length && canGoal ? `<button class="linkish" data-action="add-goal" data-id="${k.id}">＋ novo</button>` : ''}</h3>
       ${goals.map((g) => {
-        const saved = goalSaved(g.id);
-        const pct = Math.min(100, Math.round((saved / (Number(g.target) || 1)) * 100));
-        return `<div class="goal"><button class="goal-main" data-action="edit-goal" data-id="${g.id}">
-            <span>${esc(g.emoji || '🐷')} <b>${esc(g.title)}</b></span><small>${money(saved)} de ${money(g.target)}${pct >= 100 ? ' · 🎉 Conseguiste!' : ''}</small></button>
+        const sv = goalSaved(g.id);
+        const target = Number(g.target) || 0;
+        const pct = target ? Math.min(100, Math.round((sv / target) * 100)) : 0;
+        return `<div class="goal">
+          <button class="goal-main" data-action="edit-goal" data-id="${g.id}">
+            <span>${esc(g.emoji || '🐷')} <b>${esc(g.title)}</b></span>
+            <small>${money(sv)} de ${money(target)}</small></button>
           <div class="progress"><span style="width:${pct}%"></span></div>
-          ${parent && saved > 0 ? `<button class="linkish small" data-action="goal-withdraw" data-id="${g.id}">tirar do mealheiro</button>` : ''}</div>`;
-      }).join('') || '<p class="empty small">Ainda sem mealheiros. Poupar para quê? 🚲📱🎧</p>'}
-      <h3 class="sub">Últimos movimentos</h3>
-      ${moves.length ? `<ul class="moves">${moves.map((x) => `<li><span>${KIND[x.kind] || '•'} ${esc(x.note || x.kind || '')}
-        <small class="muted">· ${esc(fmtDate(x.date))}</small></span><b class="${x.amount < 0 ? 'neg' : 'pos'}">${signed(x.amount)}</b></li>`).join('')}</ul>`
-        : '<p class="empty small">Sem movimentos.</p>'}
+          <div class="goal-foot"><small class="muted">${pct >= 100 ? '🎉 Objectivo cumprido!' : `faltam <b>${money(target - sv)}</b> · ${pct}%`}</small>
+            <span>${bal > 0 ? `<button class="linkish" data-action="add-money" data-id="${k.id}" data-kind="poupanca" data-goal="${g.id}">＋ pôr</button>` : ''}
+            ${parent && sv > 0 ? `<button class="linkish" data-action="goal-withdraw" data-id="${g.id}">↩️ tirar</button>` : ''}</span></div>
+        </div>`;
+      }).join('') || '<p class="empty small">Poupar para quê? Uma bicicleta, uns auscultadores, a viagem de finalistas… 🚲🎧✈️</p>'}
+
+      <h3 class="sub">📒 Movimentos</h3>
+      ${inMonth.length ? `<p class="small fin-month">Este mês: <span class="pos">entrou ${money(got)}</span> · <span class="neg">gastou ${money(spent)}</span>${kept ? ` · poupou ${money(kept)}` : ''}</p>` : ''}
+      ${all.length ? `<ul class="moves">${all.slice(0, 5).map(move).join('')}</ul>
+        ${all.length > 5 ? `<details class="done-list"><summary>Ver mais (${all.length - 5})</summary><ul class="moves">${all.slice(5, 60).map(move).join('')}</ul></details>` : ''}`
+        : '<p class="empty small">Ainda sem movimentos.</p>'}
     </section>`;
   }
 
-  const REPEAT_BILL = { monthly: 'mensal', bimonthly: 'bimestral', quarterly: 'trimestral', yearly: 'anual', none: '' };
+  const REPEAT_BILL = { monthly: 'mensal', bimonthly: 'de 2 em 2 meses', quarterly: 'trimestral', yearly: 'anual', none: 'só uma vez' };
+  const BILL_MONTHS = { monthly: 1, bimonthly: 2, quarterly: 3, yearly: 12 };
 
-  function billsCard() {
+  function billsView() {
     const s = S();
     const t = today();
     const bills = s.bills.filter((b) => !b.archived).sort((a, b) => (a.due || '').localeCompare(b.due || ''));
     const month = t.slice(0, 7);
-    const toPay = sum(bills.filter((b) => (b.due || '').slice(0, 7) === month));
+    const monthEnd = addDays(`${U.addMonths(`${month}-01`, 1)}`, -1);
+    const toPay = sum(bills.filter((b) => b.due <= monthEnd));
     const paidMonth = sum(s.bills.flatMap((b) => (b.history || []).filter((h) => h.date.slice(0, 7) === month)));
-    const paid = s.bills.flatMap((b) => (b.history || []).map((h) => ({ ...h, title: b.title }))).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
-    return card('💶 Contas da casa', `<p class="small muted">Só os pais vêem esta parte.</p>
-      <p>Este mês: <b>${money(toPay)}</b> por pagar · ${money(paidMonth)} já pagos</p>
-      <ul class="list">${bills.map((b) => {
-        const left = daysBetween(t, b.due);
-        const cls = left < 0 ? 'late' : left <= 7 ? 'soon' : '';
-        return `<li class="bill ${cls}"><button class="item-main" data-action="edit-bill" data-id="${b.id}">
-          <span class="title">${esc(b.title)} ${b.auto ? '<small class="badge">débito</small>' : ''}</span>
-          <small class="muted">${esc(fmtDate(b.due))} · ${left < 0 ? `atrasada ${-left} dias` : relDay(b.due)}${REPEAT_BILL[b.repeat] ? ` · ${REPEAT_BILL[b.repeat]}` : ''}</small></button>
-          <b>${money(b.amount)}</b>
-          <button class="btn small" data-action="pay-bill" data-id="${b.id}" title="Marcar como paga">✔ Paga</button></li>`;
-      }).join('') || '<li class="empty">Sem contas registadas.</li>'}</ul>
-      ${paid.length ? `<details class="done-list"><summary>Pagas recentemente</summary><ul class="moves">${paid.map((h) =>
-        `<li><span>${esc(h.title)} <small class="muted">· ${esc(fmtDate(h.date))}</small></span><b>${money(h.amount)}</b></li>`).join('')}</ul></details>` : ''}`,
-    { action: addBtn('add-bill', 'Conta') });
+    const perMonth = bills.reduce((n, b) => n + (BILL_MONTHS[b.repeat] ? (Number(b.amount) || 0) / BILL_MONTHS[b.repeat] : 0), 0);
+    const paid = s.bills.flatMap((b) => (b.history || []).map((h) => ({ ...h, title: b.title }))).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 12);
+
+    const row = (b) => {
+      const left = daysBetween(t, b.due);
+      const cls = left < 0 ? 'late' : left <= 7 ? 'soon' : '';
+      return `<li class="bill ${cls}">
+        <button class="bill-main" data-action="edit-bill" data-id="${b.id}">
+          <span class="title">${esc(b.title)}</span>
+          <small class="muted">${left < 0 ? `<b class="neg">atrasada ${-left} dia${left === -1 ? '' : 's'}</b>` : esc(relDay(b.due))} · ${esc(fmtDate(b.due))}
+            · ${esc(REPEAT_BILL[b.repeat] || '')}${b.category ? ` · ${esc(b.category)}` : ''}${b.auto ? ' · 🏦 débito directo' : ''}</small>
+        </button>
+        <b class="bill-amount">${money(b.amount)}</b>
+        <button class="btn small" data-action="pay-bill" data-id="${b.id}" title="Marcar como paga">✔ Paga</button></li>`;
+    };
+    const groups = [
+      ['⚠️ Atrasadas', bills.filter((b) => b.due < t)],
+      ['📅 Próximos 30 dias', bills.filter((b) => b.due >= t && b.due <= addDays(t, 30))],
+      ['🗓️ Mais tarde', bills.filter((b) => b.due > addDays(t, 30))],
+    ].filter(([, l]) => l.length);
+
+    return `<div class="fin-summary">
+        <div class="fin-tile"><small>Por pagar até ao fim do mês</small><b>${money(toPay)}</b></div>
+        <div class="fin-tile ok"><small>Já pago este mês</small><b>${money(paidMonth)}</b></div>
+        <div class="fin-tile"><small>Custos fixos (média por mês)</small><b>${money(perMonth)}</b></div>
+      </div>
+      <div class="grid two wide-left">
+        ${card('💶 Contas a pagar', `${groups.map(([title, l]) => `<h3 class="sub">${title} <small class="muted">(${l.length})</small></h3><ul class="list bills">${l.map(row).join('')}</ul>`).join('')
+          || empty('Ainda sem contas. Junta a luz, a água, a internet, os seguros, o IUC… e o portal avisa-vos 3 dias antes.')}`,
+        { action: addBtn('add-bill', 'Conta') })}
+        <div class="stack">
+          ${card('✔ Pagas recentemente', paid.length ? `<ul class="moves">${paid.map((h) =>
+            `<li><span>${esc(h.title)} <small class="muted">· ${esc(fmtDate(h.date))}</small></span><b>${money(h.amount)}</b></li>`).join('')}</ul>`
+            : empty('Quando carregarem em "✔ Paga", aparecem aqui e a conta passa para a próxima data.'))}
+          <p class="small muted">🔒 Só os pais vêem as contas da casa.</p>
+        </div>
+      </div>`;
   }
 
   function financas() {
     const s = S();
     const parent = Store.isParent();
     const list = parent ? kids() : kids().filter((k) => k.id === s.currentUser);
-    return `<div class="page-head"><h1>Finanças</h1></div>
-      <p class="muted">${parent ? 'Mesadas, carteiras e mealheiros das filhas, e as contas da casa.' : 'A tua carteira e os teus mealheiros.'}
-      ${Store.isRemote ? 'As mesadas são pagas automaticamente no dia certo (às 9h).' : 'Com conta na nuvem, as mesadas passam a ser pagas automaticamente.'}</p>
-      <div class="grid two">${list.map(kidWallet).join('') || empty('Sem carteiras para mostrar.')}
-        ${parent ? billsCard() : ''}</div>`;
+    const tab = parent ? VS.finTab || 'carteiras' : 'carteiras';
+    const tabs = parent ? `<div class="tabs" role="tablist">${[['carteiras', '👛 Dinheiro das filhas'], ['contas', '🏠 Contas da casa']].map(([id, label]) =>
+      `<button role="tab" aria-selected="${tab === id}" class="tab ${tab === id ? 'active' : ''}" data-action="fin-tab" data-id="${id}" style="--c:#16a34a">${label}</button>`).join('')}</div>` : '';
+    const how = `<details class="fin-how"><summary>❓ Como funciona</summary><ul class="tips">
+      <li><b>👛 Carteira</b> é o dinheiro que ${parent ? 'cada filha' : 'tens e'} pode gastar. A mesada entra aqui sozinha${Store.isRemote ? ', às 9h do dia certo' : ' (com a conta na nuvem)'}.</li>
+      <li><b>🛍️ Gastei</b>: ${parent ? 'elas registam' : 'registas'} o que se gastou, para a carteira bater certo com o dinheiro real.</li>
+      <li><b>🐷 Mealheiros</b> são objectivos (ex.: bicicleta). Poupar passa dinheiro da carteira para o mealheiro; só os pais o podem tirar de lá.</li>
+      ${parent ? '<li><b>＋ Dar dinheiro</b>: prendas, mesada extra, recompensa por uma nota boa…</li>' : ''}
+    </ul></details>`;
+    return `<div class="page-head"><h1>Finanças</h1></div>${tabs}
+      ${tab === 'contas' ? billsView() : `${how}
+        <div class="grid two">${list.map(kidWallet).join('') || empty('Sem carteiras para mostrar.')}</div>`}`;
   }
 
   /* ---------- Saúde & documentos ---------- */

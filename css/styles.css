@@ -618,13 +618,13 @@ button.link { font: inherit; font-size: .85rem; background: none; border: 0; col
 .member-prog h2 { display: flex; align-items: center; gap: .5rem; }
 .lvl-pill { font-size: .8rem; font-weight: 700; padding: .15rem .6rem; border-radius: 999px; background: color-mix(in srgb, var(--c) 18%, var(--surface)); white-space: nowrap; }
 .lvl-name { margin: -.3rem 0 0; font-weight: 600; color: var(--muted); font-size: .9rem; }
-.badges { list-style: none; padding: 0; margin: .6rem 0 0; display: grid; gap: .4rem; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
-.badge { display: grid; justify-items: center; text-align: center; gap: .1rem; padding: .45rem .3rem; border-radius: 10px;
+.medals { list-style: none; padding: 0; margin: .6rem 0 0; display: grid; gap: .4rem; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+.medal { display: grid; justify-items: center; text-align: center; gap: .1rem; padding: .45rem .3rem; border-radius: 10px;
   background: color-mix(in srgb, var(--c) 12%, var(--surface)); border: 1px solid color-mix(in srgb, var(--c) 35%, transparent); }
-.badge .b-emoji { font-size: 1.5rem; line-height: 1.2; }
-.badge .b-name { font-size: .75rem; font-weight: 700; line-height: 1.15; }
-.badge small { font-size: .66rem; color: var(--muted); line-height: 1.15; }
-.badge.locked { background: var(--surface-2); border-color: transparent; opacity: .55; filter: grayscale(1); }
+.medal .b-emoji { font-size: 1.5rem; line-height: 1.2; }
+.medal .b-name { font-size: .75rem; font-weight: 700; line-height: 1.15; }
+.medal small { font-size: .66rem; color: var(--muted); line-height: 1.15; }
+.medal.locked { background: var(--surface-2); border-color: transparent; opacity: .55; filter: grayscale(1); }
 .celebrate { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: rgba(15, 18, 30, .55); overflow: hidden; padding: 16px; }
 .celebrate i { position: absolute; top: -2rem; left: var(--x); font-style: normal; font-size: 1.5rem; animation: confetti 2.6s var(--d) ease-in forwards; }
 @keyframes confetti { to { transform: translateY(110vh) rotate(var(--r)); } }
@@ -635,3 +635,31 @@ button.link { font: inherit; font-size: .85rem; background: none; border: 0; col
 .celebrate-badge { font-size: 1.6rem; vertical-align: middle; }
 @keyframes pop { from { transform: scale(.7); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .celebrate i, .star-big, .celebrate-card { animation: none; } .celebrate i { display: none; } }
+
+/* ---------- Finanças (arrumação) ---------- */
+.fin-totals { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-bottom: .6rem; }
+.fin-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: .6rem; margin-bottom: 1rem; }
+.fin-tile { display: grid; gap: .05rem; background: var(--surface-2); border-radius: 12px; padding: .55rem .75rem; }
+.fin-summary .fin-tile { background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow); }
+.fin-tile small { color: var(--muted); font-size: .78rem; }
+.fin-tile b { font-size: 1.45rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.fin-tile.save b { color: #db2777; }
+.fin-tile.ok b { color: var(--ok); }
+.fin-allow { margin: .2rem 0 .6rem; }
+.fin-actions { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .4rem; }
+.goal-foot { display: flex; justify-content: space-between; align-items: center; gap: .5rem; flex-wrap: wrap; margin-top: .25rem; }
+.goal-foot .linkish { font-size: .82rem; margin-left: .5rem; }
+.fin-month { margin: 0 0 .35rem; }
+.fin-how { margin-bottom: 1rem; }
+.fin-how summary { cursor: pointer; font-weight: 600; color: var(--muted); }
+.fin-how .tips { margin-top: .5rem; }
+.bills .bill { padding: .45rem .5rem .45rem .7rem; }
+.bill-main { flex: 1; min-width: 0; display: grid; gap: .1rem; font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: left; }
+.bill-main .title { font-weight: 600; }
+.bill-amount { font-size: 1.05rem; }
+@media (max-width: 480px) {
+  .bills .bill { flex-wrap: wrap; }
+  .bill-main { flex-basis: 100%; }
+  .bill-amount { margin-right: auto; }
+}
+@media (prefers-color-scheme: dark) { .fin-tile.save b { color: #f472b6; } }

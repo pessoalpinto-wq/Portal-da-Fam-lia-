@@ -8,7 +8,7 @@ window.Fase4 = function ({ render, withButton }) {
 
   /* ---------- Dinheiro ---------- */
   const MONEY_TITLE = { oferta: 'Dar dinheiro', gasto: 'Registar gasto', poupanca: 'Pôr no mealheiro' };
-  const MONEY_NOTE = { oferta: 'Oferta', gasto: '', poupanca: '' };
+  const MONEY_NOTE = { oferta: '', gasto: '', poupanca: '' };
 
   function moneyForm(el) {
     const kind = el.dataset.kind;
@@ -18,12 +18,12 @@ window.Fase4 = function ({ render, withButton }) {
       { name: 'amount', label: 'Valor (€)', type: 'number', min: 0.01, step: '0.01', required: true, half: true },
       { name: 'date', label: 'Data', type: 'date', required: true, half: true },
       ...(kind === 'poupanca' ? [{ name: 'goalId', label: 'Para o mealheiro', type: 'select', options: goals.map((g) => [g.id, `${g.emoji || '🐷'} ${g.title}`]) }] : []),
-      { name: 'note', label: kind === 'gasto' ? 'Em quê?' : 'Nota', placeholder: kind === 'gasto' ? 'Ex.: lanche, cinema, livro' : '' },
+      { name: 'note', label: kind === 'gasto' ? 'Em quê?' : 'Nota', placeholder: kind === 'gasto' ? 'Ex.: lanche, cinema, livro' : kind === 'oferta' ? 'Ex.: prenda da avó, mesada extra' : '' },
     ];
     openForm({
       title: `${MONEY_TITLE[kind]} · ${member(memberId)?.name || ''}`,
       fields,
-      values: { date: today(), note: MONEY_NOTE[kind] },
+      values: { date: today(), note: MONEY_NOTE[kind], goalId: el.dataset.goal || goals[0]?.id },
       submitLabel: 'Registar',
       onSubmit: (d) => {
         const amount = round2(Math.abs(d.amount));
@@ -33,7 +33,7 @@ window.Fase4 = function ({ render, withButton }) {
         const goal = goals.find((g) => g.id === d.goalId);
         Store.update((s) => s.money.push({
           id: Store.uid(), memberId, date: d.date, kind, amount: kind === 'oferta' ? amount : -amount,
-          note: d.note || (goal ? `Para: ${goal.title}` : MONEY_TITLE[kind]), ...(goal ? { goalId: goal.id } : {}),
+          note: d.note || (goal ? `Para: ${goal.title}` : { oferta: 'Dinheiro dos pais', gasto: 'Gasto' }[kind]), ...(goal ? { goalId: goal.id } : {}),
         }));
         toast(kind === 'poupanca' ? '🐷 Boa! Mais perto do objectivo.' : 'Registado ✔');
       },
@@ -239,6 +239,7 @@ window.Fase4 = function ({ render, withButton }) {
     'add-bill': (el) => editItem('bills', null, { title: 'conta', fields: Forms.bill(), defaults: () => ({ due: today(), repeat: 'monthly', category: 'Casa', auto: '', history: [] }) }),
     'edit-bill': (el) => editItem('bills', el.dataset.id, { title: 'conta', fields: Forms.bill() }),
     'pay-bill': payBill,
+    'fin-tab': (el) => { VS.finTab = el.dataset.id; render(); },
 
     'add-date': () => editItem('dates', null, { title: 'data especial', fields: Forms.sdate(), defaults: () => ({ knowYear: 'sim', kind: 'Aniversário' }) }),
     'edit-date': (el) => editItem('dates', el.dataset.id, { title: 'data especial', fields: Forms.sdate() }),

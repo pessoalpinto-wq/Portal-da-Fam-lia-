@@ -236,7 +236,7 @@ window.TarefasExtra = function ({ render }) {
         ${xpBar(st.level, m.color)}
         <p class="small">${streakText(st)}</p>
         <p class="small muted">✅ ${st.count} tarefas feitas · esta semana: ${st.weekCount} (⭐ ${st.week}) · 🏅 ${got.size}/${M.BADGES.length} medalhas</p>
-        <ul class="badges">${M.BADGES.map((b) => `<li class="badge ${got.has(b.id) ? '' : 'locked'}" title="${esc(b.desc)}">
+        <ul class="medals">${M.BADGES.map((b) => `<li class="medal ${got.has(b.id) ? '' : 'locked'}" title="${esc(b.desc)}">
           <span class="b-emoji">${got.has(b.id) ? b.emoji : '🔒'}</span><span class="b-name">${esc(b.name)}</span>
           <small>${esc(b.desc)}</small></li>`).join('')}</ul>
       </section>`;
