@@ -4,7 +4,7 @@
   const { editItem, toast, completeTask, reopenTask } = UI;
   const { VS, Forms, routes } = Views;
   const S = () => Store.state;
-  let fase4 = null; // acções da Fase 4 (js/actions-fase4.js)
+  let modules = []; // módulos extra: Fase 4 (js/actions-fase4.js), Refeições (js/refeicoes.js)
 
   /* ---------- Navegação ---------- */
   const currentRoute = () => {
@@ -92,7 +92,7 @@
     renderSync();
     fillInviteCodes();
     fillPanels();
-    fase4?.afterRender(main);
+    modules.forEach((m) => m.afterRender?.(main));
     window.scrollTo(0, scroll);
   }
 
@@ -282,7 +282,7 @@
   // Checkboxes usam "change" para não interferir com o comportamento nativo.
   document.addEventListener('change', (e) => {
     const el = e.target;
-    if (fase4?.onChange(el)) return;
+    if (modules.some((m) => m.onChange?.(el))) return;
     if (el.matches('input[type=checkbox][data-action]')) {
       actions[el.dataset.action]?.(el);
     } else if (el.matches('[data-notify-pref]')) {
@@ -315,9 +315,12 @@
     }),
   };
 
-  fase4 = window.Fase4({ render, withButton });
-  Object.assign(actions, fase4.actions);
-  Object.assign(inlineForms, fase4.inlineForms);
+  modules = [window.Fase4, window.Refeicoes].filter(Boolean).map((make) => make({ render, withButton }));
+  modules.forEach((m) => {
+    Object.assign(actions, m.actions);
+    Object.assign(inlineForms, m.inlineForms || {});
+  });
+  document.addEventListener('input', (e) => modules.forEach((m) => m.onInput?.(e.target)));
 
   document.addEventListener('submit', (e) => {
     const f = e.target.closest('form[data-form]');

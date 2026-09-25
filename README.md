@@ -87,7 +87,7 @@ mexendo na página. Cada família só vê os seus dados.
 | 🛠️ **Projectos** | Obras, festas, trabalhos de grupo… divididos em passos, com prazo, participantes e barra de progresso. |
 | ✈️ **Viagens** | Datas, contagem decrescente, alojamento, lista de mala por pessoa, preparativos (documentos, seguros) e orçamento com despesas. |
 | 🛒 **Compras** | Lista partilhada por categorias; qualquer pessoa acrescenta o que falta. |
-| 🍽️ **Refeições** | Plano semanal de almoços/jantares e quem cozinha. Ingredientes entre parênteses passam para a lista de compras com um clique. |
+| 🍽️ **Refeições** | **Semana:** escolham uma receita para cada almoço/jantar (📖) ou peçam "✨ Sugerir ementa"; o portal junta os ingredientes da semana, marca o que já há em casa e manda o que falta para as compras com um toque. **Receitas:** 33 receitas caseiras portuguesas incluídas, receitas da família, e **importação a partir do link** de sites de receitas (Pingo Doce, Continente, Teleculinária, blogs…). **Despensa:** o que há em casa — o que se compra entra sozinho. |
 | 📌 **Mural** | Recados para a família ("hoje chego tarde"), com possibilidade de afixar. |
 | 📞 **Contactos** | Escola, centro de saúde, explicadores, treinadores, emergência — com botão para ligar. |
 | 💰 **Finanças** | Carteira de cada filha, **mesada paga automaticamente** (semanal ou mensal), **mealheiros** com objectivos (bicicleta, telemóvel…), registo de gastos. **Contas da casa** com próximo pagamento e histórico — só os pais vêem. |
@@ -140,6 +140,9 @@ js/notify.js               lembretes (Web Push) e link do calendário
 js/views-fase4.js          finanças, saúde & documentos, votações, memórias, boleias, datas
 js/actions-fase4.js        acções dessas secções
 js/photos.js               fotos: redução no telemóvel, envio e links temporários
+js/refeicoes.js            refeições: plano da semana, receitas, despensa, em falta → compras
+js/receitas.js             livro de receitas portuguesas incluído
+js/ingredients.js          percebe linhas de ingredientes ("400 g de bacalhau") e soma quantidades
 js/vendor/supabase.js      biblioteca supabase-js (MIT)
 sw.js                      service worker: mostra as notificações
 icons/                     ícones da app (Android / iPhone)
@@ -148,6 +151,7 @@ supabase/functions/
   send-reminders/          envia os lembretes e paga as mesadas (pg_cron, de 10 em 10 min)
   calendar/                calendário iCal para subscrever
   register/                criar conta já confirmada (sem email de confirmação)
+  recipe-import/           importar receita de um site (dados schema.org/Recipe da página)
   _shared/                 Web Push (RFC 8291/8292), regras dos lembretes, gerador .ics
 tests/                     testes (npm test)
 ```

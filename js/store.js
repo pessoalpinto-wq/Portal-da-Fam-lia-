@@ -38,6 +38,9 @@
     polls: [],
     votes: [],
     photos: [],
+    // Refeições: receitas da família e despensa
+    recipes: [],
+    pantry: [],
   });
 
   function seed() {
@@ -163,6 +166,13 @@
       id: uid(), question: 'Que filme vemos na sexta? 🍿', createdBy: mae.id, date: t, closed: false,
       options: [{ id: 'a', text: 'Comédia' }, { id: 'b', text: 'Aventura' }, { id: 'c', text: 'Animação' }],
     }];
+    // Refeições (exemplo): despensa com o básico e dois jantares planeados.
+    s.pantry = ['Sal', 'Azeite', 'Alho', 'Cebola', 'Arroz', 'Massa', 'Leite', 'Ovos', 'Louro']
+      .map((name) => ({ id: uid(), name, key: name.toLowerCase().replace('ovos', 'ovo') }));
+    s.meals = {
+      1: { dinner: 'Bacalhau à Brás', dinnerRecipe: 'pt-bacalhau-bras' },
+      3: { dinner: 'Frango assado no forno com batatas', dinnerRecipe: 'pt-frango-assado' },
+    };
     return s;
   }
 
@@ -186,7 +196,8 @@
   /* ---------- Conversão estado <-> itens (uma linha por item no Supabase) ---------- */
   const COLLS = ['members', 'events', 'tasks', 'rewards', 'redemptions', 'classes', 'exams',
     'projects', 'trips', 'shopping', 'notes', 'contacts',
-    'money', 'allowances', 'goals', 'bills', 'dates', 'health', 'healthcards', 'docs', 'polls', 'votes', 'photos'];
+    'money', 'allowances', 'goals', 'bills', 'dates', 'health', 'healthcards', 'docs', 'polls', 'votes', 'photos',
+    'recipes', 'pantry'];
   const keyOf = (r) => `${r.coll}/${r.id}`;
 
   function toItems(s) {
@@ -411,7 +422,7 @@
     wipe() {
       // Mantém o que é "estrutural" da família; apaga o dia-a-dia.
       const keep = new Set(['members', 'rewards', 'contacts', 'allowances', 'goals', 'money', 'bills',
-        'dates', 'health', 'healthcards', 'docs', 'photos']);
+        'dates', 'health', 'healthcards', 'docs', 'photos', 'recipes', 'pantry']);
       Store.update((s) => {
         Object.keys(EMPTY()).forEach((k) => {
           if (Array.isArray(s[k]) && !keep.has(k)) s[k] = [];

@@ -47,7 +47,7 @@
     }
     let input;
     if (f.type === 'textarea') {
-      input = `<textarea id="${id}" name="${f.name}" rows="3" ${req} placeholder="${esc(f.placeholder || '')}">${esc(v)}</textarea>`;
+      input = `<textarea id="${id}" name="${f.name}" rows="${f.rows || 3}" ${req} placeholder="${esc(f.placeholder || '')}">${esc(v)}</textarea>`;
     } else if (f.type === 'select') {
       input = `<select id="${id}" name="${f.name}" ${req}>${f.options.map(([ov, ol]) =>
         `<option value="${esc(ov)}" ${String(ov) === String(v) ? 'selected' : ''}>${esc(ol)}</option>`).join('')}</select>`;
