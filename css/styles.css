@@ -571,3 +571,9 @@ body.gate .view { margin-left: 0; }
   .meals-plan .day { grid-column: 1 / -1; margin-top: .6rem; }
   .meals-plan > input[data-meal$=":cook"] { grid-column: 1 / -1; }
 }
+.af-badge { display: inline-block; width: fit-content; font-size: .72rem; font-weight: 700; color: #0e7490;
+  background: color-mix(in srgb, #06b6d4 14%, var(--surface)); border: 1px solid color-mix(in srgb, #06b6d4 40%, transparent);
+  border-radius: 999px; padding: .05rem .5rem; }
+.recipe-body .af-badge { font-size: .85rem; margin: .2rem 0; }
+.filter.af-filter.active { background: #0e7490; border-color: #0e7490; }
+@media (prefers-color-scheme: dark) { .af-badge { color: #67e8f9; } }

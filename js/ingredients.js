@@ -126,5 +126,18 @@
     return [...[...groups.values()].map((g) => `${fmt(g.total)}${g.unit ? ` ${g.unit}` : ''}`), ...other].join(' + ');
   }
 
-  root.Ingredients = { parse, key, matches, guessCategory, capitalize, strip, sumQty };
+  /**
+   * Receita para air fryer? Devolve { airfryer, af } com a temperatura e o tempo indicados
+   * no passo da air fryer (ex.: "Programe a 180ºc, durante 18 minutos" → "180 °C · 18 min").
+   */
+  function airFryer(r) {
+    const text = `${r.title || ''} ${(r.steps || []).join(' ')} ${(r.ingredients || []).join(' ')}`;
+    if (!/air\s?-?fr[yi]er|airfryer|fritadeira sem [oó]leo|fritadeira de ar/i.test(text)) return { airfryer: false, af: '' };
+    const steps = (r.steps || []).join(' ');
+    const m = steps.match(/(\d{3})\s*(?:º|°|graus)\s*c?\b[^.]{0,60}?(\d{1,3})\s*min/i);
+    const temp = m ? m[1] : steps.match(/(\d{3})\s*(?:º|°|graus)/i)?.[1];
+    return { airfryer: true, af: [temp && `${temp} °C`, m && `${m[2]} min`].filter(Boolean).join(' · ') };
+  }
+
+  root.Ingredients = { parse, key, matches, guessCategory, capitalize, strip, sumQty, airFryer };
 })(globalThis);

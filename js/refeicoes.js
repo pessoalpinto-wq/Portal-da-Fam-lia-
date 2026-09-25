@@ -24,7 +24,9 @@ window.Refeicoes = function ({ render }) {
   const have = (key) => (S().pantry || []).some((p) => I.matches(key, p.key));
   const ingList = (r) => (r.ingredients || []).map((line) => ({ line, ...I.parse(line) })).filter((i) => i.key);
   const missingOf = (r) => ingList(r).filter((i) => !have(i.key));
-  const searchText = (r) => I.strip(`${r.title} ${r.category || ''} ${(r.ingredients || []).join(' ')}`);
+  const searchText = (r) => I.strip(`${r.title} ${r.category || ''} ${r.airfryer ? 'air fryer airfryer' : ''} ${(r.ingredients || []).join(' ')}`);
+  const afBadge = (r) => (r.airfryer ? `<span class="af-badge" title="Receita para air fryer">🌀 Air fryer${r.af ? ` · ${esc(r.af)}` : ''}</span>` : '');
+
   // Ingredientes: só tira marcas de lista ("- ", "• "); passos: tira também a numeração ("1. ", "2) ").
   const ingredientLines = (text) => String(text || '').split('\n').map((x) => x.replace(/^\s*[-•*]\s+/, '').trim()).filter(Boolean);
   const stepLines = (text) => String(text || '').split('\n').map((x) => x.replace(/^\s*(?:\d+\s*[.)º-]|[-•*])\s*/, '').trim()).filter(Boolean);
@@ -80,7 +82,7 @@ window.Refeicoes = function ({ render }) {
     if (/bacalhau|peixe|pescada|salmao|atum|polvo|marisco|camarao|lula|dourada|sardinha|lingueirao/.test(t)) return 'Peixe';
     if (/vegetarian|vegan|legumes|grao|lentilha|tofu/.test(t)) return 'Vegetariano';
     if (/massa|esparguete|lasanha|arroz|risotto|pizza/.test(t)) return 'Massas & arroz';
-    if (/carne|frango|porco|vaca|peru|pato|bife|hamburguer|borrego|entrecosto/.test(t)) return 'Carne';
+    if (/carne|frango|porco|vaca|peru|pato|bife|bifana|febra|hamburguer|borrego|entrecosto|costeleta|alheira|chourico|salsicha|farinheira|enchido|leitao/.test(t)) return 'Carne';
     return 'Outra';
   }
 
@@ -123,18 +125,21 @@ window.Refeicoes = function ({ render }) {
       <span class="r-emoji" aria-hidden="true">${esc(r.emoji || '🍽️')}</span>
       <span class="r-title">${esc(r.title)}</span>
       <span class="r-meta">${esc(r.category || '')}${r.minutes ? ` · ⏱ ${r.minutes} min` : ''}</span>
+      ${afBadge(r)}
       <span class="r-need ${miss ? '' : 'ok'}">${miss ? `faltam ${miss}` : '✔ tens tudo'}</span>
     </button>`;
   }
 
   function receitas() {
     const cat = VS.recipeCat || '';
-    const byCat = (r) => !cat || r.category === cat;
+    const air = !!VS.recipeAir;
+    const byCat = (r) => (!cat || r.category === cat) && (!air || r.airfryer);
     const fam = familyRecipes().filter(byCat);
     const sug = builtins().filter(byCat);
     return `<div class="recipes-tools">
         <input type="search" id="recipe-search" placeholder="🔎 Procurar receita ou ingrediente…" aria-label="Procurar receitas">
-        <div class="filters">${['', ...CATEGORIES].map((c) => `<button class="filter ${cat === c ? 'active' : ''}" data-action="recipe-cat" data-id="${esc(c)}">${esc(c || 'Todas')}</button>`).join('')}</div>
+        <div class="filters"><button class="filter af-filter ${air ? 'active' : ''}" data-action="recipe-air" aria-pressed="${air}">🌀 Air fryer</button>
+          ${['', ...CATEGORIES].map((c) => `<button class="filter ${cat === c ? 'active' : ''}" data-action="recipe-cat" data-id="${esc(c)}">${esc(c || 'Todas')}</button>`).join('')}</div>
       </div>
       ${card('⭐ Receitas da família', fam.length ? `<div class="recipe-grid">${fam.map(recipeCard).join('')}</div>`
         : empty('Guardem aqui as vossas: criem uma, importem de um site ou guardem uma das sugestões.'))}
@@ -186,6 +191,7 @@ window.Refeicoes = function ({ render }) {
         <button type="button" class="icon-btn" data-action="dlg-close" aria-label="Fechar">✕</button></header>
       <div class="recipe-body">
         ${r.image ? `<img class="recipe-img" src="${esc(r.image)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ''}
+        ${afBadge(r)}
         <p class="small muted">${esc(r.category || '')}${r.minutes ? ` · ⏱ ${r.minutes} min` : ''}${r.servings ? ` · 👥 ${r.servings} pessoas` : ''}
           ${host ? ` · <a href="${esc(r.source)}" target="_blank" rel="noopener">${esc(host)}</a>` : ''}</p>
         <h3 class="sub">Ingredientes <small class="muted">— marca o que tens em casa</small></h3>
@@ -231,7 +237,7 @@ window.Refeicoes = function ({ render }) {
         <input type="search" id="picker-search" placeholder="🔎 Procurar receita ou ingrediente…" autocomplete="off" aria-label="Procurar">
         <ul class="picker-list">${allRecipes().map((r) => `<li><button class="${r.id === cur ? 'current' : ''}" data-action="pick-recipe-choose"
           data-id="${esc(r.id)}" data-slot="${slot}" data-search="${esc(searchText(r))}">
-          <span>${esc(r.emoji || '🍽️')} ${esc(r.title)}</span><small class="muted">${esc(r.category || '')}${r.minutes ? ` · ${r.minutes} min` : ''}
+          <span>${esc(r.emoji || '🍽️')} ${esc(r.title)}${r.airfryer ? ' 🌀' : ''}</span><small class="muted">${esc(r.category || '')}${r.minutes ? ` · ${r.minutes} min` : ''}
           · ${missingOf(r).length ? `faltam ${missingOf(r).length}` : '✔ tens tudo'}</small></button></li>`).join('')}</ul>
         ${cur ? `<button class="btn small ghost" data-action="pick-recipe-clear" data-slot="${slot}">Tirar a receita deste dia</button>` : ''}
       </div></div>`;
@@ -245,6 +251,8 @@ window.Refeicoes = function ({ render }) {
     { name: 'emoji', label: 'Emoji', half: true, default: '🍽️' },
     { name: 'minutes', label: 'Tempo (minutos)', type: 'number', min: 0, half: true },
     { name: 'servings', label: 'Pessoas', type: 'number', min: 1, half: true, default: 4 },
+    { name: 'airfryer', label: 'É para air fryer?', type: 'select', half: true, options: [['', 'Não'], ['sim', '🌀 Sim']] },
+    { name: 'af', label: 'Air fryer: temperatura e tempo', half: true, placeholder: 'Ex.: 180 °C · 15 min' },
     { name: 'ingredientsText', label: 'Ingredientes (um por linha, ex.: 400 g de bacalhau)', type: 'textarea', rows: 8, required: true },
     { name: 'stepsText', label: 'Preparação (um passo por linha)', type: 'textarea', rows: 6 },
     { name: 'source', label: 'Link (opcional)', type: 'url' },
@@ -255,12 +263,15 @@ window.Refeicoes = function ({ render }) {
     openForm({
       title: existing ? `Editar: ${existing.title}` : preset.source ? 'Receita importada — confirma' : 'Nova receita',
       fields: RECIPE_FIELDS(),
-      values: { ...base, ingredientsText: (base.ingredients || []).join('\n'), stepsText: (base.steps || []).join('\n') },
+      values: {
+        ...base, airfryer: base.airfryer ? 'sim' : '',
+        ingredientsText: (base.ingredients || []).join('\n'), stepsText: (base.steps || []).join('\n'),
+      },
       onSubmit: (d) => {
         const data = {
           title: d.title, category: d.category, emoji: d.emoji || '🍽️', minutes: Number(d.minutes) || 0,
           servings: Number(d.servings) || 4, ingredients: ingredientLines(d.ingredientsText), steps: stepLines(d.stepsText),
-          source: d.source, image: base.image || '',
+          source: d.source, image: base.image || '', airfryer: d.airfryer === 'sim', af: d.airfryer === 'sim' ? d.af : '',
         };
         let id = existing?.id;
         Store.update((s) => {
@@ -288,6 +299,7 @@ window.Refeicoes = function ({ render }) {
     recipeForm(null, {
       title: r.title, category: guessCategory(`${r.category} ${r.title}`), emoji: '🍽️', minutes: r.minutes || '',
       servings: r.servings || 4, ingredients: r.ingredients, steps: r.steps, source: r.source, image: r.image,
+      ...I.airFryer(r),
     });
   }
 
@@ -315,6 +327,7 @@ window.Refeicoes = function ({ render }) {
   const actions = {
     'meals-tab': (el) => { VS.mealsTab = el.dataset.id; render(); },
     'recipe-cat': (el) => { VS.recipeCat = el.dataset.id; render(); },
+    'recipe-air': () => { VS.recipeAir = !VS.recipeAir; render(); },
     'open-recipe': (el) => openRecipe(el.dataset.id),
     'pick-recipe': (el) => openPicker(el.dataset.slot),
     'pick-recipe-choose': (el) => {

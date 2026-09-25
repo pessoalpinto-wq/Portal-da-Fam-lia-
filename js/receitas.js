@@ -6,6 +6,12 @@
   const R = (id, title, emoji, category, minutes, ingredients, steps) => ({
     id: `pt-${id}`, title, emoji, category, minutes, servings: 4, ingredients, steps, builtin: true,
   });
+  /** Receita de air fryer: "af" é a indicação rápida de temperatura e tempo. */
+  const A = (id, title, emoji, category, minutes, af, ingredients, steps) => ({
+    ...R(`af-${id}`, title, emoji, category, minutes, ingredients, [...steps,
+      'Dica: não encha demasiado o cesto — se for preciso, faça em duas vezes para ficar tudo estaladiço.']),
+    airfryer: true, af,
+  });
 
   root.RECEITAS_PT = [
     // ---------- Peixe ----------
@@ -263,6 +269,108 @@
       'Envolva os espinafres e sirva com arroz.',
     ]),
 
+    // ---------- Air fryer ----------
+    A('coxas-frango', 'Coxas de frango crocantes', '🍗', 'Carne', 35, '200 °C · 25 min', [
+      '8 coxas de frango', '2 dentes de alho', '1 colher de sopa de colorau', '1 colher de chá de orégãos', '1 limão',
+      '2 colheres de sopa de azeite', 'Sal e pimenta q.b.',
+    ], [
+      'Tempere as coxas com alho esmagado, colorau, orégãos, sumo de limão, azeite, sal e pimenta. Deixe marinar 30 minutos se puder.',
+      'Coloque no cesto com a pele para cima, sem sobrepor.',
+      'Cozinhe a 200 °C durante 25 minutos, virando a meio.',
+    ]),
+    A('asas-mel', 'Asas de frango com mel e limão', '🍯', 'Petiscos', 30, '200 °C · 20 min', [
+      '1 kg de asas de frango', '2 colheres de sopa de mel', '1 limão', '2 dentes de alho', '1 colher de chá de paprika', 'Sal q.b.',
+    ], [
+      'Tempere as asas com sal, alho e paprika.',
+      'Cozinhe a 200 °C durante 15 minutos, agitando o cesto a meio.',
+      'Pincele com o mel misturado com o sumo de limão e cozinhe mais 5 minutos.',
+    ]),
+    A('alheira', 'Alheira com batata e ovo', '🌭', 'Carne', 30, '180 °C · 15 min', [
+      '4 alheiras', '800 g de batatas', '4 ovos', '400 g de grelos', '2 colheres de sopa de azeite', 'Sal q.b.',
+    ], [
+      'Corte as batatas em palitos, envolva em azeite e sal e cozinhe a 200 °C durante 20 minutos, agitando de vez em quando. Reserve.',
+      'Pique as alheiras com um garfo e cozinhe a 180 °C durante 15 minutos, virando a meio.',
+      'Coza os grelos e estrele os ovos (ou coloque-os numa forma na air fryer, 180 °C, 6 minutos).',
+    ]),
+    A('salmao-ervas', 'Salmão com crosta de ervas', '🐟', 'Peixe', 20, '180 °C · 12 min', [
+      '4 postas de salmão', '4 colheres de sopa de pão ralado', '1 colher de sopa de salsa picada', '1 dente de alho',
+      '1 limão', '2 colheres de sopa de azeite', 'Sal e pimenta q.b.',
+    ], [
+      'Tempere o salmão com sal, pimenta e limão.',
+      'Misture o pão ralado com a salsa, o alho picado e o azeite e cubra a parte de cima das postas.',
+      'Cozinhe a 180 °C durante 12 minutos. Sirva com salada ou legumes.',
+    ]),
+    A('bacalhau-murro', 'Bacalhau assado com batatas a murro', '🐟', 'Peixe', 45, '190 °C · 15 min', [
+      '4 postas de bacalhau demolhado', '800 g de batatas pequenas', '4 dentes de alho', '1 dl de azeite', 'Salsa q.b.', 'Sal grosso q.b.',
+    ], [
+      'Envolva as batatas com pele em azeite e sal grosso e cozinhe a 200 °C durante 25 minutos. Dê-lhes um murro e reserve.',
+      'Regue o bacalhau com azeite e alho laminado e cozinhe a 190 °C durante 15 minutos.',
+      'Sirva tudo regado com azeite quente, alho e salsa.',
+    ]),
+    A('douradinhos', 'Douradinhos caseiros de pescada', '🐠', 'Peixe', 25, '200 °C · 10 min', [
+      '500 g de filetes de pescada', '2 ovos', '100 g de pão ralado', '2 colheres de sopa de farinha', '1 limão', 'Azeite em spray', 'Sal q.b.',
+    ], [
+      'Corte os filetes em tiras e tempere com sal e limão.',
+      'Passe por farinha, ovo batido e pão ralado.',
+      'Borrife com azeite e cozinhe a 200 °C durante 10 minutos, virando a meio. Os miúdos adoram!',
+    ]),
+    A('costeletas', 'Costeletas de porco temperadas', '🥩', 'Carne', 25, '200 °C · 14 min', [
+      '4 costeletas de porco', '3 dentes de alho', '1 dl de vinho branco', '1 colher de chá de colorau', '1 folha de louro', 'Sal q.b.',
+    ], [
+      'Tempere as costeletas com alho, vinho, colorau, louro e sal e deixe 20 minutos.',
+      'Cozinhe a 200 °C durante 14 minutos, virando a meio.',
+      'Sirva com arroz ou batatas.',
+    ]),
+    A('hamburgueres', 'Hambúrgueres na air fryer', '🍔', 'Carne', 20, '180 °C · 10 min', [
+      '4 hambúrgueres de novilho', '4 pães de hambúrguer', '4 fatias de queijo', '1 alface', '1 tomate', 'Ketchup q.b.',
+    ], [
+      'Cozinhe os hambúrgueres a 180 °C durante 8 minutos, virando a meio.',
+      'Coloque o queijo por cima e cozinhe mais 2 minutos. Aqueça os pães 1 minuto no fim.',
+      'Monte com alface, tomate e ketchup.',
+    ]),
+    A('legumes', 'Legumes assados', '🥕', 'Vegetariano', 20, '190 °C · 15 min', [
+      '1 courgette', '1 pimento vermelho', '1 cebola roxa', '200 g de cogumelos', '2 cenouras',
+      '2 colheres de sopa de azeite', 'Ervas de Provença q.b.', 'Sal q.b.',
+    ], [
+      'Corte os legumes em pedaços do mesmo tamanho.',
+      'Envolva em azeite, ervas e sal.',
+      'Cozinhe a 190 °C durante 15 minutos, agitando o cesto a meio.',
+    ]),
+    A('batatas-fritas', 'Batatas fritas caseiras', '🍟', 'Petiscos', 30, '200 °C · 20 min', [
+      '1 kg de batatas', '1 colher de sopa de azeite', 'Sal q.b.',
+    ], [
+      'Corte as batatas em palitos e deixe-as 15 minutos em água fria. Seque muito bem.',
+      'Envolva no azeite.',
+      'Cozinhe a 200 °C durante 20 minutos, agitando o cesto 2 ou 3 vezes. Tempere com sal no fim.',
+    ]),
+    A('batata-doce', 'Batata-doce em palitos', '🍠', 'Petiscos', 25, '200 °C · 18 min', [
+      '2 batatas-doces', '1 colher de sopa de azeite', '1 colher de chá de paprika', 'Sal q.b.',
+    ], [
+      'Corte em palitos finos e envolva em azeite, paprika e sal.',
+      'Cozinhe a 200 °C durante 18 minutos, agitando a meio.',
+    ]),
+    A('grao-crocante', 'Grão-de-bico crocante', '🫘', 'Petiscos', 20, '200 °C · 15 min', [
+      '1 lata de grão-de-bico', '1 colher de sopa de azeite', '1 colher de chá de cominhos', '1 colher de chá de paprika', 'Sal q.b.',
+    ], [
+      'Escorra e seque bem o grão.',
+      'Envolva com azeite e especiarias.',
+      'Cozinhe a 200 °C durante 15 minutos, agitando de 5 em 5 minutos. Ótimo para o lanche.',
+    ]),
+    A('pao-alho', 'Pão de alho', '🥖', 'Petiscos', 10, '180 °C · 5 min', [
+      '1 baguete', '60 g de manteiga', '3 dentes de alho', 'Salsa q.b.',
+    ], [
+      'Misture a manteiga amolecida com o alho e a salsa picados.',
+      'Corte a baguete em fatias sem chegar ao fundo e barre entre as fatias.',
+      'Cozinhe a 180 °C durante 5 minutos.',
+    ]),
+    A('macas-canela', 'Maçãs assadas com canela', '🍎', 'Sobremesas', 20, '180 °C · 15 min', [
+      '4 maçãs', '2 colheres de sopa de açúcar amarelo', '1 colher de chá de canela', '20 g de manteiga',
+    ], [
+      'Retire o caroço às maçãs.',
+      'Recheie com açúcar, canela e um pedaço de manteiga.',
+      'Cozinhe a 180 °C durante 15 minutos.',
+    ]),
+
     // ---------- Sobremesas ----------
     R('arroz-doce', 'Arroz doce', '🍮', 'Sobremesas', 50, [
       '200 g de arroz carolino', '1 l de leite', '200 g de açúcar', '4 gemas', '1 casca de limão', '1 pau de canela', 'Canela em pó q.b.', 'Sal q.b.',
@@ -289,5 +397,5 @@
     ]),
   ];
 
-  root.RECEITAS_CATEGORIAS = ['Carne', 'Peixe', 'Vegetariano', 'Massas & arroz', 'Sopa', 'Sobremesas'];
+  root.RECEITAS_CATEGORIAS = ['Carne', 'Peixe', 'Vegetariano', 'Massas & arroz', 'Sopa', 'Petiscos', 'Sobremesas'];
 })(globalThis);

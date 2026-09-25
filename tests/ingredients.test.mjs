@@ -71,3 +71,18 @@ test('soma de quantidades', () => {
   assert.equal(sumQty(['1 lata', '2 latas']), '3 latas');
   assert.equal(sumQty(['2 a 3']), '2 a 3');
 });
+
+test('air fryer em receitas importadas (textos reais da Teleculinária)', () => {
+  const { airFryer } = globalThis.Ingredients;
+  assert.deepEqual(airFryer({
+    title: 'Alheira na air fryer',
+    steps: ['Corte a couve em pedaços e coza-os entre 7 a 10 minutos em água com sal.', 'Coloque o preparado anterior, na air fryer, pique as alheiras',
+      'Programe a 180ºc, durante 18 minutos. Retire e sirva de imediato.'],
+  }), { airfryer: true, af: '180 °C · 18 min' });
+  assert.deepEqual(airFryer({
+    title: 'Legumes na air fryer',
+    steps: ['Programe a air fryer a 180º durante 16 minutos. A meio do tempo de cozedura, abra e mexa.'],
+  }), { airfryer: true, af: '180 °C · 16 min' });
+  assert.deepEqual(airFryer({ title: 'Frango na fritadeira sem óleo', steps: ['Cozinhe a 200 °C.'] }), { airfryer: true, af: '200 °C' });
+  assert.deepEqual(airFryer({ title: 'Arroz de pato', steps: ['Forno a 200 °C durante 20 minutos.'] }), { airfryer: false, af: '' });
+});
