@@ -42,7 +42,7 @@
 
   function seed() {
     const s = EMPTY();
-    const pai = { id: uid(), name: 'Pai', role: 'pai', emoji: '👨', color: '#3b82f6', birthday: '', points: 0 };
+    const pai = { id: uid(), name: 'Luís', role: 'pai', emoji: '👨', color: '#3b82f6', birthday: '', points: 0 };
     const mae = { id: uid(), name: 'Cátia', role: 'mae', emoji: '👩', color: '#ec4899', birthday: '', points: 0 };
     const f16 = { id: uid(), name: 'Mariana', role: 'filha', emoji: '👱‍♀️', color: '#8b5cf6', birthday: '', points: 0 };
     const f12 = { id: uid(), name: 'Luísa', role: 'filha', emoji: '👧', color: '#f59e0b', birthday: '', points: 0 };
