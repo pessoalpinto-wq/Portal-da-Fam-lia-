@@ -31,6 +31,31 @@ No GitHub: **Settings → Pages → Branch: `main` (ou este ramo) → `/ (root)`
 Uns minutos depois o portal fica em `https://pessoalpinto-wq.github.io/Portal-da-Fam-lia-/`.
 No telemóvel, abrir esse endereço e escolher **"Adicionar ao ecrã principal"**.
 
+## 🔔 Lembretes no telemóvel
+
+Em **Definições → Lembretes no telemóvel → Ligar lembretes** (em cada aparelho). Chegam mesmo com o portal fechado:
+
+| Lembrete | Quando | Para quem |
+|---|---|---|
+| ⏰ Compromisso | 1 hora antes (às 8h se não tiver hora) | quem vai e quem leva ("🚗 És tu quem leva") |
+| 📝 Teste / trabalho | na véspera às 19h | a aluna ("Bom estudo! 💪") e os pais |
+| ✅ Tarefas por fazer | às 18h | o responsável |
+| ☀️ Resumo do dia | às 7h30 | cada um: aulas, testes e compromissos do dia |
+| 🗓️ Resumo da semana | domingo às 20h | cada um |
+| 🙋 Aprovações | na hora | pais (pedidos) e filhas (resposta) |
+| ✈️ Viagem | 7 dias e 1 dia antes | quem vai |
+| 🎂 Aniversário | na véspera às 20h | todos menos o aniversariante 😉 |
+
+Cada pessoa escolhe o que quer receber. **No iPhone** (iOS 16.4 ou mais recente) é preciso primeiro
+instalar o portal: Safari → Partilhar → **Adicionar ao ecrã principal**, e abrir pelo ícone.
+As notificações precisam do endereço https (GitHub Pages); não funcionam abrindo o `index.html` directamente.
+
+## 📅 Agenda no Google Calendar / iPhone
+
+Em **Definições → Calendário no telemóvel** há um link de subscrição (da família toda ou só de uma pessoa,
+com ou sem horário escolar). Actualiza-se sozinho: o iPhone em cerca de 1 hora, o Google em algumas horas.
+Na **Agenda** há também "⬇️ .ics" para descarregar a agenda num ficheiro (funciona mesmo sem conta).
+
 ## Pais e filhas: quem pode fazer o quê
 
 | | Pais | Filhas |
@@ -67,11 +92,12 @@ mexendo na página. Cada família só vê os seus dados.
 - Funciona sem internet: as alterações ficam guardadas e são enviadas quando a ligação voltar
   (bolinha no topo: 🟢 sincronizado, 🟠 a guardar, 🔴 sem ligação).
 
-### Fase 3 — Notificações e integrações
-- Lembretes no telemóvel (PWA com notificações): "Amanhã há teste de Matemática",
-  "Hoje és tu que tiras o lixo", "Buscar a mais nova às 17:45".
-- Sincronização com **Google Calendar / iCloud** (exportar agenda em ficheiro iCal).
-- Resumo semanal ao domingo à noite por email: o que aí vem na semana.
+### ✅ Fase 3 — Lembretes e calendário (feito)
+- Notificações no telemóvel (Web Push), enviadas pelo servidor de 10 em 10 minutos, sem nunca repetir.
+- Link de calendário para Google Calendar / iPhone e exportação .ics.
+- Resumo da semana ao domingo (por notificação; por email exigiria contratar um serviço de envio de emails).
+- Sincronização nos dois sentidos com o Google Calendar ficou de fora: exige registar uma app na Google e passar
+  pela verificação deles. O link de subscrição cobre o essencial.
 
 ### Fase 4 — Mais ideias para uma família de 4
 - 💰 **Mesadas e finanças**: mesada de cada filha, poupanças para objectivos, despesas da casa e contas a pagar (água, luz, seguros, IUC).
@@ -98,9 +124,19 @@ js/ui.js                   componentes (formulários, avisos) e regras (tarefas,
 js/views.js                as secções do portal
 js/cloud.js                contas, criar família, entrar com código
 js/app.js                  navegação e acções
+js/notify.js               lembretes (Web Push) e link do calendário
 js/vendor/supabase.js      biblioteca supabase-js (MIT)
+sw.js                      service worker: mostra as notificações
+icons/                     ícones da app (Android / iPhone)
 supabase/migrations/       esquema da base de dados e regras de segurança
+supabase/functions/
+  send-reminders/          envia os lembretes (chamada pelo pg_cron de 10 em 10 min)
+  calendar/                calendário iCal para subscrever
+  _shared/                 Web Push (RFC 8291/8292), regras dos lembretes, gerador .ics
+tests/                     testes (npm test)
 ```
+
+Segredos (chave privada VAPID e segredo do cron) estão no **Vault** do Supabase, nunca no repositório.
 
 Cada item (tarefa, compromisso, aula…) é uma linha na tabela `items` (`coll` = tipo, `data` = conteúdo).
 Os itens apagados ficam marcados com `deleted = true`, o que permite sincronizar bem entre aparelhos.

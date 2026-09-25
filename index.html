@@ -8,7 +8,10 @@
   <title>Portal da Família</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Família">
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
@@ -38,7 +41,9 @@
   <script src="js/store.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/views.js"></script>
+  <script src="supabase/functions/_shared/ics.js"></script>
   <script src="js/cloud.js"></script>
+  <script src="js/notify.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

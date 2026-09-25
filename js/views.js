@@ -258,7 +258,8 @@
     const dayClasses = S().members.map((mm) => ({ mm, cl: classesOn(mm.id, VS.calDay) })).filter((x) => x.cl.length);
 
     return `<div class="page-head"><h1>Agenda</h1>
-      <div class="quick">${addBtn('add-event', 'Compromisso', `data-date="${VS.calDay}"`)}</div></div>
+      <div class="quick"><button class="btn small ghost" data-action="export-ics" title="Descarregar para importar noutro calendário">⬇️ .ics</button>
+        ${addBtn('add-event', 'Compromisso', `data-date="${VS.calDay}"`)}</div></div>
       <div class="agenda">
         <section class="card cal">
           <header class="cal-head">
@@ -525,6 +526,8 @@
     return `<div class="page-head"><h1>Definições</h1></div>
       <div class="grid two">
         ${accountCard}
+        ${Store.isRemote ? card('🔔 Lembretes no telemóvel', '<div id="notify-panel"><p class="muted small">A carregar…</p></div>') : ''}
+        ${Store.isRemote ? card('📅 Calendário no telemóvel', '<div id="calendar-panel"><p class="muted small">A carregar…</p></div>') : ''}
         ${card('👪 A família', `<ul class="list">${s.members.map((m) => `<li class="member-row">${avatar(m.id)}
           <div><b>${esc(m.name)}</b><br><small class="muted">${m.birthday ? `🎂 ${esc(fmtDate(m.birthday))}` : 'Sem data de nascimento'} · ⭐ ${m.points}</small></div>
           ${parent ? `<button class="btn small ghost" data-action="edit-member" data-id="${m.id}">Editar</button>` : ''}</li>`).join('')}</ul>

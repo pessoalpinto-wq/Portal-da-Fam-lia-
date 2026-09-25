@@ -58,6 +58,27 @@
       <p class="small muted">O código dos pais dá acesso total — partilha-o só com o pai/mãe.</p>`;
   }
 
+  function fillPanels() {
+    const n = $('#notify-panel');
+    if (n) Notify.fillNotifyPanel(n).catch((e) => console.warn(e));
+    const c = $('#calendar-panel');
+    if (c) Notify.fillCalendarPanel(c).catch((e) => console.warn(e));
+  }
+
+  /** Corre uma acção assíncrona com o botão desactivado e mostra erros de forma amigável. */
+  async function withButton(el, fn, okMsg) {
+    el.disabled = true;
+    try {
+      await fn();
+      if (okMsg) toast(okMsg);
+    } catch (e) {
+      toast(e.message || String(e));
+    } finally {
+      el.disabled = false;
+      fillPanels();
+    }
+  }
+
   function render() {
     if (document.body.classList.contains('gate')) return;
     const [, , label, view] = currentRoute();
@@ -69,6 +90,7 @@
     renderUser();
     renderSync();
     fillInviteCodes();
+    fillPanels();
     window.scrollTo(0, scroll);
   }
 
@@ -218,6 +240,17 @@
         onSubmit: (data) => Store.update((s) => Object.assign(s.members.find((x) => x.id === m.id), data)),
       });
     },
+    'push-on': (el) => withButton(el, Notify.enable, '🔔 Lembretes ligados neste aparelho!'),
+    'push-off': (el) => withButton(el, Notify.disable, 'Lembretes desligados neste aparelho.'),
+    'push-test': (el) => withButton(el, async () => {
+      const r = await Notify.sendTest();
+      if (!r?.sent) throw new Error('Não foi possível enviar. Desliga e volta a ligar os lembretes.');
+    }, 'Teste enviado — deve aparecer dentro de segundos.'),
+    'cal-reset': (el) => {
+      if (!confirm('Gerar um link novo? O link antigo deixa de funcionar e terão de voltar a adicionar o calendário.')) return;
+      withButton(el, Notify.resetCalendar, 'Link novo gerado.');
+    },
+    'export-ics': () => Notify.downloadICS(),
     'sign-out': () => { if (confirm('Terminar sessão neste dispositivo?')) Cloud.signOut(); },
     'go-cloud': () => Cloud.goToLogin(),
     copy: async (el) => {
@@ -249,6 +282,10 @@
     const el = e.target;
     if (el.matches('input[type=checkbox][data-action]')) {
       actions[el.dataset.action]?.(el);
+    } else if (el.matches('[data-notify-pref]')) {
+      Notify.savePref(el.dataset.notifyPref, el.checked)
+        .then(() => toast('Preferência guardada.'))
+        .catch((err) => { el.checked = !el.checked; toast(err.message || String(err)); });
     } else if (el.matches('[data-meal]')) {
       const [d, k] = el.dataset.meal.split(':');
       Store.update((s) => { s.meals[d] = { ...(s.meals[d] || {}), [k]: el.value.trim() }; });

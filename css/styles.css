@@ -427,3 +427,15 @@ body.gate .view { margin-left: 0; }
 .invite { display: flex; align-items: center; gap: .6rem; margin: .4rem 0; }
 .invite span { min-width: 6.5rem; font-weight: 600; font-size: .9rem; }
 .invite code { font-size: 1.1rem; letter-spacing: .15em; background: var(--surface-2); padding: .2rem .5rem; border-radius: 6px; }
+
+/* ---------- Lembretes e calendário ---------- */
+.notify-status { font-weight: 700; margin: 0 0 .6rem; color: var(--muted); }
+.notify-status.on { color: var(--ok); }
+.notify-types { display: grid; gap: .45rem; }
+.steps-list { margin: .3rem 0; padding-left: 1.2rem; display: grid; gap: .25rem; }
+.cal-options { display: flex; flex-wrap: wrap; gap: .75rem; align-items: flex-end; margin: .6rem 0; }
+.cal-options .field { grid-column: auto; min-width: 12rem; }
+.cal-options .check-line { padding-bottom: .55rem; }
+.cal-url { width: 100%; font-family: ui-monospace, monospace; font-size: .75rem; margin-bottom: .5rem; }
+.help { margin-top: .75rem; }
+.help summary { cursor: pointer; color: var(--primary); font-weight: 600; font-size: .9rem; }

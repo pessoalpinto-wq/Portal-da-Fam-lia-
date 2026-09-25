@@ -197,6 +197,8 @@
   }
 
   async function signOut() {
+    // Deixa de enviar lembretes para este aparelho (pode passar a ser usado por outra pessoa).
+    try { await window.Notify?.disable(); } catch (e) { /* ignorar */ }
     try { await client?.auth.signOut(); } catch (e) { /* ignorar */ }
     setLS(PROFILE_KEY, null);
     location.reload();
@@ -229,5 +231,7 @@
     /** Sai do modo "só neste dispositivo" e mostra o ecrã de entrada. */
     goToLogin() { setLS(MODE_KEY, null); loginScreen(); },
     info: () => ({ email: session?.user?.email, accounts, role: profile?.role }),
+    /** Cliente Supabase e perfil actual (null em modo local). */
+    ctx: () => (client && profile ? { client, profile, user: session?.user } : null),
   };
 })();

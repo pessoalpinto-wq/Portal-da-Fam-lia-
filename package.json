@@ -1,0 +1,8 @@
+{
+  "name": "portal-da-familia",
+  "private": true,
+  "description": "Portal da Família — tarefas, agenda, escola, projectos e viagens",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs"
+  }
+}
