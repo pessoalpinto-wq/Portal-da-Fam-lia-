@@ -11,7 +11,7 @@
 
   const UNITS = [
     'colheres de sopa', 'colher de sopa', 'colher(es) de sopa', 'c. de sopa', 'c. sopa', 'c.s.',
-    'colheres de chá', 'colher de chá', 'colher(es) de chá', 'colheres de sobremesa', 'colher de sobremesa',
+    'colheres de chá', 'colher de chá', 'colher(es) de chá', 'colheres de sobremesa', 'colher de sobremesa', 'colheres de café', 'colher de café', 'colher (café)', 'colheres (café)',
     'c. de chá', 'c. chá', 'c.c.', 'colheres', 'colher',
     'chávenas', 'chávena', 'copos', 'copo', 'dentes', 'dente', 'latas', 'lata', 'pacotes', 'pacote',
     'embalagens', 'embalagem', 'emb.', 'unidades', 'unidade', 'un.', 'un', 'raminhos', 'raminho', 'ramos', 'ramo',
@@ -25,14 +25,14 @@
   const DESCRIPTORS = [
     'picad[oa]s?', 'finamente', 'grosseiramente', 'cortad[oa]s?(?: em [a-z ]+)?', 'ralad[oa]s?', 'fresc[oa]s?', 'grandes?', 'pequen[oa]s?',
     'medi[oa]s?', 'maduros?', 'maduras?', 'desfiad[oa]s?', 'demolhad[oa]s?', 'cozid[oa]s?', 'descascad[oa]s?', 'inteir[oa]s?',
-    'em cubos', 'as rodelas', 'em rodelas', 'laminad[oa]s?', 'esmagad[oa]s?', 'escorrid[oa]s?', 'batid[oa]s?', 'derretid[oa]s?',
+    'em cubos', 'em tiras', 'as tiras', 'as rodelas', 'em rodelas', 'laminad[oa]s?', 'esmagad[oa]s?', 'escorrid[oa]s?', 'batid[oa]s?', 'derretid[oa]s?',
     'q\\.?\\s?b\\.?', 'a gosto', 'para (?:polvilhar|decorar|servir|untar|fritar|acompanhar|temperar|o molho)', 'extra virgem', 'virgem extra', 'sem pele', 'sem espinhas',
     'aproximadamente', 'cerca de', 'bem', 'de boa qualidade',
   ];
   const DESC_RE = new RegExp(`\\b(?:${DESCRIPTORS.join('|')})\\b`, 'g');
 
   // Palavras que já estão no singular apesar de acabarem em "s" (acentos já retirados).
-  const INVARIABLE = new Set(['frances', 'ingles', 'portugues', 'pires', 'lapis', 'ananas', 'gras', 'mais', 'tres', 'seis', 'pires']);
+  const INVARIABLE = new Set(['frances', 'ingles', 'portugues', 'pires', 'lapis', 'ananas', 'gras', 'mais', 'tres', 'seis', 'virus', 'humus', 'cuscus']);
 
   function singular(w) {
     if (w.length <= 3 || INVARIABLE.has(w)) return w;
@@ -41,7 +41,7 @@
     if (/[^aeiou]res$/.test(w)) return w.slice(0, -1); // espinafres → espinafre
     if (/(r|z)es$/.test(w)) return w.slice(0, -2); // colheres → colher, arrozes → arroz
     if (/is$/.test(w) && w.length > 4) return `${w.slice(0, -2)}l`;
-    if (/s$/.test(w) && !/(ss|us)$/.test(w)) return w.slice(0, -1);
+    if (/s$/.test(w) && !/ss$/.test(w)) return w.slice(0, -1);
     return w;
   }
 

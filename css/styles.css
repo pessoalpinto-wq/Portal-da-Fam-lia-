@@ -577,3 +577,9 @@ body.gate .view { margin-left: 0; }
 .recipe-body .af-badge { font-size: .85rem; margin: .2rem 0; }
 .filter.af-filter.active { background: #0e7490; border-color: #0e7490; }
 @media (prefers-color-scheme: dark) { .af-badge { color: #67e8f9; } }
+.web-card { border-color: color-mix(in srgb, var(--primary) 35%, var(--border)); }
+.web-chips { margin: .6rem 0; }
+.web-hits { list-style: none; padding: 0; margin: .4rem 0 .8rem; display: grid; gap: .35rem; }
+.web-hit { display: flex; align-items: center; gap: .6rem; background: var(--surface-2); border-radius: 10px; padding: .45rem .6rem; }
+.web-hit .t { flex: 1; min-width: 0; display: grid; }
+.web-hits { max-height: 26rem; overflow-y: auto; padding-right: .2rem; }

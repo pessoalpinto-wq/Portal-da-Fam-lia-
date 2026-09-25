@@ -86,3 +86,10 @@ test('air fryer em receitas importadas (textos reais da Teleculinária)', () => 
   assert.deepEqual(airFryer({ title: 'Frango na fritadeira sem óleo', steps: ['Cozinhe a 200 °C.'] }), { airfryer: true, af: '200 °C' });
   assert.deepEqual(airFryer({ title: 'Arroz de pato', steps: ['Forno a 200 °C durante 20 minutos.'] }), { airfryer: false, af: '' });
 });
+
+test('mais casos das receitas de air fryer', () => {
+  assert.equal(parse('8 carapaus pequenos').key, 'carapau');
+  assert.equal(parse('800 g de entremeada em tiras').key, 'entremeada');
+  assert.deepEqual(P('1 colher de café de fermento'), ['1 colher de café', 'fermento', 'fermento']);
+  assert.deepEqual(P('1 colher (café) açafrão-da-Índia'), ['1 colher (café)', 'açafrão-da-Índia', 'acafrao da india']);
+});

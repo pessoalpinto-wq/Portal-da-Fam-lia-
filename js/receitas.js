@@ -371,6 +371,224 @@
       'Cozinhe a 180 °C durante 15 minutos.',
     ]),
 
+    // ---------- Air fryer (mais) ----------
+    A('frango-panado', 'Frango panado crocante', '🍗', 'Carne', 25, '200 °C · 15 min', [
+      '4 bifes de peito de frango', '2 ovos', '120 g de pão ralado', '3 colheres de sopa de farinha', '1 limão', '1 dente de alho', 'Azeite em spray', 'Sal q.b.',
+    ], [
+      'Tempere os bifes com sal, alho e limão.',
+      'Passe por farinha, ovo batido e pão ralado, calcando bem.',
+      'Borrife com azeite e cozinhe a 200 °C durante 15 minutos, virando a meio.',
+    ]),
+    A('peito-frango', 'Peito de frango suculento', '🐔', 'Carne', 20, '190 °C · 14 min', [
+      '4 peitos de frango', '2 colheres de sopa de azeite', '1 colher de chá de paprika', '1 colher de chá de alho em pó', '1 colher de chá de orégãos', 'Sal q.b.',
+    ], [
+      'Achate os peitos para ficarem da mesma espessura.',
+      'Barre com azeite e as especiarias.',
+      'Cozinhe a 190 °C durante 14 minutos, virando a meio. Deixe repousar 3 minutos antes de cortar.',
+    ]),
+    A('bifanas', 'Bifanas no pão', '🥪', 'Carne', 20, '200 °C · 10 min', [
+      '8 bifanas de porco', '4 dentes de alho', '1 dl de vinho branco', '1 colher de chá de colorau', '1 folha de louro', '4 papo-secos', 'Mostarda q.b.', 'Sal q.b.',
+    ], [
+      'Tempere as bifanas com alho, vinho, colorau, louro e sal e deixe 30 minutos.',
+      'Cozinhe a 200 °C durante 10 minutos, virando a meio.',
+      'Sirva no pão, com um pouco do molho e mostarda.',
+    ]),
+    A('febras', 'Febras com alho e limão', '🥩', 'Carne', 20, '200 °C · 12 min', [
+      '8 febras de porco', '4 dentes de alho', '1 limão', '1 colher de chá de colorau', '2 colheres de sopa de azeite', 'Sal q.b.',
+    ], [
+      'Tempere as febras com alho picado, sumo de limão, colorau, azeite e sal.',
+      'Cozinhe a 200 °C durante 12 minutos, virando a meio.',
+      'Sirva com arroz e salada.',
+    ]),
+    A('entremeada', 'Entremeada estaladiça', '🥓', 'Carne', 25, '200 °C · 18 min', [
+      '800 g de entremeada em tiras', '2 dentes de alho', '1 colher de chá de colorau', 'Sal grosso q.b.',
+    ], [
+      'Tempere a entremeada com alho, colorau e sal grosso.',
+      'Cozinhe a 200 °C durante 18 minutos, virando a meio. A gordura escorre para o fundo do cesto.',
+    ]),
+    A('salsichas-batata', 'Salsichas com batatas', '🌭', 'Carne', 25, '190 °C · 20 min', [
+      '8 salsichas frescas', '600 g de batatas pequenas', '1 cebola', '1 colher de sopa de azeite', 'Sal q.b.',
+    ], [
+      'Corte as batatas em quartos e a cebola em gomos; envolva em azeite e sal.',
+      'Cozinhe a 190 °C durante 10 minutos.',
+      'Junte as salsichas picadas com um garfo e cozinhe mais 10 minutos, agitando a meio.',
+    ]),
+    A('almondegas', 'Almôndegas com molho de tomate', '🧆', 'Carne', 35, '190 °C · 12 min', [
+      '500 g de carne picada', '1 ovo', '3 colheres de sopa de pão ralado', '1 dente de alho', 'Salsa q.b.',
+      '1 lata de tomate pelado', '1 cebola', '400 g de esparguete', 'Azeite q.b.', 'Sal q.b.',
+    ], [
+      'Misture a carne com o ovo, o pão ralado, o alho, a salsa e sal e faça bolinhas.',
+      'Cozinhe na air fryer a 190 °C durante 12 minutos, agitando a meio.',
+      'Entretanto faça um molho com cebola, azeite e tomate. Junte as almôndegas e sirva com esparguete.',
+    ]),
+    A('frango-tandoori', 'Frango à tandoori', '🍛', 'Carne', 30, '200 °C · 18 min', [
+      '8 coxas de frango sem pele', '1 iogurte natural', '1 colher de sopa de caril', '1 colher de chá de paprika', '1 dente de alho', '1 limão', 'Sal q.b.', '300 g de arroz basmati',
+    ], [
+      'Misture o iogurte com as especiarias, o alho, o sumo de limão e sal e envolva o frango. Deixe marinar pelo menos 1 hora.',
+      'Cozinhe a 200 °C durante 18 minutos, virando a meio.',
+      'Sirva com arroz basmati.',
+    ]),
+    A('espetadas', 'Espetadas de frango e pimento', '🍢', 'Carne', 25, '200 °C · 14 min', [
+      '600 g de peito de frango', '1 pimento vermelho', '1 pimento verde', '1 cebola', '2 colheres de sopa de azeite', '1 colher de chá de orégãos', 'Sal q.b.', 'Espetos de madeira',
+    ], [
+      'Corte o frango e os legumes em cubos e enfie nos espetos (encurte-os para caberem no cesto).',
+      'Tempere com azeite, orégãos e sal.',
+      'Cozinhe a 200 °C durante 14 minutos, virando a meio.',
+    ]),
+    A('nuggets', 'Nuggets de frango caseiros', '🐣', 'Carne', 25, '200 °C · 10 min', [
+      '500 g de peito de frango', '2 ovos', '100 g de corn flakes', '50 g de pão ralado', '1 colher de chá de paprika', 'Azeite em spray', 'Sal q.b.',
+    ], [
+      'Corte o frango em pedaços e tempere com sal e paprika.',
+      'Passe por ovo batido e depois pelos corn flakes esmagados misturados com o pão ralado.',
+      'Borrife com azeite e cozinhe a 200 °C durante 10 minutos, virando a meio.',
+    ]),
+    A('lulas', 'Anéis de lula panados', '🦑', 'Peixe', 20, '200 °C · 8 min', [
+      '500 g de anéis de lula', '2 ovos', '100 g de pão ralado', '2 colheres de sopa de farinha', '1 limão', 'Azeite em spray', 'Sal q.b.',
+    ], [
+      'Seque bem as lulas e tempere com sal e limão.',
+      'Passe por farinha, ovo e pão ralado.',
+      'Borrife com azeite e cozinhe a 200 °C durante 8 minutos, agitando a meio. Sirva com maionese de limão.',
+    ]),
+    A('camarao-alho', 'Camarão com alho e coentros', '🦐', 'Peixe', 15, '200 °C · 7 min', [
+      '500 g de camarão descascado', '4 dentes de alho', '2 colheres de sopa de azeite', '1 malagueta', 'Coentros q.b.', '1 limão', 'Sal q.b.',
+    ], [
+      'Envolva o camarão com alho laminado, azeite, malagueta e sal.',
+      'Cozinhe a 200 °C durante 7 minutos, agitando a meio.',
+      'Regue com limão, polvilhe com coentros e sirva com pão.',
+    ]),
+    A('sardinhas', 'Sardinhas assadas', '🐟', 'Peixe', 20, '200 °C · 12 min', [
+      '12 sardinhas', 'Sal grosso q.b.', '4 batatas', '2 pimentos', 'Azeite q.b.', 'Broa de milho',
+    ], [
+      'Salgue as sardinhas com sal grosso 30 minutos antes.',
+      'Forre o cesto com papel próprio e cozinhe a 200 °C durante 12 minutos, virando a meio.',
+      'Sirva com batatas cozidas, salada de pimentos assados e broa.',
+    ]),
+    A('carapaus', 'Carapaus "fritos" sem fritar', '🐟', 'Peixe', 20, '200 °C · 12 min', [
+      '8 carapaus pequenos', '3 colheres de sopa de farinha de milho', '1 limão', 'Azeite em spray', 'Sal q.b.',
+    ], [
+      'Tempere os carapaus com sal e limão e passe por farinha de milho.',
+      'Borrife com azeite e cozinhe a 200 °C durante 12 minutos, virando a meio.',
+      'Sirva com arroz de tomate ou salada.',
+    ]),
+    A('bolinhos-bacalhau', 'Bolinhos de bacalhau', '🥔', 'Peixe', 50, '200 °C · 12 min', [
+      '250 g de bacalhau desfiado', '400 g de batatas', '1 cebola pequena', '2 ovos', 'Salsa q.b.', 'Azeite em spray', 'Pimenta q.b.',
+    ], [
+      'Coza as batatas e reduza-as a puré. Coza o bacalhau 5 minutos e desfie-o finamente.',
+      'Misture com a cebola e a salsa picadas, os ovos e a pimenta.',
+      'Molde os bolinhos com duas colheres, borrife com azeite e cozinhe a 200 °C durante 12 minutos, virando a meio.',
+    ]),
+    A('pataniscas', 'Pataniscas de bacalhau', '🐟', 'Peixe', 30, '200 °C · 10 min', [
+      '200 g de bacalhau desfiado', '150 g de farinha', '2 ovos', '1,5 dl de leite', '1 cebola', 'Salsa q.b.', 'Azeite em spray', 'Pimenta q.b.',
+    ], [
+      'Faça um polme com a farinha, os ovos e o leite. Junte o bacalhau, a cebola e a salsa picadas e a pimenta.',
+      'Forre o cesto com papel próprio untado e deite colheradas de massa, espalmando.',
+      'Borrife com azeite e cozinhe a 200 °C durante 10 minutos, virando a meio.',
+    ]),
+    A('couve-flor', 'Couve-flor com caril', '🥦', 'Vegetariano', 20, '200 °C · 15 min', [
+      '1 couve-flor', '2 colheres de sopa de azeite', '1 colher de chá de caril', '1 colher de chá de paprika', 'Sal q.b.', '1 iogurte natural',
+    ], [
+      'Separe a couve-flor em raminhos e envolva em azeite, caril, paprika e sal.',
+      'Cozinhe a 200 °C durante 15 minutos, agitando a meio.',
+      'Sirva com um molho de iogurte com sal e limão.',
+    ]),
+    A('cogumelos-recheados', 'Cogumelos recheados com queijo', '🍄', 'Vegetariano', 20, '180 °C · 10 min', [
+      '12 cogumelos grandes', '100 g de queijo creme', '50 g de queijo ralado', '1 dente de alho', 'Salsa q.b.', 'Azeite q.b.',
+    ], [
+      'Retire os pés aos cogumelos e pique-os.',
+      'Misture com o queijo creme, o alho e a salsa e recheie os cogumelos. Cubra com queijo ralado.',
+      'Cozinhe a 180 °C durante 10 minutos.',
+    ]),
+    A('batatas-recheadas', 'Batatas recheadas com queijo e fiambre', '🥔', 'Vegetariano', 50, '190 °C · 35 min', [
+      '4 batatas grandes', '100 g de fiambre', '100 g de queijo ralado', '2 colheres de sopa de natas', 'Cebolinho q.b.', 'Azeite q.b.', 'Sal q.b.',
+    ], [
+      'Pique as batatas com um garfo, barre com azeite e sal e cozinhe a 190 °C durante 30 minutos.',
+      'Corte uma tampa, retire parte do miolo e misture com o fiambre, as natas e metade do queijo.',
+      'Recheie, cubra com o resto do queijo e cozinhe mais 5 minutos.',
+    ]),
+    A('courgette-panada', 'Palitos de courgette panados', '🥒', 'Vegetariano', 20, '200 °C · 12 min', [
+      '2 courgettes', '2 ovos', '80 g de pão ralado', '40 g de queijo parmesão ralado', 'Azeite em spray', 'Sal q.b.',
+    ], [
+      'Corte a courgette em palitos e tempere com sal.',
+      'Passe por ovo e depois pela mistura de pão ralado e parmesão.',
+      'Borrife com azeite e cozinhe a 200 °C durante 12 minutos, virando a meio.',
+    ]),
+    A('ovos-cozidos', 'Ovos cozidos sem água', '🥚', 'Vegetariano', 15, '150 °C · 13 min', [
+      '6 ovos',
+    ], [
+      'Coloque os ovos directamente no cesto.',
+      'Cozinhe a 150 °C: 9 minutos para gema mole, 13 minutos para cozidos.',
+      'Passe por água fria e descasque.',
+    ]),
+    A('omelete-forma', 'Omelete de fiambre e queijo', '🍳', 'Vegetariano', 15, '170 °C · 10 min', [
+      '6 ovos', '50 ml de leite', '100 g de fiambre', '80 g de queijo ralado', 'Manteiga q.b.', 'Sal e pimenta q.b.',
+    ], [
+      'Bata os ovos com o leite, sal e pimenta; junte o fiambre em pedaços e o queijo.',
+      'Deite numa forma pequena untada com manteiga que caiba no cesto.',
+      'Cozinhe a 170 °C durante 10 minutos, até estar firme.',
+    ]),
+    A('quesadillas', 'Quesadillas de frango e queijo', '🌮', 'Carne', 15, '190 °C · 6 min', [
+      '4 tortilhas de trigo', '200 g de frango cozido desfiado', '150 g de queijo mozzarella ralado', '1 lata de milho', '1 pimento', 'Azeite em spray',
+    ], [
+      'Recheie metade de cada tortilha com frango, queijo, milho e pimento picado e dobre.',
+      'Borrife com azeite e cozinhe a 190 °C durante 6 minutos, virando a meio.',
+      'Corte em triângulos.',
+    ]),
+    A('batatas-rusticas', 'Batatas rústicas com alecrim', '🥔', 'Petiscos', 30, '200 °C · 25 min', [
+      '1 kg de batatas', '2 colheres de sopa de azeite', '3 dentes de alho', '1 raminho de alecrim', 'Sal q.b.',
+    ], [
+      'Corte as batatas com pele em gomos.',
+      'Envolva com azeite, alho esmagado, alecrim e sal.',
+      'Cozinhe a 200 °C durante 25 minutos, agitando o cesto 2 ou 3 vezes.',
+    ]),
+    A('aros-cebola', 'Aros de cebola', '🧅', 'Petiscos', 20, '200 °C · 10 min', [
+      '2 cebolas grandes', '2 ovos', '80 g de pão ralado', '3 colheres de sopa de farinha', '1 colher de chá de paprika', 'Azeite em spray', 'Sal q.b.',
+    ], [
+      'Corte as cebolas em rodelas grossas e separe os aros.',
+      'Passe por farinha, ovo e pão ralado com paprika e sal.',
+      'Borrife com azeite e cozinhe a 200 °C durante 10 minutos, virando a meio.',
+    ]),
+    A('congelados', 'Rissóis, croquetes e panados congelados', '🧊', 'Petiscos', 15, '200 °C · 10 min', [
+      '12 rissóis, croquetes ou panados congelados', 'Azeite em spray',
+    ], [
+      'Não é preciso descongelar. Coloque no cesto sem sobrepor.',
+      'Borrife ligeiramente com azeite.',
+      'Cozinhe a 200 °C: rissóis e croquetes 10 a 12 minutos; panados 12 a 14 minutos; douradinhos 8 a 10 minutos. Vire a meio.',
+    ]),
+    A('tostas', 'Tostas mistas', '🥪', 'Petiscos', 10, '190 °C · 6 min', [
+      '8 fatias de pão de forma', '4 fatias de fiambre', '4 fatias de queijo', 'Manteiga q.b.',
+    ], [
+      'Monte as tostas e barre o lado de fora com um pouco de manteiga.',
+      'Cozinhe a 190 °C durante 6 minutos, virando a meio. Prenda com um palito se o ventilador levantar o pão.',
+    ]),
+    A('banana-chocolate', 'Banana com chocolate', '🍌', 'Sobremesas', 10, '180 °C · 8 min', [
+      '4 bananas', '60 g de chocolate de culinária', '1 colher de chá de canela',
+    ], [
+      'Abra as bananas ao comprido sem retirar a casca.',
+      'Recheie com pedaços de chocolate e polvilhe com canela.',
+      'Cozinhe a 180 °C durante 8 minutos. Coma à colher, com gelado!',
+    ]),
+    A('bolo-caneca', 'Bolo de caneca de chocolate', '☕', 'Sobremesas', 15, '160 °C · 12 min', [
+      '4 colheres de sopa de farinha', '3 colheres de sopa de açúcar', '2 colheres de sopa de cacau em pó', '1 ovo',
+      '3 colheres de sopa de leite', '2 colheres de sopa de óleo', '1 colher de café de fermento',
+    ], [
+      'Misture tudo numa caneca ou ramequim que possa ir ao forno.',
+      'Cozinhe a 160 °C durante 12 minutos. Faça um por pessoa!',
+    ]),
+    A('queques-iogurte', 'Queques de iogurte', '🧁', 'Sobremesas', 25, '160 °C · 15 min', [
+      '1 iogurte natural', '2 ovos', '1 medida de açúcar', '2 medidas de farinha', '½ medida de óleo', '1 colher de chá de fermento', '1 limão',
+    ], [
+      'Bata os ovos com o açúcar, junte o iogurte, o óleo e a raspa de limão, e por fim a farinha com o fermento.',
+      'Encha formas de silicone até 2/3.',
+      'Cozinhe a 160 °C durante 15 minutos (confirme com um palito).',
+    ]),
+    A('pasteis-nata', 'Pastéis de nata rápidos', '🥧', 'Sobremesas', 30, '200 °C · 12 min', [
+      '1 embalagem de massa folhada', '250 ml de leite', '4 gemas', '100 g de açúcar', '2 colheres de sopa de farinha', '1 pau de canela', '1 casca de limão',
+    ], [
+      'Enrole a massa folhada, corte em rodelas e forre formas pequenas de pastel de nata, puxando a massa com os polegares molhados.',
+      'Leve ao lume o leite com a farinha, o açúcar, a canela e o limão até engrossar; fora do lume junte as gemas.',
+      'Encha as formas até 3/4 e cozinhe a 200 °C durante 12 minutos, até ficarem com manchas escuras.',
+    ]),
+
     // ---------- Sobremesas ----------
     R('arroz-doce', 'Arroz doce', '🍮', 'Sobremesas', 50, [
       '200 g de arroz carolino', '1 l de leite', '200 g de açúcar', '4 gemas', '1 casca de limão', '1 pau de canela', 'Canela em pó q.b.', 'Sal q.b.',

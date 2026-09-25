@@ -130,6 +130,57 @@ window.Refeicoes = function ({ render }) {
     </button>`;
   }
 
+  /* ---------- Procurar na internet (Teleculinária) ---------- */
+  const WEB_CHIPS = [['air fryer', '🌀 Air fryer'], ['frango', 'Frango'], ['bacalhau', 'Bacalhau'], ['peixe', 'Peixe'],
+    ['massa', 'Massas'], ['sopa', 'Sopas'], ['rápida', 'Rápidas'], ['bolo', 'Bolos']];
+  const web = { q: '', page: 1, results: [], more: false, loading: false, error: '' };
+
+  async function webSearch(q, page = 1) {
+    const ctx = Cloud.ctx();
+    if (!ctx) { toast('Procurar receitas na internet precisa de conta (Definições → Entrar).'); return; }
+    Object.assign(web, { q, page, loading: true, error: '', ...(page === 1 ? { results: [], more: false } : {}) });
+    render();
+    const { data, error } = await ctx.client.functions.invoke('recipe-search', { body: { q, page } });
+    web.loading = false;
+    if (error) {
+      let msg = error.message;
+      try { msg = (await error.context.json()).error || msg; } catch (e) { /* sem JSON */ }
+      web.error = msg;
+    } else {
+      web.results = page === 1 ? data.results : [...web.results, ...data.results];
+      web.more = data.more;
+      if (!web.results.length) web.error = `Não encontrei receitas para "${q}".`;
+    }
+    render();
+  }
+
+  function webCard() {
+    if (!Store.isRemote) {
+      return card('🌐 Procurar na internet', '<p class="small">Com conta na nuvem podem procurar milhares de receitas testadas (Teleculinária) e importá-las com um toque.</p>');
+    }
+    const saved = new Set(familyRecipes().map((r) => r.source).filter(Boolean));
+    const list = web.results.map((r) => {
+      const mine = familyRecipes().find((x) => x.source === r.url);
+      return `<li class="web-hit"><span class="t">${esc(r.title)}${r.airfryer ? ' <span class="af-badge">🌀</span>' : ''}
+          <small class="muted">${esc(r.source)}</small></span>
+        ${saved.has(r.url) && mine
+          ? `<button class="btn small ghost" data-action="open-recipe" data-id="${esc(mine.id)}">✔ Guardada</button>`
+          : `<button class="btn small primary" data-action="web-import" data-url="${esc(r.url)}">Importar</button>`}</li>`;
+    }).join('');
+    return card('🌐 Procurar na internet', `
+      <form class="inline-add" data-form="web-search">
+        <input type="search" name="text" value="${esc(web.q)}" placeholder="Ex.: air fryer, frango, bacalhau, bolo…" aria-label="Procurar receitas na internet">
+        <button class="btn primary">Procurar</button>
+      </form>
+      <div class="filters web-chips">${WEB_CHIPS.map(([q, l]) => `<button class="filter ${web.q === q ? 'active' : ''}" data-action="web-search-q" data-id="${esc(q)}">${esc(l)}</button>`).join('')}</div>
+      ${web.loading && !web.results.length ? '<p class="muted">A procurar… ⏳</p>' : ''}
+      ${web.error ? `<p class="muted">${esc(web.error)}</p>` : ''}
+      ${list ? `<ul class="web-hits">${list}</ul>` : ''}
+      ${web.more ? `<button class="btn small ghost" data-action="web-more" ${web.loading ? 'disabled' : ''}>${web.loading ? 'A carregar…' : 'Ver mais'}</button>` : ''}
+      <p class="small muted">Receitas da <a href="https://teleculinaria.pt" target="_blank" rel="noopener">Teleculinária</a>. Ao importar, revêem e guardam nas receitas da família.</p>`,
+    { cls: 'web-card' });
+  }
+
   function receitas() {
     const cat = VS.recipeCat || '';
     const air = !!VS.recipeAir;
@@ -141,6 +192,7 @@ window.Refeicoes = function ({ render }) {
         <div class="filters"><button class="filter af-filter ${air ? 'active' : ''}" data-action="recipe-air" aria-pressed="${air}">🌀 Air fryer</button>
           ${['', ...CATEGORIES].map((c) => `<button class="filter ${cat === c ? 'active' : ''}" data-action="recipe-cat" data-id="${esc(c)}">${esc(c || 'Todas')}</button>`).join('')}</div>
       </div>
+      ${webCard()}
       ${card('⭐ Receitas da família', fam.length ? `<div class="recipe-grid">${fam.map(recipeCard).join('')}</div>`
         : empty('Guardem aqui as vossas: criem uma, importem de um site ou guardem uma das sugestões.'))}
       ${card('📖 Sugestões do portal', sug.length ? `<div class="recipe-grid">${sug.map(recipeCard).join('')}</div>` : empty('Sem sugestões nesta categoria.'))}`;
@@ -328,6 +380,9 @@ window.Refeicoes = function ({ render }) {
     'meals-tab': (el) => { VS.mealsTab = el.dataset.id; render(); },
     'recipe-cat': (el) => { VS.recipeCat = el.dataset.id; render(); },
     'recipe-air': () => { VS.recipeAir = !VS.recipeAir; render(); },
+    'web-search-q': (el) => webSearch(el.dataset.id),
+    'web-more': () => webSearch(web.q, web.page + 1),
+    'web-import': (el) => { importFromUrl(el.dataset.url); },
     'open-recipe': (el) => openRecipe(el.dataset.id),
     'pick-recipe': (el) => openPicker(el.dataset.slot),
     'pick-recipe-choose': (el) => {
@@ -418,6 +473,7 @@ window.Refeicoes = function ({ render }) {
   };
 
   const inlineForms = {
+    'web-search': (f, d) => { webSearch(d.text); },
     'add-pantry': (f, d) => {
       let n = 0;
       Store.update((s) => d.text.split(/[,;]/).forEach((x) => { if (x.trim() && addPantry(s, x.trim())) n++; }));
@@ -455,5 +511,20 @@ window.Refeicoes = function ({ render }) {
   const route = Views.routes.find((r) => r[0] === 'refeicoes');
   if (route) route[3] = view;
 
-  return { actions, inlineForms, onChange, onInput };
+  let shareHandled = false;
+  /** Receita partilhada a partir de outra app (Android: Partilhar → Família). */
+  function afterRender() {
+    if (shareHandled) return;
+    const params = new URLSearchParams(location.search);
+    const link = params.get('url') || (params.get('text') || '').match(/https?:\/\/\S+/)?.[0];
+    if (!link) return;
+    shareHandled = true;
+    history.replaceState(null, '', `${location.pathname}#/refeicoes`);
+    if (!Cloud.ctx()) { toast('Para importar receitas partilhadas é preciso entrar com a conta.'); return; }
+    VS.mealsTab = 'receitas';
+    render();
+    importFromUrl(link);
+  }
+
+  return { actions, inlineForms, onChange, onInput, afterRender };
 };

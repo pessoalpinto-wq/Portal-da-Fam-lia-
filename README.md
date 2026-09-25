@@ -24,6 +24,8 @@ mexer nas definições de email do Supabase (o servidor de email gratuito só en
 
 ### 📱 Usar no telemóvel como uma app
 
+**Android:** com o portal instalado, num site de receitas façam **Partilhar → Família** e a receita é importada logo.
+
 No GitHub: **Settings → Pages → Branch: `main` (ou este ramo) → `/ (root)` → Save**.
 Uns minutos depois o portal fica em `https://pessoalpinto-wq.github.io/Portal-da-Fam-lia-/`.
 No telemóvel, abrir esse endereço e escolher **"Adicionar ao ecrã principal"**.
@@ -87,7 +89,7 @@ mexendo na página. Cada família só vê os seus dados.
 | 🛠️ **Projectos** | Obras, festas, trabalhos de grupo… divididos em passos, com prazo, participantes e barra de progresso. |
 | ✈️ **Viagens** | Datas, contagem decrescente, alojamento, lista de mala por pessoa, preparativos (documentos, seguros) e orçamento com despesas. |
 | 🛒 **Compras** | Lista partilhada por categorias; qualquer pessoa acrescenta o que falta. |
-| 🍽️ **Refeições** | **Semana:** escolham uma receita para cada almoço/jantar (📖) ou peçam "✨ Sugerir ementa"; o portal junta os ingredientes da semana, marca o que já há em casa e manda o que falta para as compras com um toque. **Receitas:** 47 receitas caseiras portuguesas incluídas (14 para **air fryer 🌀**, com temperatura e tempo; filtro próprio), receitas da família, e **importação a partir do link** de sites de receitas (Pingo Doce, Continente, Teleculinária, blogs…) — as receitas de air fryer ficam marcadas sozinhas. **Despensa:** o que há em casa — o que se compra entra sozinho. |
+| 🍽️ **Refeições** | **Semana:** escolham uma receita para cada almoço/jantar (📖) ou peçam "✨ Sugerir ementa"; o portal junta os ingredientes da semana, marca o que já há em casa e manda o que falta para as compras com um toque. **Receitas:** 78 receitas caseiras portuguesas incluídas (45 para **air fryer 🌀**, com temperatura e tempo; filtro próprio), **🌐 pesquisa na internet** (milhares de receitas testadas da Teleculinária, importadas com um toque), receitas da família, e **importação a partir do link** de sites de receitas (Pingo Doce, Continente, Teleculinária, blogs…) — as receitas de air fryer ficam marcadas sozinhas. **Despensa:** o que há em casa — o que se compra entra sozinho. |
 | 📌 **Mural** | Recados para a família ("hoje chego tarde"), com possibilidade de afixar. |
 | 📞 **Contactos** | Escola, centro de saúde, explicadores, treinadores, emergência — com botão para ligar. |
 | 💰 **Finanças** | Carteira de cada filha, **mesada paga automaticamente** (semanal ou mensal), **mealheiros** com objectivos (bicicleta, telemóvel…), registo de gastos. **Contas da casa** com próximo pagamento e histórico — só os pais vêem. |
@@ -152,6 +154,7 @@ supabase/functions/
   calendar/                calendário iCal para subscrever
   register/                criar conta já confirmada (sem email de confirmação)
   recipe-import/           importar receita de um site (dados schema.org/Recipe da página)
+  recipe-search/           procurar receitas na internet (pesquisa pública da Teleculinária)
   _shared/                 Web Push (RFC 8291/8292), regras dos lembretes, gerador .ics
 tests/                     testes (npm test)
 ```
