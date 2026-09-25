@@ -17,13 +17,10 @@ compras, refeições e recados.
 
 Também dá para usar sem conta ("Continuar sem conta"), com os dados só nesse dispositivo.
 
-### ⚙️ Configuração necessária no Supabase (uma vez, 1 minuto)
+### ✉️ Contas sem email de confirmação
 
-O servidor gratuito de email do Supabase só envia emails para membros da equipa do projecto,
-por isso é preciso **desligar a confirmação por email** para as filhas conseguirem criar conta:
-
-1. Abrir <https://supabase.com/dashboard/project/gymxmrgptzqygfupadvw/auth/providers>
-2. **Email** → desligar **"Confirm email"** → **Save**.
+As contas são criadas já confirmadas pela função `register` do servidor, por isso não é preciso
+mexer nas definições de email do Supabase (o servidor de email gratuito só envia para a equipa do projecto).
 
 ### 📱 Usar no telemóvel como uma app
 

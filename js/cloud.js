@@ -66,14 +66,10 @@
       const password = form.password.value;
       busy(form, true);
       try {
-        const res = signup
-          ? await client.auth.signUp({ email, password })
-          : await client.auth.signInWithPassword({ email, password });
+        // Contas novas são criadas já confirmadas pela função "register" (sem email de confirmação).
+        if (signup) await register(email, password);
+        const res = await client.auth.signInWithPassword({ email, password });
         if (res.error) throw res.error;
-        if (!res.data.session) {
-          loginScreen('login', 'Conta criada! Confirma o email (vê a caixa de correio) e depois entra aqui.');
-          return;
-        }
         session = res.data.session;
         setLS(MODE_KEY, null);
         await afterLogin();
@@ -82,6 +78,14 @@
         busy(form, false);
       }
     });
+  }
+
+  async function register(email, password) {
+    const { error } = await client.functions.invoke('register', { body: { email, password } });
+    if (!error) return;
+    let msg = error.message;
+    try { msg = (await error.context.json()).error || msg; } catch (e) { /* resposta sem JSON */ }
+    throw new Error(msg);
   }
 
   function onboardingScreen() {
