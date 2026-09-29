@@ -517,7 +517,7 @@ window.ComprasExtra = function ({ render }) {
     return `<section class="card reqs-card"><header class="card-head"><h2>🙋 Pedir aos pais</h2></header>
       <p class="small muted">Queres alguma coisa especial? Pede aqui — quando os pais disserem que sim, entra na lista. (O que faltar em casa podes pôr diretamente na lista.)</p>
       <form class="inline-add req-add" data-form="shop-request">
-        <input name="text" placeholder="O que queres? (ex.: gelado)" required aria-label="O que pedes" list="shop-suggest" autocomplete="off">
+        <input name="text" placeholder="O que queres?" required aria-label="O que pedes" list="shop-suggest" autocomplete="off">
         <input name="qty" placeholder="Qtd." class="num" aria-label="Quantidade">
         <input name="note" placeholder="Marca, sabor, para quê… (opcional)" aria-label="Detalhes" class="req-note">
         <button class="btn primary">🙋 Pedir</button>
@@ -551,6 +551,9 @@ window.ComprasExtra = function ({ render }) {
       Object.assign(r, { status, answeredBy: s.currentUser, answeredAt: new Date().toISOString() });
       if (reason) r.reason = reason.trim().slice(0, 120);
       if (status === 'approved') C.approveInto(s.shopping, r, catalog(), Store.uid);
+      // Arruma: os pedidos respondidos há mais de 30 dias já não interessam.
+      const old = new Date(Date.now() - 30 * 86400000).toISOString();
+      s.shopreqs = s.shopreqs.filter((x) => x.status === 'pending' || !x.answeredAt || x.answeredAt > old);
     });
     if (r) UI.toast(status === 'approved' ? `✔ ${r.text} está na lista` : 'Pedido recusado.');
   }

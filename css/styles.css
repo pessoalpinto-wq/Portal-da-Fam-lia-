@@ -871,3 +871,10 @@ body.shop-mode .view { margin-left: auto; max-width: 720px; padding: 0 16px 2rem
 .prod-card img { width: 96px; height: 96px; object-fit: contain; border-radius: 12px; background: #fff; border: 1px solid var(--border); flex: none; }
 .prod-card .prod-code { font-family: ui-monospace, monospace; font-size: .78rem; }
 .prod-photo { width: 120px; height: 120px; object-fit: contain; border-radius: 12px; background: #fff; border: 1px solid var(--border); }
+
+/* Revisão das Compras: acertos no telemóvel */
+.shop label input[type=checkbox] { flex: none; }
+.catalog-bar .btn { max-width: 100%; white-space: normal; text-align: left; }
+.market-title { min-width: 0; }
+.market-title b { font-size: 1.15rem; white-space: nowrap; }
+.market-head .btn { flex: none; }
