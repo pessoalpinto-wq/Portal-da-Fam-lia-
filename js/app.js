@@ -130,9 +130,21 @@
   const eventForm = edit('events', 'event', 'compromisso', () => ({
     date: VS.calDay || today(), repeat: 'none', members: [S().currentUser], start: '', end: '', location: '', notes: '', driver: '',
   }));
-  const taskForm = edit('tasks', 'task', 'tarefa', () => ({
-    assignee: S().currentUser, due: today(), repeat: 'none', points: 2, category: 'Casa', done: false, notes: '', history: [],
-  }));
+  /** Tarefa nova ou editar. As filhas não mudam os pontos e só apagam as tarefas que elas próprias criaram. */
+  function taskForm(el) {
+    const id = el.dataset.id;
+    const item = id && S().tasks.find((x) => x.id === id);
+    UI.editItem('tasks', id, {
+      title: 'tarefa',
+      fields: Forms.task(),
+      defaults: () => ({
+        assignee: S().currentUser, due: today(), repeat: 'none', points: 2, category: 'Casa', done: false, notes: '', history: [],
+        createdBy: S().currentUser,
+      }),
+      preset: presetFrom(el),
+      canDelete: Store.isParent() || !item || item.createdBy === S().currentUser,
+    });
+  }
   /* ---------- Compras: produtos da família e itens da lista ---------- */
   const catalog = () => CatalogoCompras.merged(S().products);
   const secOptions = () => [CatalogoCompras.NOSSOS, ...CatalogoCompras.SECCOES.map(([n]) => n)].map((n) => [n, n]);

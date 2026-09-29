@@ -127,7 +127,7 @@
   }
 
   /** Criar/editar um item de uma colecção do estado com um formulário. */
-  function editItem(coll, id, { title, fields, defaults = () => ({}), preset = {} }) {
+  function editItem(coll, id, { title, fields, defaults = () => ({}), preset = {}, canDelete = true }) {
     const item = id ? S()[coll].find((x) => x.id === id) : null;
     openForm({
       title: `${item ? 'Editar' : 'Novo'}: ${title}`,
@@ -138,7 +138,7 @@
         if (cur) Object.assign(cur, data);
         else s[coll].push({ id: Store.uid(), ...defaults(), ...preset, ...data });
       }),
-      onDelete: item ? () => Store.update((s) => { s[coll] = s[coll].filter((x) => x.id !== id); }) : null,
+      onDelete: item && canDelete ? () => Store.update((s) => { s[coll] = s[coll].filter((x) => x.id !== id); }) : null,
     });
   }
 

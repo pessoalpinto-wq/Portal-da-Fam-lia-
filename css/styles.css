@@ -878,3 +878,5 @@ body.shop-mode .view { margin-left: auto; max-width: 720px; padding: 0 16px 2rem
 .market-title { min-width: 0; }
 .market-title b { font-size: 1.15rem; white-space: nowrap; }
 .market-head .btn { flex: none; }
+.medals-locked { margin-top: .5rem; }
+.medals-locked summary { cursor: pointer; font-size: .85rem; color: var(--muted); font-weight: 600; }

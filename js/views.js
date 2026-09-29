@@ -12,7 +12,7 @@
     calMonth: today().slice(0, 7),
     calDay: today(),
     schoolMember: null,
-    taskFilter: 'mine',
+    taskFilter: null, // por omissão: pais vêem todas, filhas as suas
   };
 
   /* ---------- Opções e formulários ---------- */
@@ -40,7 +40,9 @@
       { name: 'assignee', label: 'Responsável', type: 'select', half: true, options: memberOptions(true, 'Por atribuir') },
       { name: 'due', label: 'Data limite', type: 'date', half: true },
       { name: 'repeat', label: 'Repete-se?', type: 'select', half: true, options: [['none', 'Não'], ['daily', 'Todos os dias'], ['weekly', 'Todas as semanas'], ['monthly', 'Todos os meses']] },
-      { name: 'points', label: 'Pontos ⭐', type: 'number', min: 0, half: true, default: 2 },
+      // Os pontos são decididos pelos pais (as filhas vêem-nos na lista, mas não os mudam).
+      Store.isParent() ? { name: 'points', label: 'Pontos ⭐', type: 'number', min: 0, half: true, default: 2 }
+        : { name: 'pointsNote', type: 'note', html: '<small class="muted">⭐ Os pontos de cada tarefa são decididos pelos pais.</small>' },
       { name: 'category', label: 'Categoria', type: 'select', options: TASK_CATS.map((c) => [c, c]) },
       { name: 'notes', label: 'Notas', type: 'textarea' },
     ],
@@ -349,7 +351,7 @@
   function tarefas() {
     const s = S();
     const t = today();
-    const f = VS.taskFilter;
+    const f = VS.taskFilter || (Store.isParent() ? 'all' : 'mine');
     const match = (x) => f === 'all' || (f === 'mine' ? x.assignee === s.currentUser : f === 'none' ? !x.assignee : x.assignee === f);
     const pend = pendingTasks(match);
     const groups = [
@@ -374,6 +376,7 @@
     const hooks = window.Views.taskHooks || {};
     return `<div class="page-head"><h1>Tarefas</h1><div class="quick">${addBtn('add-task', 'Tarefa')}</div></div>
       ${hooks.tabs?.() || ''}
+      ${parent ? approvals() : ''}
       <div class="filters">${filters.map(([v, l]) => `<button class="filter ${f === v ? 'active' : ''}" data-action="task-filter" data-id="${esc(v)}">${esc(l)}</button>`).join('')}</div>
       <div class="grid two wide-left">
         <section class="card">
@@ -382,7 +385,7 @@
           ${done.length ? `<details class="done-list"><summary>Concluídas recentemente (${done.length})</summary><ul class="list">${done.map(taskRow).join('')}</ul></details>` : ''}
         </section>
         <div class="stack">
-          ${approvals()}
+          ${parent ? '' : approvals()}
           ${hooks.side?.() || ''}
           ${card('⭐ Pontos', leaderboard())}
           ${card('🎁 Recompensas', `<p class="muted small">Troca os teus pontos${me ? ` (tens <b>${me.points}</b>)` : ''}.</p><ul class="rewards">${rewards}</ul>

@@ -102,7 +102,7 @@ window.TarefasExtra = function ({ render }) {
     editItem('tasks', null, {
       title: 'tarefa',
       fields: Forms.task(),
-      defaults: () => ({ done: false, history: [] }),
+      defaults: () => ({ done: false, history: [], createdBy: S().currentUser }),
       preset: {
         title: i.title, assignee, due: today(), repeat: i.repeat, points: i.points, category: i.category, notes: i.tip,
       },
@@ -227,6 +227,8 @@ window.TarefasExtra = function ({ render }) {
     const act = activeChallenges();
     const past = (s.challenges || []).filter((c) => c.end < t).sort((a, b) => b.end.localeCompare(a.end)).slice(0, 4);
 
+    const medal = (b, on) => `<li class="medal ${on ? '' : 'locked'}" title="${esc(b.desc)}">
+      <span class="b-emoji">${on ? b.emoji : '🔒'}</span><span class="b-name">${esc(b.name)}</span><small>${esc(b.desc)}</small></li>`;
     const memberCard = (m) => {
       const st = M.stats(s, m, t);
       const got = new Set(M.badges(s, m, t, st));
@@ -236,9 +238,9 @@ window.TarefasExtra = function ({ render }) {
         ${xpBar(st.level, m.color)}
         <p class="small">${streakText(st)}</p>
         <p class="small muted">✅ ${st.count} tarefas feitas · esta semana: ${st.weekCount} (⭐ ${st.week}) · 🏅 ${got.size}/${M.BADGES.length} medalhas</p>
-        <ul class="medals">${M.BADGES.map((b) => `<li class="medal ${got.has(b.id) ? '' : 'locked'}" title="${esc(b.desc)}">
-          <span class="b-emoji">${got.has(b.id) ? b.emoji : '🔒'}</span><span class="b-name">${esc(b.name)}</span>
-          <small>${esc(b.desc)}</small></li>`).join('')}</ul>
+        ${got.size ? `<ul class="medals">${M.BADGES.filter((b) => got.has(b.id)).map((b) => medal(b, true)).join('')}</ul>` : ''}
+        ${got.size < M.BADGES.length ? `<details class="medals-locked"><summary>🔒 Ver as ${M.BADGES.length - got.size} medalhas por ganhar</summary>
+          <ul class="medals">${M.BADGES.filter((b) => !got.has(b.id)).map((b) => medal(b, false)).join('')}</ul></details>` : ''}
       </section>`;
     };
 
