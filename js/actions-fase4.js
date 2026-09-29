@@ -338,23 +338,54 @@ window.Fase4 = function ({ render, withButton }) {
     const dlg = $('#dialog');
     const trip = S().trips.find((t) => t.id === p.tripId);
     const canDelete = Store.isParent() || p.by === S().currentUser;
+    // Anterior / seguinte na ordem da grelha (setas, teclas ← → e deslizar com o dedo).
+    const list = Views.photoList();
+    const i = list.findIndex((x) => x.id === p.id);
+    const prev = i > 0 ? list[i - 1] : null;
+    const next = i >= 0 && i < list.length - 1 ? list[i + 1] : null;
     dlg.innerHTML = `<div class="lightbox">
-      <header class="form-head"><h2>${esc(p.caption || 'Memória')}</h2>
+      <header class="form-head"><h2>${esc(p.caption || 'Memória')}${i >= 0 && list.length > 1 ? ` <small class="muted">${i + 1} / ${list.length}</small>` : ''}</h2>
         <button type="button" class="icon-btn" data-action="dlg-close" aria-label="Fechar">✕</button></header>
-      <img data-path="${esc(p.path)}" alt="${esc(p.caption || '')}">
+      <div class="lb-stage">
+        ${prev ? `<button class="lb-nav prev" data-action="photo-open" data-id="${prev.id}" aria-label="Foto anterior">‹</button>` : ''}
+        <img data-path="${esc(p.path)}" alt="${esc(p.caption || '')}">
+        ${next ? `<button class="lb-nav next" data-action="photo-open" data-id="${next.id}" aria-label="Foto seguinte">›</button>` : ''}
+      </div>
       <footer class="form-actions">
         <small class="muted">${UI.avatar(p.by, 'sm')} ${esc(member(p.by)?.name || '')} · ${esc(fmtDate(p.taken || p.date))}${trip ? ` · ✈️ ${esc(trip.destination)}` : ''}</small>
         <span class="spacer"></span>
         <button class="btn small ghost" data-action="photo-caption" data-id="${p.id}">✎ Legenda</button>
-        <a class="btn small ghost" id="photo-full" target="_blank" rel="noopener">⤢ Original</a>
+        <a class="btn small ghost" id="photo-full" target="_blank" rel="noopener" title="Abre a foto num separador (versão reduzida; o original fica no telemóvel ou no Google Fotos)">⤢ Ver em grande</a>
         ${canDelete ? `<button class="btn small danger" data-action="photo-del" data-id="${p.id}">Apagar</button>` : ''}
       </footer></div>`;
-    dlg.showModal();
+    if (!dlg.open) dlg.showModal();
+    const go = (x) => { if (x) openPhoto({ dataset: { id: x.id } }); };
+    dlg.dataset.prev = prev?.id || '';
+    dlg.dataset.next = next?.id || '';
+    const stage = dlg.querySelector('.lb-stage');
+    let x0 = null;
+    stage.addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX; }, { passive: true });
+    stage.addEventListener('touchend', (e) => {
+      if (x0 == null) return;
+      const dx = e.changedTouches[0].clientX - x0;
+      x0 = null;
+      if (Math.abs(dx) > 50) go(dx > 0 ? prev : next);
+    });
+    // Já prepara as vizinhas, para passar de uma para a outra sem esperar.
+    Photos.signed([prev, next].filter(Boolean).map((x) => x.path)).catch(() => {});
     Photos.signed([p.path]).then((m) => {
       dlg.querySelector('img').src = m[p.path];
       dlg.querySelector('#photo-full').href = m[p.path];
     }).catch((e) => toast(e.message));
   }
+
+  // Teclas ← → no visualizador de fotos (no documento: o foco pode sair do diálogo ao mudar de foto).
+  document.addEventListener('keydown', (e) => {
+    const dlg = $('#dialog');
+    if (!dlg.open || !dlg.querySelector('.lightbox') || !['ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+    const id = e.key === 'ArrowLeft' ? dlg.dataset.prev : dlg.dataset.next;
+    if (id) { e.preventDefault(); openPhoto({ dataset: { id } }); }
+  });
 
   async function uploadPhotos(input) {
     const files = [...input.files];

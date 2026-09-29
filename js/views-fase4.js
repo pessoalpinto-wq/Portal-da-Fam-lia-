@@ -464,6 +464,13 @@
   }
 
   /* ---------- Memórias ---------- */
+  /** Fotos pela ordem em que aparecem (filtro da viagem, mais recentes primeiro). */
+  function photoList() {
+    const f = VS.photoTrip || '';
+    return [...S().photos].filter((p) => !f || (f === '_none' ? !p.tripId : p.tripId === f))
+      .sort((a, b) => (b.taken || b.date || '').localeCompare(a.taken || a.date || '') || String(b.id).localeCompare(String(a.id)));
+  }
+
   function memorias() {
     if (!Store.isRemote) {
       return `<div class="page-head"><h1>Memórias</h1></div>${card('📸 Álbum da família',
@@ -472,8 +479,20 @@
     const s = S();
     const trips = s.trips.filter((t) => s.photos.some((p) => p.tripId === t.id));
     const f = VS.photoTrip || '';
-    const list = [...s.photos].filter((p) => !f || (f === '_none' ? !p.tripId : p.tripId === f))
-      .sort((a, b) => (b.taken || b.date || '').localeCompare(a.taken || a.date || ''));
+    const list = photoList();
+    const t = today();
+    // "Neste dia": fotos tiradas neste mesmo dia (dia e mês) noutros anos.
+    const onThisDay = f ? [] : s.photos.filter((p) => (p.taken || '').slice(5) === t.slice(5) && (p.taken || '') < t.slice(0, 4));
+    const thumb = (p) => `<button class="ph" data-action="photo-open" data-id="${p.id}" aria-label="${esc(p.caption || 'Foto')}">
+        <img data-path="${esc(p.thumb)}" alt="${esc(p.caption || '')}" loading="lazy">${p.caption ? `<span class="cap">${esc(p.caption)}</span>` : ''}</button>`;
+    // Agrupadas por mês (da mais recente para a mais antiga).
+    const months = [];
+    list.forEach((p) => {
+      const ym = (p.taken || p.date || '').slice(0, 7);
+      if (months[months.length - 1]?.ym !== ym) months.push({ ym, items: [] });
+      months[months.length - 1].items.push(p);
+    });
+    const monthLabel = (ym) => (ym ? `${MESES[Number(ym.slice(5)) - 1]} ${ym.slice(0, 4)}` : 'Sem data');
     const filters = [['', 'Todas'], ...trips.map((t) => [t.id, `✈️ ${t.destination}`]), ['_none', 'Sem viagem']];
     const uploadTrip = f && f !== '_none' ? f : '';
     // Álbuns partilhados (Google Fotos) das viagens: todos, ou só o da viagem escolhida.
@@ -487,8 +506,10 @@
       <div class="filters">${filters.map(([v, l]) => `<button class="filter ${f === v ? 'active' : ''}" data-action="photo-filter" data-id="${esc(v)}">${esc(l)}</button>`).join('')}</div>
       ${albums.length ? `<p class="albums small">📷 <b>Todas as fotos, em qualidade original:</b> ${albums.map((t) => Views.h.albumLink(t, `✈️ ${esc(t.destination)}`)).join(' · ')}</p>` : ''}
       <p id="upload-status" class="small muted" role="status"></p>
-      ${list.length ? `<div class="photo-grid">${list.map((p) => `<button class="ph" data-action="photo-open" data-id="${p.id}" aria-label="${esc(p.caption || 'Foto')}">
-        <img data-path="${esc(p.thumb)}" alt="${esc(p.caption || '')}" loading="lazy">${p.caption ? `<span class="cap">${esc(p.caption)}</span>` : ''}</button>`).join('')}</div>`
+      ${onThisDay.length ? `<section class="card on-this-day"><header class="card-head"><h2>📅 Neste dia</h2>
+          <small class="muted">${esc(fmtDate(t))}, noutros anos</small></header><div class="photo-grid">${onThisDay.map(thumb).join('')}</div></section>` : ''}
+      ${list.length ? months.map((m) => `<h3 class="photo-month">${esc(monthLabel(m.ym))} <small class="muted">(${m.items.length})</small></h3>
+        <div class="photo-grid">${m.items.map(thumb).join('')}</div>`).join('')
         : `<section class="card">${empty('Ainda não há fotos aqui. Partilhem os melhores momentos! 📸')}</section>`}`;
   }
 
@@ -604,5 +625,5 @@
   insertAfter('votacoes', ['memorias', '📸', 'Memórias', memorias]);
   insertAfter('memorias', ['saude', '🏥', 'Saúde & Docs', saude]);
 
-  Object.assign(Views, { painelExtra, agendaExtra, wallet, goalSaved, kids, bank });
+  Object.assign(Views, { painelExtra, agendaExtra, wallet, goalSaved, kids, bank, photoList });
 })();

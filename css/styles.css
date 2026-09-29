@@ -917,3 +917,13 @@ body.shop-mode .view { margin-left: auto; max-width: 720px; padding: 0 16px 2rem
 .trip-docs { background: color-mix(in srgb, var(--warn) 12%, var(--surface)); border: 1px solid color-mix(in srgb, var(--warn) 45%, transparent);
   border-radius: 12px; padding: .6rem .8rem; margin: .5rem 0; font-size: .9rem; }
 .trip-docs ul { margin: .3rem 0 0; padding-left: 1.1rem; }
+
+/* Memórias: meses, "neste dia" e navegação entre fotos */
+.photo-month { font-size: 1rem; margin: 1.1rem 0 .5rem; }
+.on-this-day { border-color: color-mix(in srgb, var(--warn) 45%, transparent); }
+.lb-stage { position: relative; background: #000; }
+.lb-nav { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 64px; border: 0; border-radius: 10px;
+  background: rgba(0, 0, 0, .45); color: #fff; font-size: 2rem; line-height: 1; cursor: pointer; z-index: 1; }
+.lb-nav.prev { left: .4rem; }
+.lb-nav.next { right: .4rem; }
+.lb-nav:hover { background: rgba(0, 0, 0, .7); }
