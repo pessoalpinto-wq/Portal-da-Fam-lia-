@@ -10,10 +10,7 @@ window.ComprasExtra = function ({ render }) {
   const { VS, SHOP_CATS } = Views;
   const S = () => Store.state;
 
-  const CAT_EMOJI = {
-    Frescos: '🥦', 'Talho/Peixaria': '🥩', Padaria: '🥖', Mercearia: '🍝', Congelados: '🧊', Bebidas: '🧃',
-    Limpeza: '🧽', Higiene: '🧴', Farmácia: '💊', Casa: '🏠', Escola: '✏️', Animais: '🐾', Outro: '🛍️',
-  };
+  const { CAT_EMOJI } = CatalogoCompras;
 
   /* ---------- Ecrã sempre ligado (Wake Lock) ---------- */
   let lock = null;
@@ -145,13 +142,107 @@ window.ComprasExtra = function ({ render }) {
     });
   }
 
+  /* ---------- "Vou às compras" ---------- */
+  const trip = () => (S().shoptrip || []).find((x) => x.id === 'current');
+  const leaveAt = (t) => new Date(Date.parse(t.at) + (Number(t.minutes) || 0) * 60000);
+  // O aviso fica à vista até 3 horas depois da hora de saída.
+  const tripActive = (t) => t && Date.now() < leaveAt(t).getTime() + 3 * 3600000;
+  const hhmm = (d) => d.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
+
+  function banner() {
+    const t = trip();
+    if (!tripActive(t)) return '';
+    const m = UI.member(t.by);
+    const mine = t.by === S().currentUser;
+    const when = Number(t.minutes) && leaveAt(t) > new Date() ? `às ${hhmm(leaveAt(t))}` : 'agora';
+    return `<section class="card shoptrip">
+      <span class="shoptrip-ico" aria-hidden="true">📣</span>
+      <p><b>${esc(m?.name || 'Alguém')} vai às compras ${when}</b>${t.store ? ` · ${esc(t.store)}` : ''}<br>
+        <small class="muted">${mine ? `${Store.isRemote ? 'A família foi avisada. ' : ''}Quando voltares, carrega em "Já fui".` : 'Falta alguma coisa? Acrescenta já à lista! 👇'}</small></p>
+      ${mine ? '<button class="btn small" data-action="shoptrip-done">✔ Já fui</button>' : ''}
+    </section>`;
+  }
+
+  function announceForm() {
+    UI.openForm({
+      title: '📣 Vou às compras',
+      fields: [
+        { name: 'minutes', label: 'Quando sais?', type: 'select', half: true,
+          options: [['0', 'Agora'], ['15', 'Daqui a 15 min'], ['30', 'Daqui a 30 min'], ['60', 'Daqui a 1 hora'], ['120', 'Daqui a 2 horas']] },
+        { name: 'store', label: 'Onde? (opcional)', half: true, placeholder: 'Ex.: Continente, Lidl, praça' },
+      ],
+      values: { minutes: '30', store: trip()?.store || '' },
+      submitLabel: '📣 Avisar a família',
+      onSubmit: (d) => {
+        const minutes = Number(d.minutes) || 0;
+        Store.update((s) => {
+          s.shoptrip = [{ id: 'current', by: s.currentUser, at: new Date().toISOString(), minutes, store: d.store }];
+        });
+        notifyFamily(minutes, d.store);
+      },
+    });
+  }
+
+  /** Notificação no telemóvel da família (precisa da conta na nuvem). */
+  async function notifyFamily(minutes, store) {
+    const ctx = window.Cloud?.ctx?.();
+    if (!ctx) { UI.toast('📣 Aviso posto na lista. (As notificações no telemóvel precisam da conta na nuvem.)'); return; }
+    try {
+      const { data, error } = await ctx.client.functions.invoke('send-reminders', { body: { announce: 'shopping', minutes, store } });
+      if (error || data?.error) throw error || new Error(data.error);
+      if (data.repeated) UI.toast('📣 Já tinhas avisado há pouco — o aviso está na lista.');
+      else if (data.people) UI.toast(`📣 Avisei ${data.people} pessoa${data.people === 1 ? '' : 's'} no telemóvel.`);
+      else UI.toast('📣 Aviso posto na lista. (Mais ninguém tem as notificações ligadas neste momento.)');
+    } catch (e) {
+      console.warn('aviso compras', e);
+      UI.toast('📣 Aviso posto na lista, mas não consegui enviar as notificações agora.');
+    }
+  }
+
+  /* ---------- Partilhar a lista (WhatsApp, SMS, copiar) ---------- */
+  function shareDialog() {
+    const text = C.shareText(S().shopping, SHOP_CATS);
+    const dlg = document.getElementById('dialog');
+    dlg.innerHTML = `<div class="form share-dlg">
+      <header class="form-head"><h2>📤 Partilhar a lista</h2>
+        <button type="button" class="icon-btn" data-action="dlg-close" aria-label="Fechar">✕</button></header>
+      <pre class="share-preview">${esc(text)}</pre>
+      <div class="share-btns">
+        ${navigator.share ? '<button class="btn primary" data-action="share-native">📤 Partilhar…</button>' : ''}
+        <a class="btn share-wa" href="https://wa.me/?text=${encodeURIComponent(text)}" target="_blank" rel="noopener">💬 WhatsApp</a>
+        <a class="btn" href="sms:?&body=${encodeURIComponent(text)}">✉️ SMS</a>
+        <button class="btn" data-action="share-copy">📋 Copiar</button>
+      </div>
+    </div>`;
+    dlg.showModal();
+  }
+
+  async function copyText(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // Alternativa para navegadores sem acesso à área de transferência.
+      const ta = Object.assign(document.createElement('textarea'), { value: text });
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+    }
+    UI.toast('📋 Lista copiada — é só colar na mensagem.');
+  }
+
   /* ---------- Ligações ---------- */
   const route = Views.routes.find((r) => r[0] === 'compras');
   const listView = route[3];
   route[3] = () => (VS.shopMode ? market() : listView());
   Views.shopHooks = {
-    headButtons: () => (S().shopping.some((x) => !x.done)
-      ? '<button class="btn small primary" data-action="shop-mode">🛒 Modo supermercado</button>' : ''),
+    headButtons: () => {
+      const has = S().shopping.some((x) => !x.done);
+      return `${has ? '<button class="btn small primary" data-action="shop-mode">🛒 Modo supermercado</button>' : ''}
+        <button class="btn small" data-action="shoptrip-new">📣 Vou às compras</button>
+        ${has ? '<button class="btn small" data-action="share-list">📤 Partilhar</button>' : ''}`;
+    },
+    banner,
     panels: staplesPanel,
   };
 
@@ -166,10 +257,21 @@ window.ComprasExtra = function ({ render }) {
     'shop-mode': () => { VS.shopMode = true; render(); window.scrollTo(0, 0); keepAwake(true); },
     'shop-mode-exit': exit,
     'shop-mode-finish': () => {
-      Store.update((s) => { s.shopping = s.shopping.filter((i) => !i.done); });
+      Store.update((s) => {
+        s.shopping = s.shopping.filter((i) => !i.done);
+        // Quem avisou "Vou às compras" já voltou.
+        if (trip()?.by === s.currentUser) s.shoptrip = [];
+      });
       UI.toast('✔ Compras arrumadas. Até à próxima! 🛒');
       exit();
     },
+    'shoptrip-new': announceForm,
+    'shoptrip-done': () => { Store.update((s) => { s.shoptrip = []; }); UI.toast('✔ Compras feitas — aviso retirado.'); },
+    'share-list': shareDialog,
+    'share-native': () => {
+      navigator.share({ title: 'Lista de compras', text: C.shareText(S().shopping, SHOP_CATS) }).catch(() => {});
+    },
+    'share-copy': () => copyText(C.shareText(S().shopping, SHOP_CATS)),
     'staples-toggle': () => { VS.staplesOpen = !VS.staplesOpen; render(); },
     'staples-fill': fillStaples,
     'staple-edit': stapleForm,

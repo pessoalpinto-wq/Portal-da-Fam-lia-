@@ -718,6 +718,18 @@ button.link { font: inherit; font-size: .85rem; background: none; border: 0; col
   .catalog-secs .filter { flex: none; white-space: nowrap; }
 }
 
+/* ---------- Compras: "Vou às compras" e partilhar ---------- */
+.card.shoptrip { display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; margin-bottom: 1rem;
+  border-color: color-mix(in srgb, #f59e0b 55%, var(--border)); background: color-mix(in srgb, #f59e0b 10%, var(--surface)); }
+.shoptrip p { flex: 1; min-width: 12rem; margin: 0; }
+.shoptrip-ico { font-size: 1.8rem; }
+.share-dlg { max-height: calc(100vh - 2rem); display: flex; flex-direction: column; }
+.share-preview { white-space: pre-wrap; font: inherit; font-size: .92rem; background: var(--surface-2); border-radius: 10px;
+  padding: .7rem .8rem; margin: 0 1.25rem .8rem; overflow-y: auto; max-height: 50vh; }
+.share-btns { display: flex; flex-wrap: wrap; gap: .5rem; padding: 0 1.25rem 1.2rem; }
+.share-btns .btn { text-decoration: none; }
+.share-wa { background: #25d366; border-color: #25d366; color: #fff; }
+
 /* ---------- Compras: os do costume ---------- */
 .staples-bar { margin-bottom: .5rem; }
 .staples { background: color-mix(in srgb, #f59e0b 9%, var(--surface-2)); border-radius: 12px; padding: .7rem; margin-bottom: 1rem; }

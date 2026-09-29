@@ -526,6 +526,7 @@
     const extra = window.Views.shopHooks?.headButtons?.() || '';
     return `<div class="page-head"><h1>Lista de compras</h1>
       ${bought.length || extra ? `<div class="quick">${extra}${bought.length ? '<button class="btn small ghost" data-action="clear-shop">Limpar comprados</button>' : ''}</div>` : ''}</div>
+      ${window.Views.shopHooks?.banner?.() || ''}
       <section class="card">
         <form class="inline-add big-add" data-form="add-shop">
           <input name="text" placeholder="O que falta em casa?" required aria-label="Item" list="shop-suggest" autocomplete="off">

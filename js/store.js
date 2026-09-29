@@ -48,6 +48,8 @@
     // Compras: "os do costume" e quantas vezes se comprou cada produto
     staples: [],
     shopstats: [],
+    // Compras: aviso "Vou às compras" (um só registo: id "current")
+    shoptrip: [],
     // Finanças: Banco dos Pais (juros dos mealheiros; só os pais alteram)
     savings: [],
   });
@@ -206,7 +208,7 @@
   const COLLS = ['members', 'events', 'tasks', 'rewards', 'redemptions', 'classes', 'exams',
     'projects', 'trips', 'shopping', 'notes', 'contacts',
     'money', 'allowances', 'goals', 'bills', 'dates', 'health', 'healthcards', 'docs', 'polls', 'votes', 'photos',
-    'recipes', 'pantry', 'challenges', 'savings', 'products', 'staples', 'shopstats'];
+    'recipes', 'pantry', 'challenges', 'savings', 'products', 'staples', 'shopstats', 'shoptrip'];
   const keyOf = (r) => `${r.coll}/${r.id}`;
 
   function toItems(s) {

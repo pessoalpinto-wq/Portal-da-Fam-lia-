@@ -23,7 +23,36 @@ export const NOTIFY_TYPES = {
   docs: 'Documentos a expirar',
   bills: 'Contas da casa (pais)',
   money: 'Mesada recebida',
+  shopping: '"Vou às compras" (na hora)',
 };
+
+const hhmm = (min) => `${String(Math.floor(min / 60) % 24).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
+
+/**
+ * Aviso "Vou às compras": para toda a família menos quem vai (e quem desligou este aviso).
+ * @param {object} p
+ * @param {object} p.state    { members, shopping }
+ * @param {Array}  p.profiles [{ user_id, member_id, notify }]
+ * @param {string} p.senderId user_id de quem vai às compras
+ * @param {number} p.minutes  daqui a quantos minutos sai (0 = agora)
+ * @param {string} p.store    onde vai (opcional)
+ * @param {{minutes:number}} p.now hora actual em Lisboa
+ */
+export function shoppingNotice({ state, profiles, senderId, minutes = 0, store = '', now }) {
+  const sender = profiles.find((p) => p.user_id === senderId);
+  const who = (state.members || []).find((m) => m.id === sender?.member_id)?.name || 'Alguém';
+  const mins = Math.max(0, Math.min(240, Math.round(Number(minutes) || 0)));
+  const when = mins ? `às ${hhmm(now.minutes + mins)}` : 'agora';
+  const where = String(store || '').trim().slice(0, 40);
+  const left = (state.shopping || []).filter((i) => !i.done).length;
+  return {
+    userIds: profiles.filter((p) => p.user_id !== senderId && (p.notify || {}).shopping !== false).map((p) => p.user_id),
+    title: `🛒 ${who} vai às compras ${when}${where ? ` (${where})` : ''}`,
+    body: `Falta alguma coisa? Acrescentem à lista${mins ? ' antes de sair' : ' já'}! ${left ? `Estão ${left} produto${left === 1 ? '' : 's'} na lista.` : 'A lista está vazia.'}`,
+    url: '#/compras',
+    tag: 'compras',
+  };
+}
 
 /** Data (AAAA-MM-DD) e minutos do dia em Lisboa. */
 export function lisbonNow(date = new Date()) {

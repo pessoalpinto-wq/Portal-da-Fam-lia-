@@ -129,3 +129,20 @@ test('resumo da semana só ao domingo', () => {
   assert.deepEqual(who(r), ['U-f16', 'U-mae', 'U-pai']);
   assert.match(r[0].body, /Física \(terça\)/);
 });
+
+test('"vou às compras": avisa a família menos quem vai e quem desligou', async () => {
+  const { shoppingNotice } = await import('../supabase/functions/_shared/reminders.js');
+  const state = {
+    members,
+    shopping: [{ text: 'Pão', done: false }, { text: 'Leite', done: false }, { text: 'Ovos', done: true }],
+  };
+  const profs = profiles.map((p) => (p.user_id === 'U-f16' ? { ...p, notify: { shopping: false } } : p));
+  const n = shoppingNotice({ state, profiles: profs, senderId: 'U-pai', minutes: 30, store: 'Continente', now: { minutes: 18 * 60 + 5 } });
+  assert.deepEqual(n.userIds.sort(), ['U-f12', 'U-mae']);
+  assert.equal(n.title, '🛒 Pai vai às compras às 18:35 (Continente)');
+  assert.equal(n.body, 'Falta alguma coisa? Acrescentem à lista antes de sair! Estão 2 produtos na lista.');
+  const agora = shoppingNotice({ state: { members, shopping: [] }, profiles, senderId: 'U-mae', minutes: 0, now: { minutes: 600 } });
+  assert.equal(agora.title, '🛒 Mãe vai às compras agora');
+  assert.ok(agora.body.endsWith('A lista está vazia.'));
+  assert.equal(shoppingNotice({ state, profiles, senderId: 'U-pai', minutes: 999, now: { minutes: 23 * 60 } }).title, '🛒 Pai vai às compras às 03:00');
+});

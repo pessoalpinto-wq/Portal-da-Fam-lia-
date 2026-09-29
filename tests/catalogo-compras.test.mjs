@@ -56,6 +56,21 @@ test('os do costume: o que falta repor e sugestões pelo que mais se compra', ()
   assert.deepEqual(suggestions(stats, staples).map((s) => [s.name, s.count]), [['iogurtes gregos', 2]]);
 });
 
+test('texto para partilhar: por secções, com quantidades, sem o que já foi comprado', () => {
+  const { shareText } = globalThis.CatalogoCompras;
+  const txt = shareText([
+    { text: 'Lixívia', category: 'Limpeza' },
+    { text: 'Bananas', qty: '1 kg', category: 'Frescos' },
+    { text: 'Pão', category: 'Padaria' },
+    { text: 'Iogurtes gregos', qty: '8', category: 'Frescos' },
+    { text: 'Ovos', category: 'Frescos', done: true },
+    { text: 'Pilhas AA' },
+  ]);
+  assert.equal(txt, '🛒 Lista de compras — 5 produtos\n\n🥦 Frescos\n• 1 kg Bananas\n• 8 Iogurtes gregos\n\n🥖 Padaria\n• Pão'
+    + '\n\n🧽 Limpeza\n• Lixívia\n\n🛍️ Outro\n• Pilhas AA');
+  assert.equal(shareText([{ text: 'Ovos', done: true }]), '🛒 A lista de compras está vazia.');
+});
+
 test('encontra produtos sem ligar a maiúsculas nem acentos', () => {
   assert.equal(find('iogurtes gregos').categoria, 'Frescos');
   assert.equal(find('LIXIVIA').categoria, 'Limpeza');

@@ -141,7 +141,26 @@
       .sort((a, b) => b.count - a.count || (b.last || '').localeCompare(a.last || '')).slice(0, limit);
   }
 
+  /* ---------- Partilhar a lista ---------- */
+  const CAT_EMOJI = {
+    Frescos: '🥦', 'Talho/Peixaria': '🥩', Padaria: '🥖', Mercearia: '🍝', Congelados: '🧊', Bebidas: '🧃',
+    Limpeza: '🧽', Higiene: '🧴', Farmácia: '💊', Casa: '🏠', Escola: '✏️', Animais: '🐾', Outro: '🛍️',
+  };
+
+  /** Texto da lista por comprar, por secções (para WhatsApp, SMS, etc.). */
+  function shareText(shopping = [], order = Object.keys(CAT_EMOJI)) {
+    const pending = shopping.filter((i) => !i.done);
+    if (!pending.length) return '🛒 A lista de compras está vazia.';
+    const cats = [...new Set([...order, ...pending.map((i) => i.category || 'Outro')])];
+    const blocks = cats.map((c) => {
+      const items = pending.filter((i) => (i.category || 'Outro') === c);
+      return items.length ? `${CAT_EMOJI[c] || '🛍️'} ${c}\n${items.map((i) => `• ${i.qty ? `${i.qty} ` : ''}${i.text}`).join('\n')}` : '';
+    }).filter(Boolean);
+    return `🛒 Lista de compras — ${pending.length} produto${pending.length === 1 ? '' : 's'}\n\n${blocks.join('\n\n')}`;
+  }
+
   root.CatalogoCompras = {
-    SECCOES, ITENS, NOSSOS, find, strip, merged, sections, hiddenCount, missingStaples, statId, countPurchase, suggestions,
+    SECCOES, ITENS, NOSSOS, CAT_EMOJI, find, strip, merged, sections, hiddenCount, missingStaples, statId, countPurchase,
+    suggestions, shareText,
   };
 })(globalThis);

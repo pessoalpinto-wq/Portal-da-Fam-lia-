@@ -2,9 +2,10 @@
 // - Chamada pelo pg_cron de 10 em 10 minutos, com o cabeçalho x-cron-secret.
 //   Também paga as mesadas do dia (movimentos com id fixo: nunca paga duas vezes).
 // - Chamada pela app com { test: true } (utilizador autenticado) para enviar uma notificação de teste.
+// - Chamada pela app com { announce: 'shopping', minutes, store } para avisar a família "Vou às compras".
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { importVapidKeys, sendPush } from '../_shared/webpush.js';
-import { allowanceNotices, computeAllowances, computeReminders, lisbonNow } from '../_shared/reminders.js';
+import { allowanceNotices, computeAllowances, computeReminders, lisbonNow, shoppingNotice } from '../_shared/reminders.js';
 
 const SUBJECT = 'https://pessoalpinto-wq.github.io/Portal-da-Fam-lia-/';
 const cors = {
@@ -54,7 +55,7 @@ async function familyState(familyId: string) {
     const { data, error } = await admin.from('items').select('coll,data')
       .eq('family_id', familyId).eq('deleted', false)
       .in('coll', ['members', 'events', 'tasks', 'exams', 'trips', 'redemptions', 'classes',
-        'docs', 'bills', 'dates', 'health', 'polls', 'votes', 'allowances'])
+        'docs', 'bills', 'dates', 'health', 'polls', 'votes', 'allowances', 'shopping'])
       .order('coll').order('id').range(from, from + 999);
     if (error) throw error;
     data.forEach((r) => { (state[r.coll] ||= []).push(r.data); });
@@ -120,6 +121,28 @@ async function runReminders(vapid: unknown) {
   return summary;
 }
 
+/** "Vou às compras": avisa já o resto da família (no máximo um aviso por pessoa a cada 10 minutos). */
+async function announceShopping(userId: string, body: { minutes?: number; store?: string }, vapid: unknown) {
+  const { data: me } = await admin.from('profiles').select('family_id').eq('user_id', userId).maybeSingle();
+  if (!me) return { error: 'Sem família' };
+  const now = lisbonNow();
+  const key = `shop:${userId}:${now.date}:${Math.floor(now.minutes / 10)}`;
+  const { data: fresh, error: logErr } = await admin.from('notification_log')
+    .upsert([{ key, family_id: me.family_id }], { onConflict: 'key', ignoreDuplicates: true }).select('key');
+  if (logErr) throw logErr;
+  if (!fresh?.length) return { repeated: true, people: 0, sent: 0 };
+
+  const [{ data: profiles }, state] = await Promise.all([
+    admin.from('profiles').select('user_id, member_id, role, notify').eq('family_id', me.family_id),
+    familyState(me.family_id),
+  ]);
+  const n = shoppingNotice({ state, profiles: profiles || [], senderId: userId, minutes: body.minutes, store: body.store, now });
+  if (!n.userIds.length) return { people: 0, sent: 0 };
+  const { data: subs } = await admin.from('push_subscriptions').select('*').in('user_id', n.userIds);
+  const sent = await deliver((subs || []) as Sub[], { title: n.title, body: n.body, url: n.url, tag: n.tag }, vapid);
+  return { people: new Set((subs || []).map((s) => s.user_id)).size, sent };
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   try {
@@ -136,6 +159,7 @@ Deno.serve(async (req) => {
     const { data: { user } } = await admin.auth.getUser(token);
     if (!user) return json({ error: 'Não autorizado' }, 401);
     const body = await req.json().catch(() => ({}));
+    if (body.announce === 'shopping') return json(await announceShopping(user.id, body, vapid));
     if (!body.test) return json({ error: 'Pedido inválido' }, 400);
     const { data: subs } = await admin.from('push_subscriptions').select('*').eq('user_id', user.id);
     const sent = await deliver((subs || []) as Sub[], {
