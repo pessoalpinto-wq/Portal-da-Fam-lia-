@@ -191,6 +191,7 @@
     const x = S().shopping.find((i) => i.id === el.dataset.id);
     if (!x) return;
     const known = CatalogoCompras.priceOf(x, S().shopstats);
+    const prefs = CatalogoCompras.prefsOf(x, S().shopstats);
     UI.openForm({
       title: `✎ ${x.text}`,
       fields: [
@@ -200,11 +201,13 @@
         { name: 'store', label: 'Onde comprar', type: 'select', half: true,
           options: [['', 'Qualquer loja'], ...Views.shopHooks.stores().map((st) => [st, st])] },
         { name: 'text', label: 'Produto', required: true },
+        { name: 'brand', label: '🏷️ Marca preferida', half: true, placeholder: 'Ex.: Mimosa, Compal…' },
+        { name: 'note', label: '📝 Nota para quem vai às compras', half: true, placeholder: 'Ex.: sem lactose, o de pacote azul' },
         { name: 'hist', type: 'note', html: Views.shopHooks.historyHtml(x.text) },
       ],
       values: {
         qty: x.qty || '', price: known || '', category: x.category || 'Outro', text: x.text,
-        store: CatalogoCompras.storeOf(x, S().shopstats, Views.shopHooks.stores()),
+        store: CatalogoCompras.storeOf(x, S().shopstats, Views.shopHooks.stores()), ...prefs,
       },
       onSubmit: (d) => {
         Store.update((s) => {
@@ -218,6 +221,8 @@
         // Loja: fica no item e memorizada para o produto (só se mudou).
         const cur = S().shopping.find((i) => i.id === x.id);
         if (cur && d.store !== CatalogoCompras.storeOf(cur, S().shopstats, Views.shopHooks.stores())) Views.shopHooks.setItemStore(x.id, d.store);
+        // Marca e nota: ficam memorizadas para o produto (aparecem da próxima vez que entrar na lista).
+        if (cur && (d.brand.trim() !== prefs.brand || d.note.trim() !== prefs.note)) Views.shopHooks.setItemPrefs(x.id, d);
       },
       onDelete: () => Store.update((s) => { s.shopping = s.shopping.filter((i) => i.id !== x.id); }),
       deleteLabel: 'Tirar da lista', deleteConfirm: `Tirar "${x.text}" da lista?`, deleteToast: 'Saiu da lista.',

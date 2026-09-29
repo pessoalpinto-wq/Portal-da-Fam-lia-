@@ -162,3 +162,26 @@ test('encontra produtos sem ligar a maiúsculas nem acentos', () => {
   assert.equal(find('  Pão  ').categoria, 'Padaria');
   assert.equal(find('coisa inventada'), null);
 });
+
+test('marca preferida e nota: memorizadas por produto, o item pode mudar', () => {
+  const C = globalThis.CatalogoCompras;
+  const stats = [];
+  C.rememberPrefs(stats, { text: 'Leite', category: 'Frescos' }, { brand: '  Mimosa ', note: 'meio-gordo, sem lactose' });
+  assert.deepEqual(C.prefsOf({ text: 'leite' }, stats), { brand: 'Mimosa', note: 'meio-gordo, sem lactose' });
+  assert.deepEqual(C.prefsOf({ text: 'Leite', brand: 'Agros', note: '' }, stats), { brand: 'Agros', note: '' });
+  assert.deepEqual(C.prefsOf({ text: 'Pão' }, stats), { brand: '', note: '' });
+  assert.equal(C.prefsText({ brand: 'Mimosa', note: 'sem lactose' }), 'Mimosa — sem lactose');
+  assert.equal(C.prefsText({ brand: '', note: 'o maior' }), 'o maior');
+  C.rememberPrefs(stats, { text: 'Leite' }, { brand: '', note: '' });
+  assert.deepEqual(C.prefsOf({ text: 'Leite' }, stats), { brand: '', note: '' });
+  assert.equal(stats.length, 1);
+});
+
+test('partilhar mostra a marca e a nota', () => {
+  const C = globalThis.CatalogoCompras;
+  const stats = C.rememberPrefs([], { text: 'Leite' }, { brand: 'Mimosa', note: 'sem lactose' });
+  const t = C.shareText([{ text: 'Leite', qty: '6', category: 'Frescos' }, { text: 'Pão', category: 'Padaria' }], undefined, '', stats);
+  assert.match(t, /• 6 Leite \(Mimosa — sem lactose\)/);
+  assert.match(t, /• Pão$/m);
+  assert.match(C.shareText([{ text: 'Leite', category: 'Frescos' }], undefined, 'Lidl', stats), /Leite \(Mimosa — sem lactose\)/);
+});

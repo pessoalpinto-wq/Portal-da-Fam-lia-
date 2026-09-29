@@ -533,7 +533,7 @@
     const shown = hooks.filterPending ? hooks.filterPending(pending) : pending;
     const row = (x) => `<li class="shop ${x.done ? 'done' : ''}">
       <label><input type="checkbox" data-action="toggle-shop" data-id="${x.id}" ${x.done ? 'checked' : ''}>
-        <span>${x.qty ? `<b class="shop-qty">${esc(x.qty)}</b> ` : ''}${esc(x.text)}${hooks.storeBadge?.(x) || ''}</span></label>
+        <span>${x.qty ? `<b class="shop-qty">${esc(x.qty)}</b> ` : ''}${esc(x.text)}${hooks.storeBadge?.(x) || ''}${hooks.prefsHtml?.(x) || ''}</span></label>
       ${price(x)}
       ${avatar(x.addedBy, 'sm')}
       <button class="icon-btn small" data-action="edit-shop" data-id="${x.id}" aria-label="Editar quantidade e nome" title="Quantidade / editar">✎</button>

@@ -779,6 +779,10 @@ button.link { font: inherit; font-size: .85rem; background: none; border: 0; col
 .store-note { margin: 0 0 .5rem; }
 .store-badge { font-size: .72rem; font-weight: 600; color: var(--muted); border: 1px solid var(--border); border-radius: 999px;
   padding: 0 .45rem; margin-left: .3rem; white-space: nowrap; }
+.shop-prefs { display: flex; flex-wrap: wrap; gap: .1rem .6rem; font-size: .78rem; font-weight: 500; color: var(--muted); margin-top: .1rem; }
+.shop-prefs .brand-tag { font-weight: 700; color: var(--text); }
+li.shop.done .shop-prefs { opacity: .7; }
+.market-text .shop-prefs { font-size: .9rem; }
 .market .store-bar { flex-wrap: nowrap; overflow-x: auto; margin-bottom: .6rem; scrollbar-width: none; }
 .market .store-bar .filter { flex: none; }
 

@@ -148,17 +148,20 @@
   };
 
   /** Texto da lista por comprar, por secções (para WhatsApp, SMS, etc.). */
-  function shareText(shopping = [], order = Object.keys(CAT_EMOJI), where = '') {
+  function shareText(shopping = [], order = Object.keys(CAT_EMOJI), where = '', stats = []) {
     const pending = shopping.filter((i) => !i.done);
     if (!pending.length) return '🛒 A lista de compras está vazia.';
     if (where) {
-      const blocksW = shareText(shopping, order).split('\n').slice(1).join('\n');
+      const blocksW = shareText(shopping, order, '', stats).split('\n').slice(1).join('\n');
       return `🛒 Lista de compras (${where}) — ${pending.length} produto${pending.length === 1 ? '' : 's'}\n${blocksW}`;
     }
     const cats = [...new Set([...order, ...pending.map((i) => i.category || 'Outro')])];
     const blocks = cats.map((c) => {
       const items = pending.filter((i) => (i.category || 'Outro') === c);
-      return items.length ? `${CAT_EMOJI[c] || '🛍️'} ${c}\n${items.map((i) => `• ${i.qty ? `${i.qty} ` : ''}${i.text}`).join('\n')}` : '';
+      return items.length ? `${CAT_EMOJI[c] || '🛍️'} ${c}\n${items.map((i) => {
+        const extra = prefsText(prefsOf(i, stats));
+        return `• ${i.qty ? `${i.qty} ` : ''}${i.text}${extra ? ` (${extra})` : ''}`;
+      }).join('\n')}` : '';
     }).filter(Boolean);
     return `🛒 Lista de compras — ${pending.length} produto${pending.length === 1 ? '' : 's'}\n\n${blocks.join('\n\n')}`;
   }
@@ -312,6 +315,34 @@
     return stats;
   }
 
+  /* ---------- Marca preferida e notas ---------- */
+  const clean = (v, max) => String(v ?? '').trim().slice(0, max);
+
+  /** Marca preferida e nota de um produto: o que foi posto no item ganha; senão, o memorizado para o produto. */
+  function prefsOf(item, stats = []) {
+    const st = stats.find((x) => x.id === statId(item.text));
+    return {
+      brand: clean('brand' in item ? item.brand : st?.brand, 40),
+      note: clean('note' in item ? item.note : st?.note, 120),
+    };
+  }
+
+  /** Memoriza a marca e a nota de um produto para a próxima vez ('' apaga). */
+  function rememberPrefs(stats, item, { brand = '', note = '' } = {}) {
+    const id = statId(item.text);
+    let st = stats.find((x) => x.id === id);
+    if (!st) {
+      st = { id, name: item.text, category: item.category || 'Outro', count: 0, last: '' };
+      stats.push(st);
+    }
+    st.brand = clean(brand, 40);
+    st.note = clean(note, 120);
+    return stats;
+  }
+
+  /** "Mimosa — sem lactose" (ou só uma das duas, ou ''). */
+  const prefsText = ({ brand, note } = {}) => [brand, note].filter(Boolean).join(' — ');
+
   /** Só o que se compra nesta loja, mais o que se compra em qualquer loja. '' ou 'all' = tudo. */
   function forStore(items, stats, stores, store) {
     if (!store || store === 'all') return items;
@@ -327,7 +358,7 @@
   }
 
   root.CatalogoCompras = {
-    DEFAULT_STORES, storesOf, storeOf, rememberStore, forStore, storeCounts,
+    DEFAULT_STORES, storesOf, storeOf, rememberStore, forStore, storeCounts, prefsOf, rememberPrefs, prefsText,
     SECCOES, ITENS, NOSSOS, CAT_EMOJI, find, strip, merged, sections, hiddenCount, missingStaples, statId, countPurchase,
     suggestions, shareText, qtyFactor, memo, priceOf, lineTotal, estimate, rememberPrice, priceHistory, priceChange,
     receipts, budgetOf, monthly, budgetStatus,

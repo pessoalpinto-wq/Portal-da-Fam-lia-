@@ -49,7 +49,7 @@ window.ComprasExtra = function ({ render }) {
       return `<li class="market-row"><button class="market-item ${x.done ? 'done' : ''}" data-action="toggle-shop" data-id="${x.id}"
         aria-pressed="${!!x.done}" aria-label="${esc(x.text)}${x.qty ? `, ${esc(x.qty)}` : ''}${x.done ? ', já no carrinho' : ''}">
         <span class="market-check" aria-hidden="true">${x.done ? '✔' : ''}</span>
-        <span class="market-text">${x.qty ? `<b class="market-qty">${esc(x.qty)}</b> ` : ''}${esc(x.text)}</span>
+        <span class="market-text">${x.qty ? `<b class="market-qty">${esc(x.qty)}</b> ` : ''}${esc(x.text)}${prefsHtml(x)}</span>
       </button>
       <button class="market-price ${t ? 'has' : ''}" data-action="shop-price" data-id="${x.id}" aria-label="Preço de ${esc(x.text)}">${t ? money(t) : '€'}</button></li>`;
     };
@@ -220,7 +220,7 @@ window.ComprasExtra = function ({ render }) {
   /** Texto da lista a partilhar: respeita o filtro de loja escolhido. */
   function listText() {
     const cur = curStore();
-    return C.shareText(filterPending(S().shopping.filter((i) => !i.done)), SHOP_CATS, cur === 'all' ? '' : cur);
+    return C.shareText(filterPending(S().shopping.filter((i) => !i.done)), SHOP_CATS, cur === 'all' ? '' : cur, S().shopstats);
   }
 
   function shareDialog() {
@@ -387,6 +387,24 @@ window.ComprasExtra = function ({ render }) {
     return st ? ` <small class="store-badge">${esc(st)}</small>` : '';
   }
 
+  /** Marca preferida e nota, por baixo do nome (na lista e no modo supermercado). */
+  function prefsHtml(x) {
+    const { brand, note } = C.prefsOf(x, S().shopstats);
+    if (!brand && !note) return '';
+    return `<span class="shop-prefs">${brand ? `<span class="brand-tag">🏷️ ${esc(brand)}</span>` : ''}${note ? `<span class="shop-note">📝 ${esc(note)}</span>` : ''}</span>`;
+  }
+
+  /** Põe a marca e a nota no item e memoriza-as para o produto. */
+  function setItemPrefs(id, prefs) {
+    Store.update((s) => {
+      const x = s.shopping.find((i) => i.id === id);
+      if (!x) return;
+      x.brand = String(prefs.brand || '').trim();
+      x.note = String(prefs.note || '').trim();
+      C.rememberPrefs(s.shopstats, x, prefs);
+    });
+  }
+
   /** Põe a loja no item e memoriza-a para o produto ('' = qualquer loja). */
   function setItemStore(id, store) {
     Store.update((s) => {
@@ -434,6 +452,8 @@ window.ComprasExtra = function ({ render }) {
     filterPending,
     setItemStore,
     stores,
+    prefsHtml,
+    setItemPrefs,
   };
 
   function exit() {
