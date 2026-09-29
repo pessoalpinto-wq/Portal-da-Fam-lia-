@@ -521,8 +521,12 @@
     const price = (x) => {
       const t = C.lineTotal(x, s.shopstats);
       if (!t) return '';
+      const m = C.memo(s.shopstats, x.text);
       const up = C.priceChange(s.shopstats, x.text, today());
-      return `<small class="shop-price">${money(t)}${up > 0 ? ` <b class="up" title="Subiu ${money(up)} desde a última vez">↑</b>` : ''}</small>`;
+      const when = m?.date ? `Preço de ${fmtDate(m.date)}${m.store ? ` (${m.store})` : ''}` : 'Preço';
+      const rise = up > 0 ? ` · subiu ${money(up)} desde ${m.prevDate ? fmtDate(m.prevDate) : 'a última vez'}` : '';
+      return `<button class="shop-price" data-action="edit-shop" data-id="${x.id}" title="${esc(when + rise)}" aria-label="${esc(`${money(t)}. ${when}${rise}`)}">
+        ${money(t)}${up > 0 ? ' <b class="up">↑</b>' : ''}</button>`;
     };
     const row = (x) => `<li class="shop ${x.done ? 'done' : ''}">
       <label><input type="checkbox" data-action="toggle-shop" data-id="${x.id}" ${x.done ? 'checked' : ''}>

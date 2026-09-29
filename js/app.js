@@ -198,6 +198,7 @@
         { name: 'price', label: 'Preço por unidade/kg (€)', type: 'number', min: 0, step: '0.01', half: true, placeholder: 'Ex.: 0,89' },
         { name: 'category', label: 'Categoria', type: 'select', half: true, options: catOptions() },
         { name: 'text', label: 'Produto', required: true, half: true },
+        { name: 'hist', type: 'note', html: Views.shopHooks.historyHtml(x.text) },
       ],
       values: { qty: x.qty || '', price: known || '', category: x.category || 'Outro', text: x.text },
       onSubmit: (d) => {
@@ -205,8 +206,10 @@
           const cur = s.shopping.find((i) => i.id === x.id);
           if (cur) Object.assign(cur, { qty: d.qty, category: d.category, text: d.text });
         });
-        // Preço novo (ou alterado): fica no item e memorizado para a próxima vez.
-        if (d.price > 0 && d.price !== known) Views.shopHooks.setItemPrice(x.id, d.price);
+        // Preço novo (ou alterado): fica no item e memorizado para a próxima vez. Se o último preço
+        // foi registado hoje numa loja, é uma correcção desse preço (mesma loja).
+        const m = CatalogoCompras.memo(S().shopstats, x.text);
+        if (d.price > 0 && d.price !== known) Views.shopHooks.setItemPrice(x.id, d.price, m?.date === today() ? m.store : '');
       },
       onDelete: () => Store.update((s) => { s.shopping = s.shopping.filter((i) => i.id !== x.id); }),
       deleteLabel: 'Tirar da lista', deleteConfirm: `Tirar "${x.text}" da lista?`, deleteToast: 'Saiu da lista.',

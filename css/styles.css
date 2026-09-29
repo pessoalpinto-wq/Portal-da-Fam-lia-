@@ -358,7 +358,7 @@ input[type=color] { padding: .15rem; height: 2.4rem; }
 .field { grid-column: 1 / -1; display: grid; gap: .3rem; border: 0; padding: 0; margin: 0; min-width: 0; }
 .field.half { grid-column: span 1; }
 .field > span, .field > legend { font-size: .82rem; font-weight: 600; color: var(--muted); padding: 0; margin-bottom: .3rem; }
-.form-actions { display: flex; gap: .5rem; padding: .75rem 1.25rem 1rem; border-top: 1px solid var(--border); }
+.form-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .5rem; padding: .75rem 1.25rem 1rem; border-top: 1px solid var(--border); }
 @media (max-width: 480px) { .field.half { grid-column: 1 / -1; } }
 .chip-checks { display: flex; flex-wrap: wrap; gap: .4rem; }
 .chip-check { --c: #94a3b8; cursor: pointer; }
@@ -731,7 +731,11 @@ button.link { font: inherit; font-size: .85rem; background: none; border: 0; col
 .share-wa { background: #25d366; border-color: #25d366; color: #fff; }
 
 /* ---------- Compras: preços, talão e orçamento ---------- */
-.shop-price { font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; }
+.shop-price { font: inherit; font-size: .82rem; font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap;
+  background: none; border: 0; padding: .2rem .3rem; cursor: pointer; border-radius: 8px; }
+.shop-price:hover { background: var(--surface-2); }
+.form-note { grid-column: 1 / -1; font-size: .88rem; background: var(--surface-2); border-radius: 10px; padding: .55rem .75rem; }
+.price-hist { list-style: none; margin: .3rem 0 0; padding: 0; display: grid; gap: .15rem; }
 .shop-price .up { color: var(--danger); }
 .shop-total { margin: .2rem 0 .4rem; font-size: .95rem; }
 .shop-budget { display: block; text-decoration: none; color: var(--text); margin: 0 0 .8rem; padding: .55rem .8rem; border-radius: 12px;

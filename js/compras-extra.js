@@ -241,14 +241,23 @@ window.ComprasExtra = function ({ render }) {
   }
 
   /* ---------- Preços ---------- */
-  /** Põe o preço (por unidade/kg) no item e memoriza-o para a próxima vez. */
-  function setItemPrice(id, price) {
+  /** Põe o preço (por unidade/kg) no item e memoriza-o para a próxima vez, com a data e a loja. */
+  function setItemPrice(id, price, store = '') {
     Store.update((s) => {
       const x = s.shopping.find((i) => i.id === id);
       if (!x) return;
       x.price = Math.round(Number(price) * 100) / 100;
-      C.rememberPrice(s.shopstats, x, x.price, today());
+      C.rememberPrice(s.shopstats, x, x.price, today(), store);
     });
+  }
+
+  const shortDate = (d) => (d ? U.fmtDate(d).replace(/^[^,]+,\s*/, '') : '');
+  /** Histórico de preços de um produto, para mostrar nos formulários. */
+  function historyHtml(name) {
+    const h = C.priceHistory(S().shopstats, name).slice(0, 5);
+    if (!h.length) return '';
+    return `<b>🕘 Preços anteriores</b><ul class="price-hist">${h.map((x) => `<li><b>${money(x.price)}</b>
+      <span class="muted">· ${esc(shortDate(x.date))}${x.store ? ` · ${esc(x.store)}` : ''}</span></li>`).join('')}</ul>`;
   }
 
   function priceForm(el) {
@@ -258,10 +267,14 @@ window.ComprasExtra = function ({ render }) {
     const per = /kg\b/i.test(x.qty || '') ? 'kg' : 'unidade';
     UI.openForm({
       title: `💶 ${x.text}`,
-      fields: [{ name: 'price', label: `Preço por ${per} (€)${x.qty ? ` · quantidade: ${x.qty}` : ''}`, type: 'number', min: 0, step: '0.01', required: true, placeholder: 'Ex.: 1,29' }],
-      values: { price: known || '' },
+      fields: [
+        { name: 'price', label: `Preço por ${per} (€)${x.qty ? ` · quantidade: ${x.qty}` : ''}`, type: 'number', min: 0, step: '0.01', required: true, half: true, placeholder: 'Ex.: 1,29' },
+        { name: 'store', label: 'Loja (opcional)', half: true, placeholder: 'Ex.: Lidl' },
+        { name: 'hist', type: 'note', html: historyHtml(x.text) },
+      ],
+      values: { price: known || '', store: trip()?.store || '' },
       submitLabel: 'Guardar preço',
-      onSubmit: (d) => { if (d.price > 0) setItemPrice(x.id, d.price); },
+      onSubmit: (d) => { if (d.price > 0) setItemPrice(x.id, d.price, d.store); },
     });
     setTimeout(() => document.querySelector('#f-price')?.focus(), 50);
   }
@@ -346,6 +359,7 @@ window.ComprasExtra = function ({ render }) {
     banner: () => `${budgetLine()}${banner()}`,
     panels: staplesPanel,
     setItemPrice,
+    historyHtml,
   };
 
   function exit() {

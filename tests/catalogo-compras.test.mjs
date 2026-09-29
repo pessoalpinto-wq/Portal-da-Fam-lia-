@@ -100,6 +100,24 @@ test('preços: quantidade, preço memorizado, total estimado e subidas', () => {
   assert.deepEqual(estimate(list, stats), { total: 8.98, cart: 3.64, missing: 1, count: 4 });
 });
 
+test('preços com data e loja: histórico dos últimos 10', () => {
+  const { rememberPrice, priceHistory, memo } = globalThis.CatalogoCompras;
+  const stats = [];
+  rememberPrice(stats, { text: 'Leite' }, 0.85, '2026-08-01', 'Continente');
+  rememberPrice(stats, { text: 'Leite' }, 0.89, '2026-09-29', 'Lidl');
+  rememberPrice(stats, { text: 'Leite' }, 0.87, '2026-09-29', 'Lidl'); // correcção no mesmo dia e loja
+  assert.deepEqual(priceHistory(stats, 'leite'), [
+    { price: 0.87, date: '2026-09-29', store: 'Lidl' }, { price: 0.85, date: '2026-08-01', store: 'Continente' },
+  ]);
+  // A correcção não conta como mudança: o anterior continua a ser o de Agosto.
+  assert.deepEqual(memo(stats, 'Leite'), { price: 0.87, date: '2026-09-29', store: 'Lidl', prev: 0.85, prevDate: '2026-08-01' });
+  for (let i = 1; i <= 12; i++) rememberPrice(stats, { text: 'Pão' }, 0.3 + i / 100, `2026-09-${String(i).padStart(2, '0')}`);
+  assert.equal(priceHistory(stats, 'Pão').length, 10);
+  assert.equal(priceHistory(stats, 'Pão')[0].date, '2026-09-12');
+  // Registos antigos (sem histórico) continuam a aparecer
+  assert.deepEqual(priceHistory([{ id: 'st-ovos', name: 'Ovos', price: 2.1, priceDate: '2026-09-01' }], 'Ovos'), [{ price: 2.1, date: '2026-09-01', store: '' }]);
+});
+
 test('talões e orçamento do mês', () => {
   const { monthly, budgetStatus, receipts } = globalThis.CatalogoCompras;
   const g = [

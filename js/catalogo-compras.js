@@ -173,10 +173,13 @@
     return n > 0 ? n : 1;
   }
 
-  /** Último preço memorizado de um produto (por unidade/kg): { price, prev, date } ou null. */
+  /** Último preço memorizado de um produto (por unidade/kg): { price, date, store, prev, prevDate } ou null. */
   function memo(stats = [], name) {
     const st = stats.find((x) => x.id === statId(name));
-    return st && Number(st.price) > 0 ? { price: Number(st.price), prev: Number(st.prevPrice) || 0, date: st.priceDate || '' } : null;
+    return st && Number(st.price) > 0 ? {
+      price: Number(st.price), date: st.priceDate || '', store: st.priceStore || '',
+      prev: Number(st.prevPrice) || 0, prevDate: st.prevDate || '',
+    } : null;
   }
 
   /** Preço a usar para um item: o que lhe puseram, ou o memorizado. */
@@ -201,8 +204,11 @@
     return { total: round2(total), cart: round2(cart), missing, count: shopping.length };
   }
 
-  /** Memoriza o preço (por unidade/kg) de um produto; guarda o anterior para mostrar se subiu. */
-  function rememberPrice(stats, item, price, date) {
+  /**
+   * Memoriza o preço (por unidade/kg) de um produto, com a data e a loja (se se souber).
+   * Guarda o anterior (para mostrar se subiu) e um histórico dos últimos 10 preços.
+   */
+  function rememberPrice(stats, item, price, date, store = '') {
     const p = round2(num(price));
     if (!(p > 0)) return stats;
     const id = statId(item.text);
@@ -211,10 +217,28 @@
       st = { id, name: item.text, category: item.category || 'Outro', count: 0, last: '' };
       stats.push(st);
     }
-    if (Number(st.price) > 0 && Number(st.price) !== p) st.prevPrice = Number(st.price);
+    const where = String(store || '').trim().slice(0, 40);
+    // Corrigir o preço no mesmo dia e na mesma loja não conta como mudança de preço.
+    const correction = st.priceDate === date && (st.priceStore || '') === where;
+    if (Number(st.price) > 0 && Number(st.price) !== p && !correction) {
+      st.prevPrice = Number(st.price);
+      st.prevDate = st.priceDate || '';
+    }
     st.price = p;
     st.priceDate = date;
+    st.priceStore = where;
+    // Histórico: substitui o registo do mesmo dia e da mesma loja (correcção), senão acrescenta.
+    const hist = (st.prices || []).filter((h) => !(h.d === date && (h.s || '') === st.priceStore));
+    st.prices = [...hist, { p, d: date, ...(st.priceStore ? { s: st.priceStore } : {}) }].slice(-10);
     return stats;
+  }
+
+  /** Histórico de preços de um produto (mais recente primeiro): [{ price, date, store }]. */
+  function priceHistory(stats = [], name) {
+    const st = stats.find((x) => x.id === statId(name));
+    const list = (st?.prices || []).map((h) => ({ price: h.p, date: h.d, store: h.s || '' }));
+    if (!list.length && Number(st?.price) > 0) list.push({ price: Number(st.price), date: st.priceDate || '', store: st.priceStore || '' });
+    return list.reverse();
   }
 
   /** Diferença para o preço anterior (positivo = subiu), só se mudou nos últimos 60 dias. */
@@ -257,7 +281,7 @@
 
   root.CatalogoCompras = {
     SECCOES, ITENS, NOSSOS, CAT_EMOJI, find, strip, merged, sections, hiddenCount, missingStaples, statId, countPurchase,
-    suggestions, shareText, qtyFactor, memo, priceOf, lineTotal, estimate, rememberPrice, priceChange,
+    suggestions, shareText, qtyFactor, memo, priceOf, lineTotal, estimate, rememberPrice, priceHistory, priceChange,
     receipts, budgetOf, monthly, budgetStatus,
   };
 })(globalThis);

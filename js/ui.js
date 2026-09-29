@@ -48,6 +48,8 @@
 
   /* ---------- Formulário genérico em diálogo ---------- */
   function fieldHTML(f, value) {
+    // Nota só de leitura (f.html já vem escapado por quem a cria).
+    if (f.type === 'note') return f.html ? `<div class="field form-note">${f.html}</div>` : '';
     const v = value ?? f.default ?? '';
     const req = f.required ? 'required' : '';
     const id = `f-${f.name}`;
@@ -76,6 +78,7 @@
   function readForm(form, fields) {
     const out = {};
     fields.forEach((f) => {
+      if (f.type === 'note') return;
       if (f.type === 'members') {
         out[f.name] = [...form.querySelectorAll(`input[name="${f.name}"]:checked`)].map((i) => i.value);
       } else {
