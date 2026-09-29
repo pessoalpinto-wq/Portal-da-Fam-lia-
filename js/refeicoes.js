@@ -38,16 +38,22 @@ window.Refeicoes = function ({ render }) {
     return true;
   }
 
+  /** Categorias da lista de compras que são comida (o resto não vai para a despensa). */
+  const FOOD_CATS = ['Frescos', 'Talho/Peixaria', 'Padaria', 'Mercearia', 'Congelados', 'Bebidas'];
+
   /** Junta ingredientes à lista de compras (sem repetir o que já lá está). */
   function toShopping(list) {
     let n = 0;
     Store.update((s) => {
       const pending = s.shopping.filter((i) => !i.done).map((i) => I.parse(i.text).key);
+      const catalog = CatalogoCompras.merged(s.products);
       list.forEach((e) => {
         if (pending.some((k) => k === e.key || I.matches(k, e.key) || I.matches(e.key, k))) return;
+        // Se o ingrediente é um produto conhecido, usa o nome e a categoria do catálogo.
+        const known = CatalogoCompras.find(e.name, catalog);
         s.shopping.push({
-          id: Store.uid(), text: I.capitalize(e.name), qty: e.qty === 'q.b.' ? '' : e.qty,
-          category: I.guessCategory(e.key), done: false, addedBy: s.currentUser,
+          id: Store.uid(), text: known?.nome || I.capitalize(e.name), qty: e.qty === 'q.b.' ? '' : e.qty,
+          category: known?.categoria || I.guessCategory(e.key), done: false, addedBy: s.currentUser,
         });
         pending.push(e.key);
         n++;
@@ -439,12 +445,12 @@ window.Refeicoes = function ({ render }) {
       Store.update((s) => { s.pantry = s.pantry.filter((x) => x.id !== p.id); });
       toShopping([{ name: p.name, key: p.key, qty: '' }]);
     },
-    // Comprado → entra na despensa.
+    // Comprado → entra na despensa (só comida e bebida: detergentes, higiene, escola… não).
     'toggle-shop': (el) => Store.update((s) => {
       const x = s.shopping.find((i) => i.id === el.dataset.id);
       if (!x) return;
       x.done = !x.done;
-      if (x.done) addPantry(s, x.text);
+      if (x.done && FOOD_CATS.includes(x.category || 'Mercearia')) addPantry(s, x.text);
     }),
     'recipe-new': () => recipeForm(null, { category: 'Carne', emoji: '🍽️', servings: 4 }),
     'recipe-edit': (el) => recipeForm(familyRecipes().find((r) => r.id === el.dataset.id)),
