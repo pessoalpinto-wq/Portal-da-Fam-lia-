@@ -85,6 +85,9 @@
     const [, , label, view] = currentRoute();
     const main = $('#view');
     const scroll = window.scrollY;
+    // Horário da escola: mantém o deslocamento horizontal entre renders (ou abre no dia de hoje).
+    const oldTT = main.querySelector('.timetable');
+    if (oldTT) VS.ttScroll = { key: oldTT.dataset.key, left: oldTT.scrollLeft };
     main.innerHTML = view();
     document.title = `${label} · Portal da Família`;
     renderNav();
@@ -93,6 +96,13 @@
     fillInviteCodes();
     fillPanels();
     modules.forEach((m) => m.afterRender?.(main));
+    const tt = main.querySelector('.timetable');
+    if (tt) {
+      const saved = VS.ttScroll;
+      const col = tt.querySelector('.is-today');
+      if (saved && saved.key === tt.dataset.key) tt.scrollLeft = saved.left;
+      else if (col) tt.scrollLeft = col.offsetLeft - tt.offsetLeft - 8;
+    }
     window.scrollTo(0, scroll);
   }
 

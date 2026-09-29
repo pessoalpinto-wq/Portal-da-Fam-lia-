@@ -22,6 +22,10 @@
     'Farmácia', 'Casa', 'Escola', 'Animais', 'Outro'];
   const TASK_CATS = ['Casa', 'Quarto', 'Cozinha', 'Roupa', 'Animais', 'Escola', 'Saúde', 'Recados', 'Outro'];
 
+  /** Disciplinas já usadas (horário e testes), para sugerir ao escrever — assim as médias batem certo. */
+  const subjects = () => [...new Set([...S().classes, ...S().exams].map((x) => String(x.subject || '').trim()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, 'pt'));
+
   const Forms = {
     event: () => [
       { name: 'title', label: 'Título', required: true, placeholder: 'Ex.: Consulta, treino, aniversário…' },
@@ -51,7 +55,7 @@
       { name: 'cost', label: 'Custo em pontos ⭐', type: 'number', min: 1, required: true, default: 20 },
     ],
     class: () => [
-      { name: 'subject', label: 'Disciplina', required: true },
+      { name: 'subject', label: 'Disciplina', required: true, suggest: subjects() },
       { name: 'day', label: 'Dia', type: 'select', half: true, options: [1, 2, 3, 4, 5, 6].map((d) => [d, DIAS[d]]) },
       { name: 'memberId', label: 'Aluna/o', type: 'select', half: true, options: memberOptions(false) },
       { name: 'start', label: 'Início', type: 'time', required: true, half: true },
@@ -60,7 +64,7 @@
       { name: 'teacher', label: 'Professor/a', half: true },
     ],
     exam: () => [
-      { name: 'subject', label: 'Disciplina', required: true, half: true },
+      { name: 'subject', label: 'Disciplina', required: true, half: true, suggest: subjects() },
       { name: 'kind', label: 'Tipo', type: 'select', half: true, options: ['Teste', 'Trabalho', 'Apresentação', 'Exame', 'Ficha', 'Reunião de pais', 'Visita de estudo', 'Outro'].map((k) => [k, k]) },
       { name: 'date', label: 'Data', type: 'date', required: true, half: true },
       { name: 'memberId', label: 'Aluna/o', type: 'select', half: true, options: memberOptions(false) },
@@ -293,9 +297,11 @@
   /* ---------- Escola ---------- */
   function escola() {
     const s = S();
-    if (!member(VS.schoolMember)) {
-      VS.schoolMember = (s.members.find((m) => m.role === 'filha') || s.members[0])?.id;
-    }
+    // Separadores: as filhas (e quem tiver horário ou testes).
+    const students = s.members.filter((m) => !['pai', 'mae'].includes(m.role)
+      || s.classes.some((c) => c.memberId === m.id) || s.exams.some((x) => x.memberId === m.id));
+    const tabsFor = students.length ? students : s.members;
+    if (!tabsFor.some((m) => m.id === VS.schoolMember)) VS.schoolMember = tabsFor[0]?.id;
     const id = VS.schoolMember;
     const cls = s.classes.filter((c) => c.memberId === id);
     const days = cls.some((c) => Number(c.day) === 6) ? [1, 2, 3, 4, 5, 6] : [1, 2, 3, 4, 5];
@@ -315,9 +321,12 @@
     const exams = s.exams.filter((x) => x.memberId === id).sort((a, b) => a.date.localeCompare(b.date));
     const up = exams.filter((x) => x.date >= t);
     const past = exams.filter((x) => x.date < t).reverse();
+    const avgs = Escola.averages(exams);
+    const missing = past.filter((x) => Escola.missingGrade(x, t)).length;
+    const fmtAvg = (n) => String(n).replace('.', ',');
     const examBtn = (x) => `<button class="item-main" data-action="edit-exam" data-id="${x.id}">
       <span class="when">${esc(fmtDate(x.date))}</span><span class="title">${esc(x.kind)}: ${esc(x.subject)}${x.notes ? ` — <span class="muted">${esc(x.notes)}</span>` : ''}</span>
-      ${x.grade ? `<span class="grade">${esc(x.grade)}</span>` : ''}</button>`;
+      ${x.grade ? `<span class="grade">${esc(x.grade)}</span>` : Escola.missingGrade(x, t) ? '<span class="grade missing">＋ nota</span>' : ''}</button>`;
     const examLi = (x) => `<li class="item" style="--c:${esc(colorOf([id]))}">${examBtn(x)}</li>`;
     // Próximos testes: com os tópicos a estudar e o progresso.
     const examStudy = (x) => {
@@ -336,14 +345,19 @@
 
     return `<div class="page-head"><h1>Escola</h1>
       <div class="quick">${addBtn('add-class', 'Aula')}${addBtn('add-exam', 'Teste / trabalho')}</div></div>
-      <div class="tabs" role="tablist">${s.members.map((m) => `<button role="tab" aria-selected="${m.id === id}" class="tab ${m.id === id ? 'active' : ''}"
+      <div class="tabs" role="tablist">${tabsFor.map((m) => `<button role="tab" aria-selected="${m.id === id}" class="tab ${m.id === id ? 'active' : ''}"
         data-action="school-tab" data-id="${m.id}" style="--c:${esc(m.color)}">${esc(m.emoji)} ${esc(m.name)}</button>`).join('')}</div>
       <section class="card"><header class="card-head"><h2>Horário semanal</h2>
         ${cls.length ? `<button class="btn small ghost" data-action="clear-classes">Limpar horário</button>` : ''}</header>
-        <div class="timetable" style="--cols:${days.length}">${cols}</div></section>
+        <div class="timetable" data-key="${esc(id)}" style="--cols:${days.length}">${cols}</div></section>
       <div class="grid two">
         ${card('📝 Próximos testes e trabalhos', up.length ? `<ul class="list">${up.map(examStudy).join('')}</ul>` : empty('Nada agendado.'), { action: addBtn('add-exam') })}
-        ${card('📚 Histórico e notas', past.length ? `<ul class="list">${past.map(examLi).join('')}</ul>` : empty('Aqui aparecem os testes já feitos (podes registar a nota).'))}
+        ${card('📚 Histórico e notas', `${avgs.length ? `<h3 class="sub">📊 Médias por disciplina</h3><ul class="avgs">${avgs.map((a) => `<li class="avg ${Escola.level(a.avg, a.scale)}">
+            <span class="avg-subj">${esc(a.subject)} <small class="muted">· ${a.n} nota${a.n === 1 ? '' : 's'}</small></span>
+            <span class="avg-val">${a.trend > 0 ? '<span class="up" title="A última nota subiu">↑</span> ' : a.trend < 0 ? '<span class="down" title="A última nota desceu">↓</span> ' : ''}<b>${fmtAvg(a.avg)}</b><small class="muted">${a.scale === 100 ? '%' : `/${a.scale}`}</small></span></li>`).join('')}</ul>
+            <h3 class="sub">Testes feitos</h3>` : ''}
+          ${missing ? `<p class="small muted">✏️ Falta registar a nota de ${missing} teste${missing === 1 ? '' : 's'} — toca no teste para a pôr.</p>` : ''}
+          ${past.length ? `<ul class="list">${past.map(examLi).join('')}</ul>` : empty('Aqui aparecem os testes já feitos (podes registar a nota).')}`)}
       </div>`;
   }
 

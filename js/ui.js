@@ -69,8 +69,10 @@
         `<option value="${esc(ov)}" ${String(ov) === String(v) ? 'selected' : ''}>${esc(ol)}</option>`).join('')}</select>`;
     } else {
       const extra = f.type === 'number' ? `step="${f.step || 1}" min="${f.min ?? ''}"` : '';
+      // f.suggest: sugestões ao escrever (ex.: disciplinas já usadas).
+      const dl = f.suggest?.length ? `<datalist id="${id}-dl">${f.suggest.map((o) => `<option value="${esc(o)}"></option>`).join('')}</datalist>` : '';
       input = `<input id="${id}" type="${f.type || 'text'}" name="${f.name}" value="${esc(v)}" ${req} ${extra}
-        placeholder="${esc(f.placeholder || '')}">`;
+        placeholder="${esc(f.placeholder || '')}"${dl ? ` list="${id}-dl" autocomplete="off"` : ''}>${dl}`;
     }
     return `<label class="field ${f.half ? 'half' : ''}" for="${id}"><span>${esc(f.label)}</span>${input}</label>`;
   }
