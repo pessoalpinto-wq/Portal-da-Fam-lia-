@@ -718,6 +718,37 @@ button.link { font: inherit; font-size: .85rem; background: none; border: 0; col
   .catalog-secs .filter { flex: none; white-space: nowrap; }
 }
 
+/* ---------- Compras: modo "No supermercado" ---------- */
+body.shop-mode .topbar, body.shop-mode .nav { display: none; }
+body.shop-mode .view { margin-left: auto; max-width: 720px; padding: 0 16px 2rem; }
+.market-head { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: .75rem;
+  padding: max(.7rem, env(safe-area-inset-top)) 0 .6rem; background: var(--bg); }
+.market-title { display: grid; }
+.market-title b { font-size: 1.3rem; }
+.market-title small { color: var(--muted); }
+.market-progress { margin: 0 0 1rem; height: 10px; }
+.market-progress span { background: var(--ok); }
+.market-cat { font-size: 1rem; margin: 1.1rem 0 .45rem; }
+.market-cat small { color: var(--muted); font-weight: 500; }
+.market-cat.done { color: var(--muted); }
+.market-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .45rem; }
+.market-item { width: 100%; min-height: 58px; display: flex; align-items: center; gap: .9rem; text-align: left; cursor: pointer;
+  font: inherit; font-size: 1.2rem; color: var(--text); background: var(--surface); border: 1px solid var(--border);
+  border-radius: 14px; padding: .7rem .9rem; -webkit-tap-highlight-color: transparent; }
+.market-item:active { transform: scale(.99); }
+.market-check { flex: none; width: 1.8rem; height: 1.8rem; border-radius: 50%; border: 2px solid var(--border);
+  display: grid; place-items: center; font-size: 1rem; color: #fff; }
+.market-qty { color: var(--primary); }
+.market-item.done { background: transparent; color: var(--muted); }
+.market-item.done .market-text { text-decoration: line-through; }
+.market-item.done .market-check { background: var(--ok); border-color: var(--ok); }
+.market-add { margin: 1.2rem 0 .4rem; }
+.market-add input[name=text] { font-size: 1.05rem; padding: .7rem .8rem; }
+.market-done-card { text-align: center; background: color-mix(in srgb, var(--ok) 12%, var(--surface)); border: 1px solid var(--ok);
+  border-radius: 16px; padding: 1.2rem 1rem; margin-bottom: 1rem; }
+.market-done-card .btn-row { justify-content: center; margin-top: .6rem; }
+.market-big { font-size: 2.6rem; margin: 0; }
+
 /* ---------- Mala: quantidades ---------- */
 .steps.pack li { gap: .15rem; }
 .steps.pack .qty { color: var(--primary); font-variant-numeric: tabular-nums; }
