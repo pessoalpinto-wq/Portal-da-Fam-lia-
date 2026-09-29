@@ -352,15 +352,48 @@
       <small class="status">${esc(label)}</small></button>${d.memberId ? avatar(d.memberId, 'sm') : ''}</li>`;
   };
 
+  /** Consultas/doses marcadas ("próxima vez") cuja data já passou sem registo novo. */
+  const overdueNext = (t) => S().health.filter((h) => h.next && h.next < t);
+  const nextBadge = (h, t) => {
+    if (!h.next) return '';
+    if (h.next >= t) return ` <small class="badge">próxima${h.nextLabel ? `: ${esc(h.nextLabel)}` : ''} · ${esc(relDay(h.next))}</small>`;
+    return ` <small class="badge warn">⚠️ ${esc(h.nextLabel || 'próxima')} era a ${esc(fmtDate(h.next))} — já foi?</small>`;
+  };
+  const overdueRow = (h) => `<li class="doc late"><button class="item-main" data-action="health-done" data-id="${h.id}">
+      <span class="title">🏥 ${esc(h.nextLabel || h.title)} <small class="muted">(${esc(h.type)}: ${esc(h.title)})</small></span>
+      <small class="status">era a ${esc(fmtDate(h.next))} — já foi?</small></button>${avatar(h.memberId, 'sm')}</li>`;
+
+  /** 🆘 Urgência: o essencial de todos num só ecrã, e os números úteis. */
+  function urgencia() {
+    const s = S();
+    const cards = s.members.map((m) => {
+      const hc = s.healthcards.find((x) => x.id === m.id) || {};
+      const rows = [['🩸 Sangue', hc.bloodType], ['⚠️ Alergias', hc.allergies, 'alert'], ['🩺 Condições', hc.conditions],
+        ['💊 Medicação', hc.meds], ['🆔 Utente', hc.sns], ['👩‍⚕️ Médico', hc.doctor], ['🛡️ Seguro', hc.insurance]].filter(([, v]) => v);
+      return `<section class="card sos-card" style="--c:${esc(m.color)}"><header class="card-head"><h2>${avatar(m.id)} ${esc(m.name)}</h2>
+          <button class="btn small ghost" data-action="edit-healthcard" data-id="${m.id}">✎</button></header>
+        ${rows.length ? `<dl class="facts">${rows.map(([k, v, cls]) => `<dt>${k}</dt><dd class="pre ${cls || ''}">${esc(v)}</dd>`).join('')}</dl>`
+          : '<p class="empty small">Ficha por preencher — toca em ✎.</p>'}</section>`;
+    }).join('');
+    const tel = (n, label, sub) => `<a class="btn sos-tel" href="tel:${n.replace(/\s/g, '')}"><b>${esc(label)}</b><span>${esc(n)}</span><small>${esc(sub)}</small></a>`;
+    return `<section class="card sos-numbers"><header class="card-head"><h2>📞 Números úteis</h2></header>
+        <div class="sos-tels">${tel('112', '🚨 Emergência', 'INEM, bombeiros, polícia')}${tel('808 24 24 24', '🩺 SNS 24', 'Aconselhamento de saúde, 24 h')}
+          ${tel('800 250 250', '☠️ Antivenenos', 'Intoxicações (CIAV), 24 h')}</div></section>
+      <div class="grid two">${cards}</div>`;
+  }
+
   function saude() {
     const s = S();
-    const tab = VS.healthTab && (VS.healthTab === 'casa' || member(VS.healthTab)) ? VS.healthTab : s.members[0]?.id;
+    const tab = VS.healthTab && (['casa', 'sos'].includes(VS.healthTab) || member(VS.healthTab)) ? VS.healthTab : s.members[0]?.id;
     VS.healthTab = tab;
     const t = today();
     const soon = s.docs.filter((d) => d.expires && daysBetween(t, d.expires) <= 90).sort((a, b) => a.expires.localeCompare(b.expires));
-    const tabs = [...s.members.map((m) => [m.id, `${m.emoji} ${m.name}`, m.color]), ['casa', '🏠 Casa & carro', '#64748b']];
+    const late = overdueNext(t).sort((a, b) => a.next.localeCompare(b.next));
+    const tabs = [...s.members.map((m) => [m.id, `${m.emoji} ${m.name}`, m.color]), ['casa', '🏠 Casa & carro', '#64748b'], ['sos', '🆘 Urgência', '#dc2626']];
     let body;
-    if (tab === 'casa') {
+    if (tab === 'sos') {
+      body = urgencia();
+    } else if (tab === 'casa') {
       const docs = s.docs.filter((d) => !d.memberId).sort((a, b) => a.expires.localeCompare(b.expires));
       body = `<div class="grid two">${card('🔐 Documentos da casa e do carro', docs.length ? `<ul class="list">${docs.map(docRow).join('')}</ul>`
         : empty('Seguros, inspecção, IUC…'), { action: addBtn('add-doc', 'Documento', 'data-id=""') })}</div>`;
@@ -376,15 +409,15 @@
         { action: `<button class="btn small" data-action="edit-healthcard" data-id="${tab}">✎ Editar</button>` })}
         ${card('📋 Consultas, vacinas e tratamentos', log.length ? `<ul class="list">${log.map((h) => `<li class="item" style="--c:${esc(colorOf([tab]))}">
           <button class="item-main" data-action="edit-health" data-id="${h.id}"><span class="when">${esc(fmtDate(h.date))}</span>
-          <span class="title">${esc(h.type)}: ${esc(h.title)}${h.next ? ` <small class="badge">próxima ${esc(relDay(h.next))}</small>` : ''}</span></button></li>`).join('')}</ul>`
+          <span class="title">${esc(h.type)}: ${esc(h.title)}${nextBadge(h, t)}</span></button></li>`).join('')}</ul>`
           : empty('Sem registos.'), { action: addBtn('add-health', 'Registo', `data-id="${tab}"`) })}
         ${card('🔐 Documentos', docs.length ? `<ul class="list">${docs.map(docRow).join('')}</ul>` : empty('Cartão de Cidadão, passaporte, carta…'),
           { action: addBtn('add-doc', 'Documento', `data-id="${tab}"`) })}
       </div>`;
     }
     return `<div class="page-head"><h1>Saúde & Documentos</h1></div>
-      ${soon.length ? `<section class="card attention"><header class="card-head"><h2>⚠️ A tratar em breve</h2></header>
-        <ul class="list">${soon.map(docRow).join('')}</ul></section>` : ''}
+      ${soon.length || late.length ? `<section class="card attention"><header class="card-head"><h2>⚠️ A tratar em breve</h2></header>
+        <ul class="list">${late.map(overdueRow).join('')}${soon.map(docRow).join('')}</ul></section>` : ''}
       <div class="tabs" role="tablist">${tabs.map(([id, label, color]) => `<button role="tab" aria-selected="${id === tab}"
         class="tab ${id === tab ? 'active' : ''}" data-action="health-tab" data-id="${esc(id)}" style="--c:${esc(color)}">${esc(label)}</button>`).join('')}</div>
       ${body}

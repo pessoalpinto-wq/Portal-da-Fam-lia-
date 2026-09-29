@@ -251,6 +251,30 @@ window.Fase4 = function ({ render, withButton }) {
   }
 
   /* ---------- Saúde ---------- */
+  /**
+   * A "próxima vez" de um registo já passou: registar que foi (novo registo com essa data)
+   * ou dizer que já não é preciso. Em ambos os casos a data antiga deixa de aparecer como pendente.
+   */
+  function healthDone(el) {
+    const h = S().health.find((x) => x.id === el.dataset.id);
+    if (!h) return;
+    const clearOld = (s) => { const o = s.health.find((x) => x.id === h.id); if (o) { o.next = ''; o.nextLabel = ''; } };
+    openForm({
+      title: `🏥 ${h.nextLabel || h.title} — já foi?`,
+      fields: [
+        { name: 'info', type: 'note', html: `Estava marcada para <b>${esc(fmtDate(h.next))}</b> (${esc(h.type)}: ${esc(h.title)}). Confirma a data em que foi e, se houver, a próxima.` },
+        ...Forms.health(),
+      ],
+      values: { memberId: h.memberId, date: h.next, type: h.type, title: h.nextLabel ? `${h.title} — ${h.nextLabel}` : h.title, notes: '', next: '', nextLabel: '' },
+      submitLabel: '✔ Já foi — registar',
+      onSubmit: (d) => Store.update((s) => { s.health.push({ id: Store.uid(), ...d }); clearOld(s); }),
+      extra: [
+        { label: 'Já não é preciso', onClick: () => { Store.update(clearOld); toast('Tirado dos pendentes.'); } },
+        { label: '✎ Editar o registo antigo', onClick: () => { setTimeout(() => editItem('health', h.id, { title: 'registo de saúde', fields: Forms.health() }), 0); } },
+      ],
+    });
+  }
+
   function healthcardForm(el) {
     const id = el.dataset.id;
     const cur = S().healthcards.find((x) => x.id === id);
@@ -376,7 +400,12 @@ window.Fase4 = function ({ render, withButton }) {
 
     'health-tab': (el) => { VS.healthTab = el.dataset.id; render(); },
     'add-health': (el) => editItem('health', null, { title: 'registo de saúde', fields: Forms.health(), defaults: () => ({ memberId: el.dataset.id || VS.healthTab, date: today(), type: 'Consulta' }) }),
-    'edit-health': (el) => editItem('health', el.dataset.id, { title: 'registo de saúde', fields: Forms.health() }),
+    'edit-health': (el) => {
+      const h = S().health.find((x) => x.id === el.dataset.id);
+      if (h?.next && h.next < today()) { healthDone(el); return; }
+      editItem('health', el.dataset.id, { title: 'registo de saúde', fields: Forms.health() });
+    },
+    'health-done': healthDone,
     'edit-healthcard': healthcardForm,
     'add-doc': (el) => editItem('docs', null, { title: 'documento', fields: Forms.doc(), defaults: () => ({ memberId: el.dataset.id || '', type: 'Cartão de Cidadão' }) }),
     'edit-doc': (el) => editItem('docs', el.dataset.id, { title: 'documento', fields: Forms.doc() }),

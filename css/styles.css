@@ -892,3 +892,13 @@ body.shop-mode .view { margin-left: auto; max-width: 720px; padding: 0 16px 2rem
 .avg .up { color: var(--ok); font-weight: 700; }
 .avg .down { color: var(--danger); font-weight: 700; }
 .grade.missing { background: transparent; border: 1px dashed var(--border); color: var(--muted); font-weight: 600; font-size: .8rem; }
+
+/* Saúde: consultas em atraso e urgência */
+.badge.warn { background: color-mix(in srgb, var(--warn) 18%, var(--surface)); color: var(--warn); }
+.sos-numbers { border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
+.sos-tels { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: .5rem; }
+.sos-tel { display: grid; gap: .1rem; text-align: left; padding: .7rem .9rem; text-decoration: none; white-space: normal; }
+.sos-tel span { font-size: 1.2rem; font-weight: 800; letter-spacing: .02em; white-space: nowrap; }
+.sos-tel small { color: var(--muted); font-weight: 500; }
+.sos-card { border-top: 4px solid var(--c); }
+.facts dd.alert { color: var(--danger); font-weight: 700; }
