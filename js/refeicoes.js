@@ -451,6 +451,8 @@ window.Refeicoes = function ({ render }) {
       if (!x) return;
       x.done = !x.done;
       if (x.done && FOOD_CATS.includes(x.category || 'Mercearia')) addPantry(s, x.text);
+      // Conta as compras (para sugerir "os do costume"); desmarcar desfaz a contagem.
+      CatalogoCompras.countPurchase(s.shopstats, x, today(), x.done ? 1 : -1);
     }),
     'recipe-new': () => recipeForm(null, { category: 'Carne', emoji: '🍽️', servings: 4 }),
     'recipe-edit': (el) => recipeForm(familyRecipes().find((r) => r.id === el.dataset.id)),

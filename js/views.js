@@ -534,6 +534,7 @@
           <button class="btn primary">Adicionar</button>
         </form>
         <datalist id="shop-suggest">${CatalogoCompras.merged(s.products).map((i) => `<option value="${esc(i.nome)}"></option>`).join('')}</datalist>
+        ${window.Views.shopHooks?.panels?.(pending) || ''}
         ${catalogo(pending)}
         ${cats.map((c) => {
           const items = pending.filter((x) => (x.category || 'Outro') === c);

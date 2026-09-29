@@ -718,6 +718,19 @@ button.link { font: inherit; font-size: .85rem; background: none; border: 0; col
   .catalog-secs .filter { flex: none; white-space: nowrap; }
 }
 
+/* ---------- Compras: os do costume ---------- */
+.staples-bar { margin-bottom: .5rem; }
+.staples { background: color-mix(in srgb, #f59e0b 9%, var(--surface-2)); border-radius: 12px; padding: .7rem; margin-bottom: 1rem; }
+.staples > p:first-child { margin-top: 0; }
+.staples .btn-row { margin: .4rem 0 .6rem; }
+.staples-items { margin-bottom: .2rem; }
+.staples-items b { color: var(--primary); }
+.staples-add { margin-top: .7rem; }
+.inline-add.staples-add .num { width: 4.2rem; }
+.staples-sugg-title { margin: .8rem 0 .35rem; }
+.cat-chip.sugg { border-style: dashed; }
+.cat-chip.sugg small { color: var(--muted); }
+
 /* ---------- Compras: modo "No supermercado" ---------- */
 body.shop-mode .topbar, body.shop-mode .nav { display: none; }
 body.shop-mode .view { margin-left: auto; max-width: 720px; padding: 0 16px 2rem; }

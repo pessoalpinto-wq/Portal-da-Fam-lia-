@@ -110,5 +110,38 @@
 
   const hiddenCount = (custom = []) => custom.filter((c) => c.base && c.hidden).length;
 
-  root.CatalogoCompras = { SECCOES, ITENS, NOSSOS, find, strip, merged, sections, hiddenCount };
+  /* ---------- Os do costume e o que mais se compra ---------- */
+  /** Produtos "do costume" que ainda não estão na lista por comprar. */
+  function missingStaples(staples = [], shopping = []) {
+    const inList = new Set(shopping.filter((i) => !i.done).map((i) => strip(i.text)));
+    return staples.filter((st) => st.text && !inList.has(strip(st.text)));
+  }
+
+  /** Id fixo das contagens de compras de um produto (um registo por produto). */
+  const statId = (name) => `st-${strip(name).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`;
+
+  /** Registo de uma compra (ou desfazer, com delta = -1) nas contagens. */
+  function countPurchase(stats, item, date, delta = 1) {
+    const id = statId(item.text);
+    let st = stats.find((x) => x.id === id);
+    if (!st) {
+      if (delta < 0) return stats;
+      st = { id, name: item.text, category: item.category || 'Outro', count: 0, last: '' };
+      stats.push(st);
+    }
+    st.count = Math.max(0, (Number(st.count) || 0) + delta);
+    if (delta > 0) { st.last = date; st.name = item.text; st.category = item.category || st.category; }
+    return stats;
+  }
+
+  /** Sugestões: comprados pelo menos `min` vezes e que ainda não são "do costume". */
+  function suggestions(stats = [], staples = [], { min = 2, limit = 8 } = {}) {
+    const have = new Set(staples.map((s) => strip(s.text)));
+    return stats.filter((s) => s.count >= min && !have.has(strip(s.name)))
+      .sort((a, b) => b.count - a.count || (b.last || '').localeCompare(a.last || '')).slice(0, limit);
+  }
+
+  root.CatalogoCompras = {
+    SECCOES, ITENS, NOSSOS, find, strip, merged, sections, hiddenCount, missingStaples, statId, countPurchase, suggestions,
+  };
 })(globalThis);
