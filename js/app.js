@@ -133,6 +133,32 @@
   const taskForm = edit('tasks', 'task', 'tarefa', () => ({
     assignee: S().currentUser, due: today(), repeat: 'none', points: 2, category: 'Casa', done: false, notes: '', history: [],
   }));
+  /** Copiar a mala de outra viagem ou de uma lista-modelo. */
+  function copyPackForm(el) {
+    const s = S();
+    const trip = s.trips.find((x) => x.id === el.dataset.id);
+    if (!trip) return;
+    const others = s.trips.filter((x) => x.id !== trip.id && (x.packing || []).length)
+      .sort((a, b) => (b.start || '').localeCompare(a.start || ''));
+    UI.openForm({
+      title: `📋 Copiar lista para ${trip.destination}`,
+      fields: [
+        { name: 'source', label: 'Copiar de', type: 'select', options: [
+          ...others.map((x) => [`viagem:${x.id}`, `✈️ ${x.destination} (${x.packing.length} itens)`]),
+          ...Mala.MODELOS.map(([id, label]) => [`modelo:${id}`, `Modelo: ${label}`]),
+        ] },
+        { name: 'who', label: 'Itens pessoais para quem?', type: 'members' },
+      ],
+      values: { source: others[0] ? `viagem:${others[0].id}` : 'modelo:essenciais', who: trip.members?.length ? trip.members : s.members.map((m) => m.id) },
+      submitLabel: 'Copiar',
+      onSubmit: (d) => {
+        const items = Mala.itemsToCopy({ trip, trips: s.trips, source: d.source, who: d.who, uid: Store.uid });
+        if (items.length) Store.update((st) => { st.trips.find((x) => x.id === trip.id)?.packing.push(...items); });
+        toast(items.length ? `🧳 ${items.length} itens copiados (tudo por marcar)` : 'Já tinha tudo isso na lista. 👌');
+      },
+    });
+  }
+
   const examForm = edit('exams', 'exam', 'teste / trabalho', () => ({
     memberId: VS.schoolMember || S().members.find((m) => m.role === 'filha')?.id, kind: 'Teste', date: today(), notes: '', grade: '',
   }));
@@ -199,6 +225,15 @@
       const t = s.trips.find((x) => x.id === el.dataset.id);
       if (t) t.packing = t.packing.filter((x) => x.id !== el.dataset.sub);
     }),
+    'pack-qty': (el) => Store.update(() => {
+      const p = findSub('trips', el, 'packing');
+      if (p) p.qty = Math.min(99, Math.max(1, (Number(p.qty) || 1) + Number(el.dataset.d)));
+    }),
+    'reset-pack': (el) => {
+      if (!confirm('Desmarcar todos os itens da mala (para voltar a fazê-la)?')) return;
+      Store.update((s) => { s.trips.find((x) => x.id === el.dataset.id)?.packing.forEach((p) => { p.done = false; }); });
+    },
+    'copy-pack': copyPackForm,
     'del-expense': (el) => Store.update((s) => {
       const t = s.trips.find((x) => x.id === el.dataset.id);
       if (t) t.expenses = t.expenses.filter((x) => x.id !== el.dataset.sub);
@@ -300,9 +335,12 @@
     'add-step': (f, d) => Store.update((s) => {
       s.projects.find((x) => x.id === f.dataset.id)?.steps.push({ id: Store.uid(), text: d.text, done: false });
     }),
-    'add-pack': (f, d) => Store.update((s) => {
-      s.trips.find((x) => x.id === f.dataset.id)?.packing.push({ id: Store.uid(), memberId: d.memberId, text: d.text, done: false });
-    }),
+    'add-pack': (f, d) => {
+      const { qty, text } = Mala.parseLine(d.text, d.qty);
+      Store.update((s) => {
+        s.trips.find((x) => x.id === f.dataset.id)?.packing.push({ id: Store.uid(), memberId: d.memberId, text, qty, done: false });
+      });
+    },
     'add-expense': (f, d) => Store.update((s) => {
       const t = s.trips.find((x) => x.id === f.dataset.id);
       if (t) (t.expenses = t.expenses || []).push({ id: Store.uid(), text: d.text, amount: Number(d.amount) || 0 });

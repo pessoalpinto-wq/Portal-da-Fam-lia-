@@ -696,3 +696,17 @@ button.link { font: inherit; font-size: .85rem; background: none; border: 0; col
   .pig-dot, .pig-slot { fill: #fbcfe8; } .pig-pct { fill: #fdf2f8; } .pig-juros { color: #67e8f9; }
 }
 @media (prefers-reduced-motion: reduce) { .pig-wave { animation: none; } }
+
+/* ---------- Mala: quantidades ---------- */
+.steps.pack li { gap: .15rem; }
+.steps.pack .qty { color: var(--primary); font-variant-numeric: tabular-nums; }
+.stepper { display: inline-flex; gap: .1rem; }
+.stepper .icon-btn:disabled { opacity: .3; cursor: default; }
+.pack-add .qty-in { width: 3.6rem; }
+.pack-add select { max-width: 8.5rem; }
+.sub .linkish + .linkish { margin-left: .3rem; }
+@media (max-width: 480px) {
+  .pack-add { flex-wrap: wrap; }
+  .pack-add select { max-width: none; flex: 1; }
+  .inline-add.pack-add input[name=text] { flex: 1 1 calc(100% - 3.4rem); }
+}

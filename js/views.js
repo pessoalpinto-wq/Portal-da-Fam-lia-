@@ -430,17 +430,26 @@
           ? `<a class="link" href="#/memorias" data-action="photos-trip" data-id="${tr.id}">📸 ${S().photos.filter((ph) => ph.tripId === tr.id).length} fotos</a>` : ''}</p>
         ${tr.lodging ? `<p>🏨 ${esc(tr.lodging)}</p>` : ''}
         ${tr.notes ? `<p class="muted pre">${esc(tr.notes)}</p>` : ''}
-        <h3 class="sub">🧳 Mala e preparativos</h3>${progress(packDone, tr.packing.length)}
+        <h3 class="sub">🧳 Mala e preparativos <button class="linkish" data-action="copy-pack" data-id="${tr.id}">📋 copiar lista</button>
+          ${packDone ? `<button class="linkish" data-action="reset-pack" data-id="${tr.id}">↺ desmarcar tudo</button>` : ''}</h3>
+        ${tr.packing.length ? progress(packDone, tr.packing.length) : '<p class="small muted">Copia a lista de outra viagem ou começa por um modelo (praia, neve, avião…) em <b>📋 copiar lista</b>.</p>'}
         ${groups.map(([gid, label]) => {
           const items = tr.packing.filter((p) => (p.memberId || '') === gid);
           if (!items.length) return '';
-          return `<p class="group-label">${esc(label)}</p><ul class="steps">${items.map((p) => `<li class="${p.done ? 'done' : ''}">
-            <label><input type="checkbox" data-action="toggle-pack" data-id="${tr.id}" data-sub="${p.id}" ${p.done ? 'checked' : ''}> ${esc(p.text)}</label>
-            <button class="icon-btn small" data-action="del-pack" data-id="${tr.id}" data-sub="${p.id}" aria-label="Remover">✕</button></li>`).join('')}</ul>`;
+          return `<p class="group-label">${esc(label)}</p><ul class="steps pack">${items.map((p) => {
+            const q = Math.max(1, Number(p.qty) || 1);
+            return `<li class="${p.done ? 'done' : ''}">
+            <label><input type="checkbox" data-action="toggle-pack" data-id="${tr.id}" data-sub="${p.id}" ${p.done ? 'checked' : ''}>
+              ${q > 1 ? `<b class="qty">${q}×</b>` : ''} ${esc(p.text)}</label>
+            <span class="stepper"><button class="icon-btn small" data-action="pack-qty" data-id="${tr.id}" data-sub="${p.id}" data-d="-1" aria-label="Menos um" ${q <= 1 ? 'disabled' : ''}>−</button>
+              <button class="icon-btn small" data-action="pack-qty" data-id="${tr.id}" data-sub="${p.id}" data-d="1" aria-label="Mais um">＋</button></span>
+            <button class="icon-btn small" data-action="del-pack" data-id="${tr.id}" data-sub="${p.id}" aria-label="Remover">✕</button></li>`;
+          }).join('')}</ul>`;
         }).join('')}
-        <form class="inline-add" data-form="add-pack" data-id="${tr.id}">
+        <form class="inline-add pack-add" data-form="add-pack" data-id="${tr.id}">
           <select name="memberId" aria-label="Para quem">${groups.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join('')}</select>
-          <input name="text" placeholder="Item a levar / tratar…" required aria-label="Item"><button class="btn small">＋</button></form>
+          <input name="qty" type="number" min="1" max="99" value="1" class="num qty-in" aria-label="Quantidade">
+          <input name="text" placeholder="Item (ex.: t-shirts)…" required aria-label="Item"><button class="btn small">＋</button></form>
         <h3 class="sub">💶 Orçamento</h3>
         ${tr.budget ? `${progress(Math.round(spent), Math.round(tr.budget))}<p class="small">${money(spent)} gastos de ${money(tr.budget)} · restam <b>${money(tr.budget - spent)}</b></p>` : `<p class="small">Total gasto: <b>${money(spent)}</b></p>`}
         <ul class="expenses">${(tr.expenses || []).map((e) => `<li><span>${esc(e.text)}</span><span>${money(e.amount)}</span>
