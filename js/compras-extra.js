@@ -387,6 +387,75 @@ window.ComprasExtra = function ({ render }) {
     return st ? ` <small class="store-badge">${esc(st)}</small>` : '';
   }
 
+  /* ---------- Pedidos das filhas ---------- */
+  const reqs = () => C.requestsFor(S().shopreqs || [], S().currentUser, Store.isParent(), today());
+  const firstName = (id) => UI.member(id)?.name || 'Alguém';
+  const reqLabel = (r) => `${r.qty ? `<b>${esc(r.qty)}</b> ` : ''}<b>${esc(r.text)}</b>${r.note ? ` <small class="muted">— ${esc(r.note)}</small>` : ''}`;
+
+  function requestsPanel() {
+    const { pending, answered } = reqs();
+    if (Store.isParent()) {
+      if (!pending.length) return '';
+      return `<section class="card reqs-card"><header class="card-head"><h2>🙋 Pedidos (${pending.length})</h2></header>
+        <ul class="list reqs">${pending.map((r) => `<li class="req">${UI.avatar(r.by, 'sm')}
+          <span class="req-text">${esc(firstName(r.by))} pede ${reqLabel(r)}</span>
+          <span class="req-btns"><button class="btn small primary" data-action="req-approve" data-id="${r.id}">✔ Pôr na lista</button>
+          <button class="btn small ghost" data-action="req-refuse" data-id="${r.id}" aria-label="Recusar o pedido de ${esc(firstName(r.by))}">✕ Não</button></span></li>`).join('')}</ul>
+      </section>`;
+    }
+    const mine = [...pending, ...answered];
+    return `<section class="card reqs-card"><header class="card-head"><h2>🙋 Pedir aos pais</h2></header>
+      <p class="small muted">Queres alguma coisa especial? Pede aqui — quando os pais disserem que sim, entra na lista. (O que faltar em casa podes pôr diretamente na lista.)</p>
+      <form class="inline-add req-add" data-form="shop-request">
+        <input name="text" placeholder="O que queres? (ex.: gelado)" required aria-label="O que pedes" list="shop-suggest" autocomplete="off">
+        <input name="qty" placeholder="Qtd." class="num" aria-label="Quantidade">
+        <input name="note" placeholder="Marca, sabor, para quê… (opcional)" aria-label="Detalhes" class="req-note">
+        <button class="btn primary">🙋 Pedir</button>
+      </form>
+      ${mine.length ? `<ul class="list reqs">${mine.map((r) => `<li class="req ${r.status}">
+        <span class="req-text">${reqLabel(r)}</span>
+        <span class="req-status">${r.status === 'pending'
+          ? `⏳ À espera <button class="icon-btn small" data-action="req-cancel" data-id="${r.id}" aria-label="Cancelar o pedido" title="Cancelar o pedido">✕</button>`
+          : r.status === 'approved' ? `✔ ${esc(firstName(r.answeredBy))} disse que sim — está na lista`
+            : `✕ ${esc(firstName(r.answeredBy))} disse que não${r.reason ? `: <i>${esc(r.reason)}</i>` : ''}`}</span></li>`).join('')}</ul>` : ''}
+    </section>`;
+  }
+
+  function addRequest(d) {
+    const text = String(d.text || '').trim();
+    if (!text) return;
+    const { pending } = reqs();
+    if (pending.some((r) => C.strip(r.text) === C.strip(text))) { UI.toast('Já pediste isso — está à espera da resposta. ⏳'); return; }
+    Store.update((s) => s.shopreqs.push({
+      id: Store.uid(), text: text.charAt(0).toUpperCase() + text.slice(1), qty: String(d.qty || '').trim(),
+      note: String(d.note || '').trim().slice(0, 120), by: s.currentUser, at: new Date().toISOString(), status: 'pending',
+    }));
+    UI.toast('🙋 Pedido enviado aos pais!');
+  }
+
+  function answer(id, status, reason = '') {
+    let r;
+    Store.update((s) => {
+      r = s.shopreqs.find((x) => x.id === id);
+      if (!r || r.status !== 'pending') { r = null; return; }
+      Object.assign(r, { status, answeredBy: s.currentUser, answeredAt: new Date().toISOString() });
+      if (reason) r.reason = reason.trim().slice(0, 120);
+      if (status === 'approved') C.approveInto(s.shopping, r, catalog(), Store.uid);
+    });
+    if (r) UI.toast(status === 'approved' ? `✔ ${r.text} está na lista` : 'Pedido recusado.');
+  }
+
+  function refuseForm(id) {
+    const r = (S().shopreqs || []).find((x) => x.id === id);
+    if (!r) return;
+    UI.openForm({
+      title: `✕ ${firstName(r.by)}: ${r.text}`,
+      fields: [{ name: 'reason', label: 'Porquê? (opcional — ela vai ver)', placeholder: 'Ex.: ainda há em casa; fica para o fim de semana' }],
+      submitLabel: 'Recusar',
+      onSubmit: (d) => answer(id, 'refused', d.reason || ''),
+    });
+  }
+
   /** Marca preferida e nota, por baixo do nome (na lista e no modo supermercado). */
   function prefsHtml(x) {
     const { brand, note } = C.prefsOf(x, S().shopstats);
@@ -443,7 +512,7 @@ window.ComprasExtra = function ({ render }) {
         <button class="btn small" data-action="shoptrip-new">📣 Vou às compras</button>
         ${has ? '<button class="btn small" data-action="share-list">📤 Partilhar</button>' : ''}`;
     },
-    banner: () => `${budgetLine()}${banner()}`,
+    banner: () => `${requestsPanel()}${budgetLine()}${banner()}`,
     panels: staplesPanel,
     setItemPrice,
     historyHtml,
@@ -489,6 +558,12 @@ window.ComprasExtra = function ({ render }) {
     },
     'share-copy': () => copyText(listText()),
     'staples-toggle': () => { VS.staplesOpen = !VS.staplesOpen; render(); },
+    'req-approve': (el) => answer(el.dataset.id, 'approved'),
+    'req-refuse': (el) => refuseForm(el.dataset.id),
+    'req-cancel': (el) => {
+      if (!confirm('Cancelar este pedido?')) return;
+      Store.update((s) => { s.shopreqs = s.shopreqs.filter((r) => r.id !== el.dataset.id); });
+    },
     'staples-fill': fillStaples,
     'staple-edit': stapleForm,
     'staple-suggest': (el) => {
@@ -504,6 +579,7 @@ window.ComprasExtra = function ({ render }) {
   };
 
   const inlineForms = {
+    'shop-request': (f, d) => addRequest(d),
     'add-staple': (f, d) => {
       let added = false;
       Store.update((s) => { added = addStaple(s, d.text, d.qty); });

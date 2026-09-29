@@ -343,6 +343,38 @@
   /** "Mimosa — sem lactose" (ou só uma das duas, ou ''). */
   const prefsText = ({ brand, note } = {}) => [brand, note].filter(Boolean).join(' — ');
 
+  /* ---------- Pedidos das filhas ---------- */
+  const REQ_DAYS = 7; // as respostas ficam à vista durante uma semana
+  const dayDiff = (from, to) => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000);
+
+  /**
+   * O que cada pessoa vê dos pedidos: os pais vêem todos os que esperam resposta; cada filha vê
+   * os seus à espera e as respostas dos últimos 7 dias (as mais recentes primeiro).
+   */
+  function requestsFor(reqs = [], memberId, parent, today) {
+    const pending = reqs.filter((r) => r.status === 'pending' && (parent || r.by === memberId))
+      .sort((a, b) => String(a.at || '').localeCompare(String(b.at || '')));
+    const answered = reqs.filter((r) => r.status !== 'pending' && r.by === memberId && r.answeredAt
+      && dayDiff(r.answeredAt.slice(0, 10), today) <= REQ_DAYS)
+      .sort((a, b) => b.answeredAt.localeCompare(a.answeredAt));
+    return { pending, answered };
+  }
+
+  /**
+   * Aprovar um pedido: junta-o à lista de compras (com o nome e a categoria do catálogo, se o conhecer),
+   * a não ser que já lá esteja por comprar. Devolve o item da lista.
+   */
+  function approveInto(shopping, req, catalog, uid = () => String(Date.now())) {
+    const known = find(req.text, catalog);
+    const name = known?.nome || req.text.charAt(0).toUpperCase() + req.text.slice(1);
+    const there = shopping.find((i) => !i.done && strip(i.text) === strip(name));
+    if (there) return there;
+    const item = { id: uid(), text: name, qty: req.qty || '', category: known?.categoria || 'Outro', done: false, addedBy: req.by };
+    if (req.note) item.note = req.note;
+    shopping.push(item);
+    return item;
+  }
+
   /** Só o que se compra nesta loja, mais o que se compra em qualquer loja. '' ou 'all' = tudo. */
   function forStore(items, stats, stores, store) {
     if (!store || store === 'all') return items;
@@ -358,7 +390,7 @@
   }
 
   root.CatalogoCompras = {
-    DEFAULT_STORES, storesOf, storeOf, rememberStore, forStore, storeCounts, prefsOf, rememberPrefs, prefsText,
+    DEFAULT_STORES, storesOf, storeOf, rememberStore, forStore, storeCounts, prefsOf, rememberPrefs, prefsText, requestsFor, approveInto,
     SECCOES, ITENS, NOSSOS, CAT_EMOJI, find, strip, merged, sections, hiddenCount, missingStaples, statId, countPurchase,
     suggestions, shareText, qtyFactor, memo, priceOf, lineTotal, estimate, rememberPrice, priceHistory, priceChange,
     receipts, budgetOf, monthly, budgetStatus,

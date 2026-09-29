@@ -54,6 +54,7 @@
     groceries: [],
     // Compras: lojas da família (um só registo: id "list")
     shopstores: [],
+    shopreqs: [],
     // Finanças: Banco dos Pais (juros dos mealheiros; só os pais alteram)
     savings: [],
   });
@@ -212,7 +213,7 @@
   const COLLS = ['members', 'events', 'tasks', 'rewards', 'redemptions', 'classes', 'exams',
     'projects', 'trips', 'shopping', 'notes', 'contacts',
     'money', 'allowances', 'goals', 'bills', 'dates', 'health', 'healthcards', 'docs', 'polls', 'votes', 'photos',
-    'recipes', 'pantry', 'challenges', 'savings', 'products', 'staples', 'shopstats', 'shoptrip', 'groceries', 'shopstores'];
+    'recipes', 'pantry', 'challenges', 'savings', 'products', 'staples', 'shopstats', 'shoptrip', 'groceries', 'shopstores', 'shopreqs'];
   const keyOf = (r) => `${r.coll}/${r.id}`;
 
   function toItems(s) {

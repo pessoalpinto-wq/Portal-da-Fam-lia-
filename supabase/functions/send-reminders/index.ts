@@ -55,7 +55,7 @@ async function familyState(familyId: string) {
     const { data, error } = await admin.from('items').select('coll,data')
       .eq('family_id', familyId).eq('deleted', false)
       .in('coll', ['members', 'events', 'tasks', 'exams', 'trips', 'redemptions', 'classes',
-        'docs', 'bills', 'dates', 'health', 'polls', 'votes', 'allowances', 'shopping', 'pantry'])
+        'docs', 'bills', 'dates', 'health', 'polls', 'votes', 'allowances', 'shopping', 'pantry', 'shopreqs'])
       .order('coll').order('id').range(from, from + 999);
     if (error) throw error;
     data.forEach((r) => { (state[r.coll] ||= []).push(r.data); });

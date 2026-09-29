@@ -185,3 +185,31 @@ test('partilhar mostra a marca e a nota', () => {
   assert.match(t, /• Pão$/m);
   assert.match(C.shareText([{ text: 'Leite', category: 'Frescos' }], undefined, 'Lidl', stats), /Leite \(Mimosa — sem lactose\)/);
 });
+
+test('pedidos: quem vê o quê', () => {
+  const C = globalThis.CatalogoCompras;
+  const reqs = [
+    { id: '1', by: 'mariana', text: 'Chocapic', status: 'pending', at: '2026-09-29T10:00' },
+    { id: '2', by: 'luisa', text: 'Gomas', status: 'pending', at: '2026-09-28T10:00' },
+    { id: '3', by: 'luisa', text: 'Nutella', status: 'refused', answeredAt: '2026-09-27T20:00', reason: 'Já há' },
+    { id: '4', by: 'luisa', text: 'Bolachas', status: 'approved', answeredAt: '2026-09-15T20:00' },
+  ];
+  const pais = C.requestsFor(reqs, 'pai', true, '2026-09-29');
+  assert.deepEqual(pais.pending.map((r) => r.id), ['2', '1']);
+  const luisa = C.requestsFor(reqs, 'luisa', false, '2026-09-29');
+  assert.deepEqual(luisa.pending.map((r) => r.id), ['2']);
+  assert.deepEqual(luisa.answered.map((r) => r.id), ['3']); // o de dia 15 já passou de uma semana
+});
+
+test('aprovar um pedido junta à lista, sem repetir', () => {
+  const C = globalThis.CatalogoCompras;
+  const shopping = [{ id: 'x', text: 'Leite', done: false }];
+  let n = 0;
+  const it = C.approveInto(shopping, { text: 'gelado', qty: '1', by: 'luisa', note: 'de morango' }, undefined, () => `n${++n}`);
+  assert.equal(shopping.length, 2);
+  assert.equal(it.addedBy, 'luisa');
+  assert.equal(it.note, 'de morango');
+  assert.equal(it.qty, '1');
+  assert.equal(C.approveInto(shopping, { text: 'leite', by: 'luisa' }).id, 'x');
+  assert.equal(shopping.length, 2);
+});

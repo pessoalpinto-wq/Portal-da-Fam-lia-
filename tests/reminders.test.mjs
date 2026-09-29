@@ -162,3 +162,16 @@ test('despensa: o que acaba o prazo amanhã, numa notificação às 19h', () => 
   assert.equal(run({ pantry }, T, '18:30').filter((x) => x.type === 'pantry').length, 0);
   assert.equal(run({ pantry: [pantry[2]] }, T, '19:05').filter((x) => x.type === 'pantry').length, 0);
 });
+
+test('pedidos das filhas: os pais recebem o pedido e a filha a resposta', () => {
+  const pend = [{ id: 'r1', by: 'f12', text: 'Gelado', qty: '1', note: 'de morango', status: 'pending' }];
+  const r = run({ shopreqs: pend }, T, '15:07').filter((x) => x.key.startsWith('ap:sr:'));
+  assert.deepEqual(who(r), ['U-mae', 'U-pai']);
+  assert.equal(r[0].body, 'Inês pede: 1 Gelado — de morango');
+  const ans = [{ id: 'r1', by: 'f12', text: 'Gelado', status: 'refused', answeredBy: 'mae', answeredAt: `${T}T20:00:00Z`, reason: 'Ainda há' }];
+  const a = run({ shopreqs: ans }, T, '21:00');
+  assert.deepEqual(who(a), ['U-f12']);
+  assert.equal(a[0].title, 'Pedido recusado: Gelado');
+  assert.equal(a[0].body, 'Ainda há');
+  assert.equal(run({ shopreqs: ans }, addDays(T, 5), '21:00').length, 0);
+});

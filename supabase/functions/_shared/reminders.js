@@ -102,7 +102,7 @@ const list = (arr, max = 3) => arr.slice(0, max).join(', ') + (arr.length > max 
 export function computeReminders({ state, profiles, now }) {
   const s = {
     members: [], events: [], tasks: [], exams: [], trips: [], redemptions: [], classes: [],
-    docs: [], bills: [], dates: [], health: [], polls: [], votes: [], pantry: [], ...state,
+    docs: [], bills: [], dates: [], health: [], polls: [], votes: [], pantry: [], shopreqs: [], ...state,
   };
   const nowAbs = at(now.date, now.minutes);
   const due = (iso, time) => {
@@ -209,6 +209,19 @@ export function computeReminders({ state, profiles, now }) {
       usersOf([r.memberId]).filter((p) => p.role !== 'parent').forEach((p) => push(p, 'approvals', `rd:${r.id}:${r.status}`,
         r.status === 'approved' ? `🎁 Aprovado: ${r.title}` : `Pedido recusado: ${r.title}`,
         r.status === 'approved' ? 'Aproveita! 🎉' : 'Fala com os pais 🙂', '#/tarefas'));
+    }
+  });
+
+  // Pedidos das filhas para as compras: os pais recebem o pedido; a filha recebe a resposta.
+  s.shopreqs.forEach((r) => {
+    const what = `${r.qty ? `${r.qty} ` : ''}${r.text}`;
+    if (r.status === 'pending') {
+      parents.forEach((p) => push(p, 'approvals', `ap:sr:${r.id}`, '🙋 Pedido para as compras',
+        `${name(r.by)} pede: ${what}${r.note ? ` — ${r.note}` : ''}`, '#/compras'));
+    } else if (r.answeredAt && r.answeredAt.slice(0, 10) >= addDays(today, -2)) {
+      usersOf([r.by]).filter((p) => p.role !== 'parent').forEach((p) => push(p, 'approvals', `srd:${r.id}:${r.status}`,
+        r.status === 'approved' ? `🛒 Sim! ${what} vai para a lista` : `Pedido recusado: ${what}`,
+        r.status === 'approved' ? `${name(r.answeredBy)} disse que sim 🎉` : r.reason || 'Fala com os pais 🙂', '#/compras'));
     }
   });
 

@@ -843,3 +843,16 @@ body.shop-mode .view { margin-left: auto; max-width: 720px; padding: 0 16px 2rem
   .pack-add select { max-width: none; flex: 1; }
   .inline-add.pack-add input[name=text] { flex: 1 1 calc(100% - 3.4rem); }
 }
+
+/* Pedidos das filhas (Compras) */
+.reqs-card .reqs { margin-top: .4rem; }
+.req { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .6rem; }
+.req .req-text { flex: 1 1 12rem; min-width: 0; }
+.req .req-btns { display: flex; gap: .4rem; margin-left: auto; }
+.req .req-status { font-size: .85rem; color: var(--muted); display: inline-flex; align-items: center; gap: .2rem; }
+.req.approved .req-status { color: var(--ok); font-weight: 600; }
+.req.refused .req-status { color: var(--danger); }
+.req-add { flex-wrap: wrap; margin-bottom: .6rem; }
+.req-add input[name=text] { flex: 1 1 10rem; min-width: 0; }
+.req-add input.req-note { flex: 1 1 100%; min-width: 0; }
+.req-add button { flex: none; }

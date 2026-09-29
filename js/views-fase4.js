@@ -493,6 +493,9 @@
       s.bills.filter((b) => b.due && !b.archived && daysBetween(t, b.due) <= 7).forEach((b) => {
         alerts.push([daysBetween(t, b.due), `<a href="#/financas">💶 ${esc(b.title)} · ${money(b.amount)} · ${daysBetween(t, b.due) < 0 ? '<b>atrasada</b>' : relDay(b.due)}</a>`]);
       });
+      (s.shopreqs || []).filter((r) => r.status === 'pending').forEach((r) => {
+        alerts.push([-1, `<a href="#/compras">🙋 ${esc(member(r.by)?.name || 'Alguém')} pede para as compras: <b>${esc(r.text)}</b></a>`]);
+      });
       ridesAhead(2).filter(({ e }) => !e.driver).forEach(({ e, d }) => {
         alerts.push([daysBetween(t, d), `🚗 Ninguém leva: <b>${esc(e.title)}</b> (${relDay(d)} ${esc(e.start)})
           <button class="btn small" data-action="i-drive" data-id="${e.id}">Eu levo</button>`]);
