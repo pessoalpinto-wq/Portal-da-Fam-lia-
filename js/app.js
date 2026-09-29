@@ -357,6 +357,10 @@
       Store.update((s) => { s.classes = s.classes.filter((c) => c.memberId !== VS.schoolMember); });
     },
 
+    'pack-group': (el) => {
+      VS.packOpen = { ...(VS.packOpen || {}), [el.dataset.id]: el.dataset.open !== '1' };
+      render();
+    },
     'cal-prev': () => { VS.calMonth = U.addMonths(`${VS.calMonth}-01`, -1).slice(0, 7); render(); },
     'cal-next': () => { VS.calMonth = U.addMonths(`${VS.calMonth}-01`, 1).slice(0, 7); render(); },
     'cal-today': () => { VS.calDay = today(); VS.calMonth = today().slice(0, 7); render(); },
@@ -525,6 +529,8 @@
     }),
     'add-pack': (f, d) => {
       const { qty, text } = Mala.parseLine(d.text, d.qty);
+      // Abre a secção dessa pessoa, para se ver o que se juntou.
+      VS.packOpen = { ...(VS.packOpen || {}), [`${f.dataset.id}:${d.memberId || ''}`]: true };
       Store.update((s) => {
         s.trips.find((x) => x.id === f.dataset.id)?.packing.push({ id: Store.uid(), memberId: d.memberId, text, qty, done: false });
       });

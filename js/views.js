@@ -436,6 +436,19 @@
   const albumLink = (tr, label = '📷 Álbum no Google Fotos') => (safeUrl(tr.album)
     ? `<a class="link album-link" href="${esc(safeUrl(tr.album))}" target="_blank" rel="noopener">${label} ↗</a>` : '');
 
+  /** Documentos de quem vai que expiram antes do regresso (e passaportes com menos de 6 meses no regresso). */
+  function docWarnings(tr) {
+    const back = tr.end || tr.start;
+    if (!back || back < today()) return '';
+    const who = tr.members?.length ? tr.members : S().members.map((m) => m.id);
+    const warn = (S().docs || []).filter((d) => d.memberId && who.includes(d.memberId) && d.expires && (d.expires <= back
+      || (d.type === 'Passaporte' && d.expires < addDays(back, 182))))
+      .map((d) => `<li>🔐 <b>${esc(d.type)}</b> ${esc(member(d.memberId)?.name ? `de ${member(d.memberId).name}` : '')}: ${d.expires <= back
+        ? `expira a ${esc(fmtDate(d.expires))}${d.expires < tr.start ? ' — antes da partida' : ' — durante a viagem'}`
+        : `válido até ${esc(fmtDate(d.expires))} — menos de 6 meses no regresso (muitos países exigem 6)`}</li>`);
+    return warn.length ? `<div class="trip-docs"><b>⚠️ Documentos a tratar antes de ir</b><ul>${warn.join('')}</ul></div>` : '';
+  }
+
   function viagens() {
     const t = today();
     const list = [...S().trips].sort((a, b) => b.start.localeCompare(a.start));
@@ -454,6 +467,7 @@
         <p class="meta-line">${chips(tr.members)}${(S().photos || []).some((ph) => ph.tripId === tr.id)
           ? `<a class="link" href="#/memorias" data-action="photos-trip" data-id="${tr.id}">📸 ${S().photos.filter((ph) => ph.tripId === tr.id).length} fotos</a>` : ''}
           ${albumLink(tr)}</p>
+        ${docWarnings(tr)}
         ${tr.lodging ? `<p>🏨 ${esc(tr.lodging)}</p>` : ''}
         ${tr.notes ? `<p class="muted pre">${esc(tr.notes)}</p>` : ''}
         <h3 class="sub">🧳 Mala e preparativos <button class="linkish" data-action="copy-pack" data-id="${tr.id}">📋 copiar lista</button>
@@ -462,7 +476,13 @@
         ${groups.map(([gid, label]) => {
           const items = tr.packing.filter((p) => (p.memberId || '') === gid);
           if (!items.length) return '';
-          return `<p class="group-label">${esc(label)}</p><ul class="steps pack">${items.map((p) => {
+          const ok = items.filter((p) => p.done).length;
+          // Cada pessoa vê a sua parte aberta; as outras abrem com um toque (e ficam como deixarem).
+          const key = `${tr.id}:${gid}`;
+          const open = key in (VS.packOpen || {}) ? VS.packOpen[key] : gid === S().currentUser;
+          return `<details class="pack-group" ${open ? 'open' : ''}><summary data-action="pack-group" data-id="${esc(key)}" data-open="${open ? 1 : 0}">
+            <span>${esc(label)}</span><small class="${ok === items.length ? 'all' : ''}">${ok === items.length ? '✔ tudo pronto' : `${ok}/${items.length}`}</small></summary>
+            <ul class="steps pack">${items.map((p) => {
             const q = Math.max(1, Number(p.qty) || 1);
             return `<li class="${p.done ? 'done' : ''}">
             <label><input type="checkbox" data-action="toggle-pack" data-id="${tr.id}" data-sub="${p.id}" ${p.done ? 'checked' : ''}>
@@ -470,7 +490,7 @@
             <span class="stepper"><button class="icon-btn small" data-action="pack-qty" data-id="${tr.id}" data-sub="${p.id}" data-d="-1" aria-label="Menos um" ${q <= 1 ? 'disabled' : ''}>−</button>
               <button class="icon-btn small" data-action="pack-qty" data-id="${tr.id}" data-sub="${p.id}" data-d="1" aria-label="Mais um">＋</button></span>
             <button class="icon-btn small" data-action="del-pack" data-id="${tr.id}" data-sub="${p.id}" aria-label="Remover">✕</button></li>`;
-          }).join('')}</ul>`;
+          }).join('')}</ul></details>`;
         }).join('')}
         <form class="inline-add pack-add" data-form="add-pack" data-id="${tr.id}">
           <select name="memberId" aria-label="Para quem">${groups.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join('')}</select>
