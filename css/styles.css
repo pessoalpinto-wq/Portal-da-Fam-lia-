@@ -927,3 +927,8 @@ body.shop-mode .view { margin-left: auto; max-width: 720px; padding: 0 16px 2rem
 .lb-nav.prev { left: .4rem; }
 .lb-nav.next { right: .4rem; }
 .lb-nav:hover { background: rgba(0, 0, 0, .7); }
+
+/* Refeições: ingredientes da semana recolhidos */
+.ing-group { border: 1px solid var(--border); border-radius: 12px; margin: .5rem 0; }
+.ing-group > summary { cursor: pointer; padding: .55rem .8rem; font-weight: 700; }
+.ing-group .ing-list { padding: 0 .6rem .5rem; }

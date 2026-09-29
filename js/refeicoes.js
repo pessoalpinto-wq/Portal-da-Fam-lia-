@@ -113,14 +113,19 @@ window.Refeicoes = function ({ render }) {
     const wd = parseISO(today()).getDay();
     const needs = weekNeeds();
     const missing = needs.filter((e) => !e.have);
-    const needsBody = needs.length ? `
-      <p>${missing.length ? `Faltam <b>${missing.length}</b> de ${needs.length} ingredientes.` : '✔ Têm tudo em casa para esta semana!'}
-        <small class="muted">Marquem o que já têm.</small></p>
-      ${missing.length ? `<div class="btn-row"><button class="btn primary" data-action="week-to-shop">🛒 Juntar os ${missing.length} em falta às compras</button></div>` : ''}
-      <ul class="ing-list">${needs.map((e) => `<li class="${e.have ? 'have' : 'miss'}"><label>
+    const ing = (e) => `<li class="${e.have ? 'have' : 'miss'}"><label>
         <input type="checkbox" data-action="pantry-toggle" data-key="${esc(e.key)}" data-name="${esc(e.name)}" ${e.have ? 'checked' : ''}>
         <span>${esc(I.capitalize(e.name))}${e.qty ? ` <small class="muted">${esc(e.qty)}</small>` : ''}</span>
-        <small class="muted days">${esc(e.days.join(', '))}</small></label></li>`).join('')}</ul>`
+        <small class="muted days">${esc(e.days.join(', '))}</small></label></li>`;
+    const haveList = needs.filter((e) => e.have);
+    // Listas recolhidas (a da semana chega a 60+ ingredientes); o estado aberto/fechado fica guardado.
+    const group = (key, title, list) => `<details class="ing-group" ${VS[key] ? 'open' : ''}>
+        <summary data-action="ing-toggle" data-id="${key}">${title}</summary><ul class="ing-list">${list.map(ing).join('')}</ul></details>`;
+    const needsBody = needs.length ? `
+      <p>${missing.length ? `Faltam <b>${missing.length}</b> de ${needs.length} ingredientes.` : '✔ Têm tudo em casa para esta semana!'}</p>
+      ${missing.length ? `<div class="btn-row"><button class="btn primary" data-action="week-to-shop">🛒 Juntar os ${missing.length} em falta às compras</button></div>` : ''}
+      ${missing.length ? group('ingMissOpen', `❌ Ver os ${missing.length} que faltam <small class="muted">(marquem o que afinal já têm)</small>`, missing) : ''}
+      ${haveList.length ? group('ingHaveOpen', `✔ Já há em casa (${haveList.length})`, haveList) : ''}`
       : empty('Escolham receitas com 📖 para verem aqui os ingredientes da semana.');
     return `<section class="card"><div class="meals meals-plan">
         <span class="col-head"></span><b class="col-head">Almoço</b><b class="col-head">Jantar</b><b class="col-head">Quem cozinha?</b>
@@ -418,8 +423,13 @@ window.Refeicoes = function ({ render }) {
 
   function suggestWeek() {
     const pool = [...familyRecipes(), ...builtins()].filter((r) => !['Sobremesas', 'Sopa'].includes(r.category));
-    // Baralha e evita duas refeições seguidas da mesma categoria.
-    const bag = pool.map((r) => [Math.random(), r]).sort((a, b) => a[0] - b[0]).map(([, r]) => r);
+    // Primeiro as que aproveitam o que está a acabar o prazo na despensa, depois as que precisam de
+    // menos compras — com uma boa dose de acaso, para variar. Evita duas seguidas da mesma categoria.
+    const t = today();
+    const ending = (S().pantry || []).filter((p) => ['today', 'soon'].includes(Despensa.expiry(p, t)?.level));
+    const uses = (r) => Despensa.recipesUsing(ending, [r], I, 1).length;
+    const score = (r) => (uses(r) ? -6 : 0) + Math.min(missingOf(r).length, 8) * 0.6 + Math.random() * 4;
+    const bag = pool.map((r) => [score(r), r]).sort((a, b) => a[0] - b[0]).map(([, r]) => r);
     let last = '';
     let n = 0;
     Store.update((s) => {
@@ -439,6 +449,7 @@ window.Refeicoes = function ({ render }) {
   /* ---------- Acções ---------- */
   const actions = {
     'meals-tab': (el) => { VS.mealsTab = el.dataset.id; render(); },
+    'ing-toggle': (el) => { VS[el.dataset.id] = !VS[el.dataset.id]; render(); },
     'recipe-cat': (el) => { VS.recipeCat = el.dataset.id; render(); },
     'recipe-air': () => { VS.recipeAir = !VS.recipeAir; render(); },
     'web-search-q': (el) => webSearch(el.dataset.id),
