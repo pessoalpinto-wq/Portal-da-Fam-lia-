@@ -454,8 +454,11 @@
       }
       const known = CatalogoCompras.find(d.text, catalog());
       const text = known?.nome || d.text.charAt(0).toUpperCase() + d.text.slice(1);
+      // Produto conhecido vai sempre para a sua categoria (no iPhone, escolher uma sugestão
+      // nem sempre dispara o evento que acerta a categoria no formulário).
+      const category = known?.categoria || d.category;
       Store.update((s) => {
-        s.shopping.push({ id: Store.uid(), text, qty: d.qty, category: d.category, done: false, addedBy: s.currentUser });
+        s.shopping.push({ id: Store.uid(), text, qty: d.qty, category, done: false, addedBy: s.currentUser });
         // Produto novo: fica guardado nos produtos habituais da família para a próxima vez.
         if (!known && text.length >= 2) {
           s.products.push({ id: Store.uid(), nome: text, seccao: CatalogoCompras.NOSSOS, categoria: d.category });
