@@ -17,7 +17,9 @@
 
   /* ---------- Opções e formulários ---------- */
   const REPEAT_LABEL = { none: '', daily: 'todos os dias', weekly: 'semanal', monthly: 'mensal', yearly: 'anual' };
-  const SHOP_CATS = ['Mercearia', 'Frescos', 'Talho/Peixaria', 'Padaria', 'Limpeza', 'Higiene', 'Farmácia', 'Escola', 'Outro'];
+  // Pela ordem habitual de um supermercado.
+  const SHOP_CATS = ['Frescos', 'Talho/Peixaria', 'Padaria', 'Mercearia', 'Congelados', 'Bebidas', 'Limpeza', 'Higiene',
+    'Farmácia', 'Casa', 'Escola', 'Animais', 'Outro'];
   const TASK_CATS = ['Casa', 'Quarto', 'Cozinha', 'Roupa', 'Animais', 'Escola', 'Saúde', 'Recados', 'Outro'];
 
   const Forms = {
@@ -472,6 +474,32 @@
   }
 
   /* ---------- Compras ---------- */
+  /** Catálogo de produtos habituais: um toque junta à lista, outro toque tira. */
+  function catalogo(pending) {
+    const { SECCOES, ITENS, strip } = CatalogoCompras;
+    const open = VS.shopCatalog;
+    const toggle = `<button class="btn small ${open ? '' : 'primary'} catalog-toggle" data-action="catalog-toggle" aria-expanded="${!!open}">
+      🧺 ${open ? 'Fechar produtos habituais' : `Escolher dos produtos habituais (${ITENS.length})`}</button>`;
+    if (!open) return `<div class="catalog-bar">${toggle}</div>`;
+    const inList = new Set(pending.map((x) => strip(x.text)));
+    const sec = VS.shopSection || SECCOES[0][0];
+    const q = strip(VS.catalogQuery || '');
+    const shown = (i) => (q ? strip(i.nome).includes(q) : i.seccao === sec);
+    return `<div class="catalog-bar">${toggle}</div>
+      <div class="catalog">
+        <input type="search" id="catalog-search" placeholder="Procurar produto (ex.: iogurte, lixívia)…" aria-label="Procurar produto" value="${esc(VS.catalogQuery || '')}">
+        <div class="filters catalog-secs" ${q ? 'hidden' : ''}>${SECCOES.map(([nome, emoji, , produtos]) => {
+          const n = produtos.filter((p) => inList.has(strip(p))).length;
+          return `<button class="filter ${nome === sec ? 'active' : ''}" data-action="catalog-sec" data-id="${esc(nome)}">${emoji} ${esc(nome)}${n ? ` <b>${n}</b>` : ''}</button>`;
+        }).join('')}</div>
+        <p class="small muted catalog-hint">Toca para juntar à lista (✔ = já está lá; toca outra vez para tirar).</p>
+        <div class="catalog-items">${ITENS.map((i) => `<button class="cat-chip ${inList.has(strip(i.nome)) ? 'in' : ''}" data-action="catalog-add"
+          data-name="${esc(i.nome)}" data-sec="${esc(i.seccao)}" data-search="${esc(strip(i.nome))}" ${shown(i) ? '' : 'hidden'}>
+          ${inList.has(strip(i.nome)) ? '✔ ' : ''}${esc(i.nome)}</button>`).join('')}</div>
+        <p class="small muted catalog-none" ${q && !ITENS.some(shown) ? '' : 'hidden'}>Não encontrei. Escreve-o em cima e carrega em Adicionar.</p>
+      </div>`;
+  }
+
   function compras() {
     const s = S();
     const cats = [...new Set([...SHOP_CATS, ...s.shopping.map((x) => x.category || 'Outro')])];
@@ -486,11 +514,13 @@
       ${bought.length ? '<div class="quick"><button class="btn small ghost" data-action="clear-shop">Limpar comprados</button></div>' : ''}</div>
       <section class="card">
         <form class="inline-add big-add" data-form="add-shop">
-          <input name="text" placeholder="O que falta em casa?" required aria-label="Item">
+          <input name="text" placeholder="O que falta em casa?" required aria-label="Item" list="shop-suggest" autocomplete="off">
           <input name="qty" placeholder="Qtd." class="num" aria-label="Quantidade">
           <select name="category" aria-label="Categoria">${SHOP_CATS.map((c) => `<option>${esc(c)}</option>`).join('')}</select>
           <button class="btn primary">Adicionar</button>
         </form>
+        <datalist id="shop-suggest">${CatalogoCompras.ITENS.map((i) => `<option value="${esc(i.nome)}"></option>`).join('')}</datalist>
+        ${catalogo(pending)}
         ${cats.map((c) => {
           const items = pending.filter((x) => (x.category || 'Outro') === c);
           return items.length ? `<h3 class="sub">${esc(c)}</h3><ul class="list">${items.map(row).join('')}</ul>` : '';

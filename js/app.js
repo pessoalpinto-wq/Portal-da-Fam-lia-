@@ -242,6 +242,24 @@
     'toggle-shop': (el) => Store.update((s) => { const x = s.shopping.find((i) => i.id === el.dataset.id); if (x) x.done = !x.done; }),
     'del-shop': (el) => Store.update((s) => { s.shopping = s.shopping.filter((i) => i.id !== el.dataset.id); }),
     'clear-shop': () => Store.update((s) => { s.shopping = s.shopping.filter((i) => !i.done); }),
+    'catalog-toggle': () => { VS.shopCatalog = !VS.shopCatalog; VS.catalogQuery = ''; render(); },
+    'catalog-sec': (el) => { VS.shopSection = el.dataset.id; VS.catalogQuery = ''; render(); },
+    'catalog-add': (el) => {
+      const item = CatalogoCompras.find(el.dataset.name);
+      if (!item) return;
+      const k = CatalogoCompras.strip(item.nome);
+      let added = true;
+      Store.update((s) => {
+        const cur = s.shopping.filter((i) => !i.done && CatalogoCompras.strip(i.text) === k);
+        if (cur.length) {
+          added = false;
+          s.shopping = s.shopping.filter((i) => !cur.includes(i));
+        } else {
+          s.shopping.push({ id: Store.uid(), text: item.nome, qty: '', category: item.categoria, done: false, addedBy: s.currentUser });
+        }
+      });
+      toast(added ? `🛒 ${item.nome} na lista` : `${item.nome} saiu da lista`);
+    },
 
     'clear-meals': () => { if (confirm('Limpar o plano de refeições da semana?')) Store.update((s) => { s.meals = {}; }); },
     'meals-to-shop': () => {
@@ -345,9 +363,17 @@
       const t = s.trips.find((x) => x.id === f.dataset.id);
       if (t) (t.expenses = t.expenses || []).push({ id: Store.uid(), text: d.text, amount: Number(d.amount) || 0 });
     }),
-    'add-shop': (f, d) => Store.update((s) => {
-      s.shopping.push({ id: Store.uid(), text: d.text, qty: d.qty, category: d.category, done: false, addedBy: s.currentUser });
-    }),
+    'add-shop': (f, d) => {
+      const k = CatalogoCompras.strip(d.text);
+      if (S().shopping.some((i) => !i.done && CatalogoCompras.strip(i.text) === k)) {
+        toast(`${d.text} já está na lista 👍`);
+        return;
+      }
+      const known = CatalogoCompras.find(d.text);
+      Store.update((s) => {
+        s.shopping.push({ id: Store.uid(), text: known?.nome || d.text, qty: d.qty, category: d.category, done: false, addedBy: s.currentUser });
+      });
+    },
     'add-note': (f, d) => Store.update((s) => {
       s.notes.push({ id: Store.uid(), author: s.currentUser, text: d.text, date: today(), pinned: false });
     }),
@@ -359,6 +385,23 @@
     Object.assign(inlineForms, m.inlineForms || {});
   });
   document.addEventListener('input', (e) => modules.forEach((m) => m.onInput?.(e.target)));
+
+  /* Compras: pesquisa no catálogo e categoria automática ao escrever um produto conhecido. */
+  document.addEventListener('input', (e) => {
+    const el = e.target;
+    if (el.id === 'catalog-search') {
+      VS.catalogQuery = el.value;
+      const q = CatalogoCompras.strip(el.value);
+      const chips = [...document.querySelectorAll('.cat-chip')];
+      chips.forEach((c) => { c.hidden = q ? !c.dataset.search.includes(q) : c.dataset.sec !== (VS.shopSection || CatalogoCompras.SECCOES[0][0]); });
+      document.querySelector('.catalog-secs').hidden = !!q;
+      document.querySelector('.catalog-none').hidden = !q || chips.some((c) => !c.hidden);
+    }
+    if (el.name === 'text' && el.form?.dataset.form === 'add-shop') {
+      const item = CatalogoCompras.find(el.value);
+      if (item) el.form.elements.category.value = item.categoria;
+    }
+  });
 
   document.addEventListener('submit', (e) => {
     const f = e.target.closest('form[data-form]');

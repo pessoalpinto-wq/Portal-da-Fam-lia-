@@ -697,6 +697,23 @@ button.link { font: inherit; font-size: .85rem; background: none; border: 0; col
 }
 @media (prefers-reduced-motion: reduce) { .pig-wave { animation: none; } }
 
+/* ---------- Compras: produtos habituais ---------- */
+.catalog-bar { margin: .2rem 0 .8rem; }
+.catalog { background: var(--surface-2); border-radius: 12px; padding: .7rem; margin-bottom: 1rem; }
+.catalog input[type=search] { width: 100%; margin-bottom: .6rem; }
+.catalog-secs { margin-bottom: .4rem; }
+.catalog-secs .filter b { background: var(--ok); color: #fff; border-radius: 999px; padding: 0 .4rem; font-size: .75rem; margin-left: .15rem; }
+.catalog-hint { margin: .2rem 0 .5rem; }
+.catalog-items { display: flex; flex-wrap: wrap; gap: .35rem; }
+.cat-chip { font: inherit; font-size: .88rem; padding: .35rem .7rem; border-radius: 999px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text); cursor: pointer; }
+.cat-chip:hover { border-color: var(--primary); }
+.cat-chip.in { background: color-mix(in srgb, var(--ok) 16%, var(--surface)); border-color: var(--ok); font-weight: 600; }
+@media (max-width: 640px) {
+  .catalog-secs { flex-wrap: nowrap; overflow-x: auto; padding-bottom: .35rem; scrollbar-width: thin; }
+  .catalog-secs .filter { flex: none; white-space: nowrap; }
+}
+
 /* ---------- Mala: quantidades ---------- */
 .steps.pack li { gap: .15rem; }
 .steps.pack .qty { color: var(--primary); font-variant-numeric: tabular-nums; }
