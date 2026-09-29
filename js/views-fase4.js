@@ -260,12 +260,12 @@
       ${thisMonth.length ? `<ul class="moves">${thisMonth.map((r) => `<li><button class="linkish plain" data-action="edit-receipt" data-id="${esc(r.id)}">
           ${esc(fmtDate(r.date))}${r.store ? ` · ${esc(r.store)}` : ''}${r.by ? ` · ${esc(member(r.by)?.name || '')}` : ''}</button><b>${money(r.amount)}</b></li>`).join('')}</ul>`
         : '<p class="empty small">Ainda sem talões este mês. No fim das compras, no modo supermercado, carreguem em "Registar o talão".</p>'}
-      <h3 class="sub">Últimos 6 meses${avg ? ` <small class="muted">· média ${money(avg)}/mês</small>` : ''}</h3>
+      ${withSpend.length ? `<h3 class="sub">Últimos 6 meses${avg ? ` <small class="muted">· média ${money(avg)}/mês</small>` : ''}</h3>
       <div class="gro-months" role="img" aria-label="Gastos no supermercado nos últimos 6 meses">${months.map((m) => `<div class="gro-m">
           <small>${m.total ? money(m.total).replace(/,\d\d /, ' ') : ''}</small>
           <span class="gro-bar ${b.budget && m.total > b.budget ? 'over' : ''}" style="height:${Math.round((m.total / max) * 100)}%"></span>
           <small class="muted">${MES[Number(m.ym.slice(5)) - 1]}</small></div>`).join('')}</div>
-      ${b.budget ? '<p class="small muted">A vermelho: meses acima do orçamento.</p>' : ''}`,
+      ${b.budget ? '<p class="small muted">A vermelho: meses acima do orçamento.</p>' : ''}` : ''}`,
     { cls: 'gro-card', action: `<span class="btn-row"><button class="btn small" data-action="edit-shop-budget">${b.budget ? 'Orçamento' : '＋ Orçamento'}</button>${addBtn('add-receipt', 'Talão')}</span>` });
   }
 
