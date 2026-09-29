@@ -50,6 +50,8 @@
     shopstats: [],
     // Compras: aviso "Vou às compras" (um só registo: id "current")
     shoptrip: [],
+    // Compras: talões do supermercado e orçamento mensal (só os pais vêem)
+    groceries: [],
     // Finanças: Banco dos Pais (juros dos mealheiros; só os pais alteram)
     savings: [],
   });
@@ -208,7 +210,7 @@
   const COLLS = ['members', 'events', 'tasks', 'rewards', 'redemptions', 'classes', 'exams',
     'projects', 'trips', 'shopping', 'notes', 'contacts',
     'money', 'allowances', 'goals', 'bills', 'dates', 'health', 'healthcards', 'docs', 'polls', 'votes', 'photos',
-    'recipes', 'pantry', 'challenges', 'savings', 'products', 'staples', 'shopstats', 'shoptrip'];
+    'recipes', 'pantry', 'challenges', 'savings', 'products', 'staples', 'shopstats', 'shoptrip', 'groceries'];
   const keyOf = (r) => `${r.coll}/${r.id}`;
 
   function toItems(s) {
@@ -433,7 +435,7 @@
     wipe() {
       // Mantém o que é "estrutural" da família; apaga o dia-a-dia.
       const keep = new Set(['members', 'rewards', 'contacts', 'allowances', 'goals', 'money', 'bills',
-        'dates', 'health', 'healthcards', 'docs', 'photos', 'recipes', 'pantry', 'savings', 'products', 'staples', 'shopstats']);
+        'dates', 'health', 'healthcards', 'docs', 'photos', 'recipes', 'pantry', 'savings', 'products', 'staples', 'shopstats', 'groceries']);
       Store.update((s) => {
         Object.keys(EMPTY()).forEach((k) => {
           if (Array.isArray(s[k]) && !keep.has(k)) s[k] = [];

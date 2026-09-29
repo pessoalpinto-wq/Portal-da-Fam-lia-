@@ -159,8 +159,105 @@
     return `🛒 Lista de compras — ${pending.length} produto${pending.length === 1 ? '' : 's'}\n\n${blocks.join('\n\n')}`;
   }
 
+  /* ---------- Preços ---------- */
+  const round2 = (n) => Math.round(n * 100) / 100;
+  const num = (v) => {
+    const n = Number(String(v ?? '').replace(',', '.'));
+    return Number.isFinite(n) ? n : NaN;
+  };
+
+  /** Quantas unidades (ou kg) diz a quantidade: "6" → 6, "1,5 kg" → 1,5, "" ou "um pack" → 1. */
+  function qtyFactor(qty) {
+    const m = String(qty || '').trim().match(/^(\d+(?:[.,]\d+)?)/);
+    const n = m ? num(m[1]) : 1;
+    return n > 0 ? n : 1;
+  }
+
+  /** Último preço memorizado de um produto (por unidade/kg): { price, prev, date } ou null. */
+  function memo(stats = [], name) {
+    const st = stats.find((x) => x.id === statId(name));
+    return st && Number(st.price) > 0 ? { price: Number(st.price), prev: Number(st.prevPrice) || 0, date: st.priceDate || '' } : null;
+  }
+
+  /** Preço a usar para um item: o que lhe puseram, ou o memorizado. */
+  function priceOf(item, stats) {
+    if (Number(item.price) > 0) return Number(item.price);
+    return memo(stats, item.text)?.price || 0;
+  }
+
+  const lineTotal = (item, stats) => round2(priceOf(item, stats) * qtyFactor(item.qty));
+
+  /** Total estimado: { total, cart, missing, count } (cart = só o que já está riscado). */
+  function estimate(shopping = [], stats = []) {
+    let total = 0;
+    let cart = 0;
+    let missing = 0;
+    shopping.forEach((i) => {
+      const t = lineTotal(i, stats);
+      if (!t) missing++;
+      total += t;
+      if (i.done) cart += t;
+    });
+    return { total: round2(total), cart: round2(cart), missing, count: shopping.length };
+  }
+
+  /** Memoriza o preço (por unidade/kg) de um produto; guarda o anterior para mostrar se subiu. */
+  function rememberPrice(stats, item, price, date) {
+    const p = round2(num(price));
+    if (!(p > 0)) return stats;
+    const id = statId(item.text);
+    let st = stats.find((x) => x.id === id);
+    if (!st) {
+      st = { id, name: item.text, category: item.category || 'Outro', count: 0, last: '' };
+      stats.push(st);
+    }
+    if (Number(st.price) > 0 && Number(st.price) !== p) st.prevPrice = Number(st.price);
+    st.price = p;
+    st.priceDate = date;
+    return stats;
+  }
+
+  /** Diferença para o preço anterior (positivo = subiu), só se mudou nos últimos 60 dias. */
+  function priceChange(stats, name, today) {
+    const m = memo(stats, name);
+    if (!m || !m.prev || !m.date) return 0;
+    const days = (Date.parse(today) - Date.parse(m.date)) / 86400000;
+    return days <= 60 ? round2(m.price - m.prev) : 0;
+  }
+
+  /* ---------- Talões e orçamento do supermercado ---------- */
+  const receipts = (groceries = []) => groceries.filter((g) => g.kind === 'receipt' && Number(g.amount) > 0);
+  const budgetOf = (groceries = []) => Number(groceries.find((g) => g.id === 'budget')?.amount) || 0;
+  const addMonthsYm = (ym, n) => {
+    const [y, m] = ym.split('-').map(Number);
+    const d = new Date(Date.UTC(y, m - 1 + n, 1));
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+  };
+
+  /** Gasto por mês nos últimos `n` meses (do mais antigo ao actual). */
+  function monthly(groceries, today, n = 6) {
+    const cur = today.slice(0, 7);
+    const list = receipts(groceries);
+    return Array.from({ length: n }, (_, i) => {
+      const ym = addMonthsYm(cur, i - n + 1);
+      const rs = list.filter((r) => (r.date || '').slice(0, 7) === ym);
+      return { ym, total: round2(rs.reduce((s, r) => s + Number(r.amount), 0)), count: rs.length };
+    });
+  }
+
+  /** Situação do orçamento este mês. */
+  function budgetStatus(groceries, today) {
+    const budget = budgetOf(groceries);
+    const spent = monthly(groceries, today, 1)[0].total;
+    const [y, m] = today.split('-').map(Number);
+    const daysLeft = new Date(Date.UTC(y, m, 0)).getUTCDate() - Number(today.slice(8));
+    const pct = budget ? Math.round((spent / budget) * 100) : 0;
+    return { budget, spent, left: round2(budget - spent), pct, daysLeft, level: !budget ? '' : pct >= 100 ? 'over' : pct >= 85 ? 'near' : 'ok' };
+  }
+
   root.CatalogoCompras = {
     SECCOES, ITENS, NOSSOS, CAT_EMOJI, find, strip, merged, sections, hiddenCount, missingStaples, statId, countPurchase,
-    suggestions, shareText,
+    suggestions, shareText, qtyFactor, memo, priceOf, lineTotal, estimate, rememberPrice, priceChange,
+    receipts, budgetOf, monthly, budgetStatus,
   };
 })(globalThis);

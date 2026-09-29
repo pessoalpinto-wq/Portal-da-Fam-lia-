@@ -730,6 +730,33 @@ button.link { font: inherit; font-size: .85rem; background: none; border: 0; col
 .share-btns .btn { text-decoration: none; }
 .share-wa { background: #25d366; border-color: #25d366; color: #fff; }
 
+/* ---------- Compras: preços, talão e orçamento ---------- */
+.shop-price { font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; }
+.shop-price .up { color: var(--danger); }
+.shop-total { margin: .2rem 0 .4rem; font-size: .95rem; }
+.shop-budget { display: block; text-decoration: none; color: var(--text); margin: 0 0 .8rem; padding: .55rem .8rem; border-radius: 12px;
+  background: color-mix(in srgb, var(--ok) 10%, var(--surface)); border: 1px solid color-mix(in srgb, var(--ok) 40%, var(--border)); font-size: .92rem; }
+.shop-budget.near { background: color-mix(in srgb, var(--warn) 12%, var(--surface)); border-color: color-mix(in srgb, var(--warn) 50%, var(--border)); }
+.shop-budget.over { background: color-mix(in srgb, var(--danger) 10%, var(--surface)); border-color: color-mix(in srgb, var(--danger) 50%, var(--border)); }
+.market-row { display: flex; gap: .4rem; align-items: stretch; }
+.market-row .market-item { flex: 1; min-width: 0; }
+.market-price { flex: none; min-width: 3.4rem; font: inherit; font-size: .9rem; font-weight: 600; color: var(--muted); cursor: pointer;
+  background: var(--surface); border: 1px dashed var(--border); border-radius: 14px; padding: 0 .6rem; font-variant-numeric: tabular-nums; }
+.market-price.has { border-style: solid; color: var(--text); }
+.market-money { color: var(--text) !important; }
+.market-title .market-money b { font-size: inherit; }
+.gro-card .card-head { flex-wrap: wrap; }
+.gro-card .card-head .btn-row { gap: .4rem; }
+.gro-budget p { margin: 0 0 .2rem; }
+.gro-budget .progress span { background: var(--ok); }
+.gro-budget.near .progress span { background: var(--warn); }
+.gro-budget.over .progress span { background: var(--danger); }
+.gro-months { display: grid; grid-template-columns: repeat(6, 1fr); gap: .4rem; align-items: end; height: 8.5rem; margin-top: .3rem; }
+.gro-m { display: grid; grid-template-rows: auto 1fr auto; justify-items: center; height: 100%; gap: .15rem; font-size: .72rem; }
+.gro-m .gro-bar { align-self: end; width: 70%; min-height: 3px; border-radius: 6px 6px 2px 2px; background: color-mix(in srgb, var(--primary) 70%, var(--surface)); }
+.gro-m .gro-bar.over { background: var(--danger); }
+.linkish.plain { text-decoration: none; color: inherit; text-align: left; }
+
 /* ---------- Compras: os do costume ---------- */
 .staples-bar { margin-bottom: .5rem; }
 .staples { background: color-mix(in srgb, #f59e0b 9%, var(--surface-2)); border-radius: 12px; padding: .7rem; margin-bottom: 1rem; }

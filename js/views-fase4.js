@@ -237,6 +237,38 @@
   const REPEAT_BILL = { monthly: 'mensal', bimonthly: 'de 2 em 2 meses', quarterly: 'trimestral', yearly: 'anual', none: 'só uma vez' };
   const BILL_MONTHS = { monthly: 1, bimonthly: 2, quarterly: 3, yearly: 12 };
 
+  /** Supermercado: orçamento do mês, talões e últimos meses (só pais). */
+  function groceriesCard() {
+    const C = CatalogoCompras;
+    const t = today();
+    const g = S().groceries || [];
+    const b = C.budgetStatus(g, t);
+    const months = C.monthly(g, t, 6);
+    const max = Math.max(1, b.budget, ...months.map((m) => m.total));
+    const withSpend = months.filter((m) => m.total > 0);
+    const avg = withSpend.length ? withSpend.reduce((n, m) => n + m.total, 0) / withSpend.length : 0;
+    const thisMonth = C.receipts(g).filter((r) => (r.date || '').slice(0, 7) === t.slice(0, 7))
+      .sort((x, y) => (y.date || '').localeCompare(x.date || ''));
+    const MES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+    const budgetHtml = b.budget ? `<div class="gro-budget ${b.level}">
+        <p>Este mês: <b>${money(b.spent)}</b> de ${money(b.budget)}</p>
+        <div class="progress"><span style="width:${Math.min(100, b.pct)}%"></span></div>
+        <small class="muted">${b.left >= 0 ? `faltam ${money(b.left)}` : `<b class="neg">passou ${money(-b.left)}</b>`} · ${b.daysLeft} dia${b.daysLeft === 1 ? '' : 's'} até ao fim do mês</small>
+      </div>` : `<p class="small muted">Definam um orçamento mensal para o supermercado e o portal mostra quanto falta.</p>`;
+    return card('🛒 Supermercado', `${budgetHtml}
+      <h3 class="sub">Talões deste mês <small class="muted">(${thisMonth.length})</small></h3>
+      ${thisMonth.length ? `<ul class="moves">${thisMonth.map((r) => `<li><button class="linkish plain" data-action="edit-receipt" data-id="${esc(r.id)}">
+          ${esc(fmtDate(r.date))}${r.store ? ` · ${esc(r.store)}` : ''}${r.by ? ` · ${esc(member(r.by)?.name || '')}` : ''}</button><b>${money(r.amount)}</b></li>`).join('')}</ul>`
+        : '<p class="empty small">Ainda sem talões este mês. No fim das compras, no modo supermercado, carreguem em "Registar o talão".</p>'}
+      <h3 class="sub">Últimos 6 meses${avg ? ` <small class="muted">· média ${money(avg)}/mês</small>` : ''}</h3>
+      <div class="gro-months" role="img" aria-label="Gastos no supermercado nos últimos 6 meses">${months.map((m) => `<div class="gro-m">
+          <small>${m.total ? money(m.total).replace(/,\d\d /, ' ') : ''}</small>
+          <span class="gro-bar ${b.budget && m.total > b.budget ? 'over' : ''}" style="height:${Math.round((m.total / max) * 100)}%"></span>
+          <small class="muted">${MES[Number(m.ym.slice(5)) - 1]}</small></div>`).join('')}</div>
+      ${b.budget ? '<p class="small muted">A vermelho: meses acima do orçamento.</p>' : ''}`,
+    { cls: 'gro-card', action: `<span class="btn-row"><button class="btn small" data-action="edit-shop-budget">${b.budget ? 'Orçamento' : '＋ Orçamento'}</button>${addBtn('add-receipt', 'Talão')}</span>` });
+  }
+
   function billsView() {
     const s = S();
     const t = today();
@@ -276,6 +308,7 @@
           || empty('Ainda sem contas. Junta a luz, a água, a internet, os seguros, o IUC… e o portal avisa-vos 3 dias antes.')}`,
         { action: addBtn('add-bill', 'Conta') })}
         <div class="stack">
+          ${groceriesCard()}
           ${card('✔ Pagas recentemente', paid.length ? `<ul class="moves">${paid.map((h) =>
             `<li><span>${esc(h.title)} <small class="muted">· ${esc(fmtDate(h.date))}</small></span><b>${money(h.amount)}</b></li>`).join('')}</ul>`
             : empty('Quando carregarem em "✔ Paga", aparecem aqui e a conta passa para a próxima data.'))}

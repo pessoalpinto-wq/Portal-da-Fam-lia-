@@ -196,6 +196,47 @@ window.Fase4 = function ({ render, withButton }) {
     if (lines.length) UI.celebrate(`Boa poupança, ${me.name}! 🎉`, lines.join(''));
   }
 
+  /* ---------- Supermercado: talões e orçamento (só pais) ---------- */
+  function receiptForm(el) {
+    if (!Store.isParent()) return;
+    const r = el?.dataset.id ? S().groceries.find((x) => x.id === el.dataset.id) : null;
+    openForm({
+      title: r ? '💶 Talão' : '💶 Novo talão',
+      fields: [
+        { name: 'amount', label: 'Total (€)', type: 'number', min: 0.01, step: '0.01', required: true, half: true },
+        { name: 'date', label: 'Data', type: 'date', required: true, half: true },
+        { name: 'store', label: 'Loja', placeholder: 'Ex.: Continente, Lidl, praça' },
+      ],
+      values: r ? { amount: r.amount, date: r.date, store: r.store || '' } : { date: today() },
+      onSubmit: (d) => {
+        if (!(d.amount > 0)) return;
+        Store.update((s) => {
+          const data = { amount: round2(d.amount), date: d.date, store: d.store };
+          const cur = r && s.groceries.find((x) => x.id === r.id);
+          if (cur) Object.assign(cur, data);
+          else s.groceries.push({ id: Store.uid(), kind: 'receipt', by: s.currentUser, items: 0, estimate: 0, ...data });
+        });
+        toast(r ? '✔ Talão alterado' : `💶 Talão de ${money(d.amount)} registado`);
+      },
+      onDelete: r ? () => Store.update((s) => { s.groceries = s.groceries.filter((x) => x.id !== r.id); }) : null,
+    });
+  }
+
+  function shopBudgetForm() {
+    if (!Store.isParent()) return;
+    const cur = S().groceries.find((x) => x.id === 'budget');
+    openForm({
+      title: '🛒 Orçamento do supermercado',
+      fields: [{ name: 'amount', label: 'Por mês (€) — 0 para não usar', type: 'number', min: 0, step: '10', required: true }],
+      values: { amount: cur?.amount ?? 400 },
+      onSubmit: (d) => Store.update((s) => {
+        const b = s.groceries.find((x) => x.id === 'budget');
+        if (b) b.amount = Math.max(0, round2(d.amount));
+        else s.groceries.push({ id: 'budget', kind: 'budget', amount: Math.max(0, round2(d.amount)) });
+      }),
+    });
+  }
+
   const BILL_MONTHS = { monthly: 1, bimonthly: 2, quarterly: 3, yearly: 12 };
   function payBill(el) {
     const b = S().bills.find((x) => x.id === el.dataset.id);
@@ -322,6 +363,9 @@ window.Fase4 = function ({ render, withButton }) {
     'pay-bill': payBill,
     'fin-tab': (el) => { VS.finTab = el.dataset.id; render(); },
     'edit-bank': bankForm,
+    'add-receipt': () => receiptForm(null),
+    'edit-receipt': receiptForm,
+    'edit-shop-budget': shopBudgetForm,
 
     'add-date': () => editItem('dates', null, { title: 'data especial', fields: Forms.sdate(), defaults: () => ({ knowYear: 'sim', kind: 'Aniversário' }) }),
     'edit-date': (el) => editItem('dates', el.dataset.id, { title: 'data especial', fields: Forms.sdate() }),

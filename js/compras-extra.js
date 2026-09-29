@@ -3,10 +3,12 @@
  *  - modo "No supermercado" (ecrã só para usar na loja: letras grandes, por secção,
  *    um toque risca, o ecrã não se apaga);
  *  - "os do costume": lista base da família, repor o que falta num toque, sugestões
- *    a partir do que mais se compra.
+ *    a partir do que mais se compra;
+ *  - "Vou às compras" (aviso à família) e partilhar a lista;
+ *  - preços (memorizados por produto), total estimado, talão e orçamento do supermercado.
  */
 window.ComprasExtra = function ({ render }) {
-  const { esc } = U;
+  const { esc, money, today } = U;
   const { VS, SHOP_CATS } = Views;
   const S = () => Store.state;
 
@@ -38,23 +40,30 @@ window.ComprasExtra = function ({ render }) {
     const total = pending.length + done.length;
     const pct = total ? Math.round((done.length / total) * 100) : 0;
     const cats = [...new Set([...SHOP_CATS, ...pending.map((x) => x.category || 'Outro')])];
-    const row = (x) => `<li><button class="market-item ${x.done ? 'done' : ''}" data-action="toggle-shop" data-id="${x.id}"
+    const est = C.estimate(s.shopping, s.shopstats);
+    const row = (x) => {
+      const t = C.lineTotal(x, s.shopstats);
+      return `<li class="market-row"><button class="market-item ${x.done ? 'done' : ''}" data-action="toggle-shop" data-id="${x.id}"
         aria-pressed="${!!x.done}" aria-label="${esc(x.text)}${x.qty ? `, ${esc(x.qty)}` : ''}${x.done ? ', já no carrinho' : ''}">
         <span class="market-check" aria-hidden="true">${x.done ? '✔' : ''}</span>
         <span class="market-text">${x.qty ? `<b class="market-qty">${esc(x.qty)}</b> ` : ''}${esc(x.text)}</span>
-      </button></li>`;
+      </button>
+      <button class="market-price ${t ? 'has' : ''}" data-action="shop-price" data-id="${x.id}" aria-label="Preço de ${esc(x.text)}">${t ? money(t) : '€'}</button></li>`;
+    };
     const finished = total && !pending.length;
     return `<div class="market">
       <header class="market-head">
         <div class="market-title"><b>🛒 No supermercado</b>
-          <small>${done.length} de ${total} no carrinho${canKeepAwake ? ' · 💡 ecrã sempre ligado' : ''}</small></div>
+          <small>${done.length} de ${total} no carrinho${canKeepAwake ? ' · 💡 ecrã sempre ligado' : ''}</small>
+          ${est.total ? `<small class="market-money">💶 No carrinho <b>${money(est.cart)}</b> de ~${money(est.total)}${est.missing ? ` · ${est.missing} sem preço` : ''}</small>` : ''}</div>
         <button class="btn small" data-action="shop-mode-exit">Sair</button>
       </header>
       <div class="progress market-progress" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><span style="width:${pct}%"></span></div>
       ${finished ? `<section class="market-done-card">
-          <p class="market-big">🎉</p><h2>Compras feitas!</h2><p class="muted">Está tudo no carrinho.</p>
-          <div class="btn-row"><button class="btn primary" data-action="shop-mode-finish">✔ Limpar a lista e sair</button>
-          <button class="btn" data-action="shop-mode-exit">Sair sem limpar</button></div></section>` : ''}
+          <p class="market-big">🎉</p><h2>Compras feitas!</h2><p class="muted">Está tudo no carrinho${est.cart ? ` · cerca de ${money(est.cart)}` : ''}.</p>
+          <div class="btn-row"><button class="btn primary" data-action="receipt-new">💶 Registar o talão e sair</button>
+          <button class="btn" data-action="shop-mode-finish">✔ Limpar a lista e sair</button>
+          <button class="btn ghost" data-action="shop-mode-exit">Sair sem limpar</button></div></section>` : ''}
       ${!total ? '<p class="empty">A lista está vazia. Junta o que falta e volta aqui. 🧺</p>' : ''}
       ${cats.map((c) => {
         const items = pending.filter((x) => (x.category || 'Outro') === c);
@@ -231,6 +240,98 @@ window.ComprasExtra = function ({ render }) {
     UI.toast('📋 Lista copiada — é só colar na mensagem.');
   }
 
+  /* ---------- Preços ---------- */
+  /** Põe o preço (por unidade/kg) no item e memoriza-o para a próxima vez. */
+  function setItemPrice(id, price) {
+    Store.update((s) => {
+      const x = s.shopping.find((i) => i.id === id);
+      if (!x) return;
+      x.price = Math.round(Number(price) * 100) / 100;
+      C.rememberPrice(s.shopstats, x, x.price, today());
+    });
+  }
+
+  function priceForm(el) {
+    const x = S().shopping.find((i) => i.id === el.dataset.id);
+    if (!x) return;
+    const known = C.priceOf(x, S().shopstats);
+    const per = /kg\b/i.test(x.qty || '') ? 'kg' : 'unidade';
+    UI.openForm({
+      title: `💶 ${x.text}`,
+      fields: [{ name: 'price', label: `Preço por ${per} (€)${x.qty ? ` · quantidade: ${x.qty}` : ''}`, type: 'number', min: 0, step: '0.01', required: true, placeholder: 'Ex.: 1,29' }],
+      values: { price: known || '' },
+      submitLabel: 'Guardar preço',
+      onSubmit: (d) => { if (d.price > 0) setItemPrice(x.id, d.price); },
+    });
+    setTimeout(() => document.querySelector('#f-price')?.focus(), 50);
+  }
+
+  /* ---------- Talão e orçamento ---------- */
+  const lastStore = () => trip()?.store || [...C.receipts(S().groceries)].sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0]?.store || '';
+
+  /** Limpa o que já foi comprado, tira o aviso "Vou às compras" e sai do modo supermercado. */
+  function finishShopping(msg) {
+    Store.update((s) => {
+      s.shopping = s.shopping.filter((i) => !i.done);
+      if (trip()?.by === s.currentUser) s.shoptrip = [];
+    });
+    UI.toast(msg);
+    exit();
+  }
+
+  /** Guarda o talão. As filhas (com conta) registam pela função do servidor: não vêem os gastos. */
+  async function saveReceipt({ amount, store, items, estimate }) {
+    const ctx = window.Cloud?.ctx?.();
+    if (Store.isRemote && !Store.isParent() && ctx) {
+      const { error } = await ctx.client.rpc('add_receipt', { p_amount: amount, p_store: store, p_items: items, p_estimate: estimate });
+      if (error) throw error;
+      return null;
+    }
+    Store.update((s) => {
+      s.groceries.push({
+        id: Store.uid(), kind: 'receipt', date: today(), amount: Math.round(amount * 100) / 100, store, items, estimate, by: s.currentUser,
+      });
+    });
+    return C.budgetStatus(S().groceries, today());
+  }
+
+  function receiptForm() {
+    const s = S();
+    const done = s.shopping.filter((i) => i.done);
+    const est = C.estimate(done, s.shopstats);
+    UI.openForm({
+      title: '💶 Quanto pagaste?',
+      fields: [
+        { name: 'amount', label: 'Total do talão (€)', type: 'number', min: 0.01, step: '0.01', required: true, half: true },
+        { name: 'store', label: 'Loja', half: true, placeholder: 'Ex.: Continente, Lidl' },
+      ],
+      values: { amount: est.cart || '', store: lastStore() },
+      submitLabel: '✔ Registar e limpar a lista',
+      onSubmit: async (d) => {
+        if (!(d.amount > 0)) return;
+        try {
+          const b = await saveReceipt({ amount: d.amount, store: d.store, items: done.length, estimate: est.cart });
+          finishShopping(b && b.budget
+            ? `💶 Talão de ${money(d.amount)} registado · este mês ${money(b.spent)} de ${money(b.budget)}`
+            : `💶 Talão de ${money(d.amount)} registado. Obrigado!`);
+        } catch (e) {
+          console.warn('talão', e);
+          UI.toast('Não consegui registar o talão agora. Tenta outra vez daqui a pouco.');
+        }
+      },
+    });
+    setTimeout(() => document.querySelector('#f-amount')?.select(), 50);
+  }
+
+  /** Linha do orçamento na lista de compras (só pais). */
+  function budgetLine() {
+    if (!Store.isParent()) return '';
+    const b = C.budgetStatus(S().groceries, today());
+    if (!b.budget) return '';
+    return `<a class="shop-budget ${b.level}" href="#/financas" data-action="goto-groceries">🛒 Supermercado este mês: <b>${money(b.spent)}</b> de ${money(b.budget)}
+      <span class="muted">· ${b.left >= 0 ? `faltam ${money(b.left)}` : `passou ${money(-b.left)}`}</span></a>`;
+  }
+
   /* ---------- Ligações ---------- */
   const route = Views.routes.find((r) => r[0] === 'compras');
   const listView = route[3];
@@ -242,8 +343,9 @@ window.ComprasExtra = function ({ render }) {
         <button class="btn small" data-action="shoptrip-new">📣 Vou às compras</button>
         ${has ? '<button class="btn small" data-action="share-list">📤 Partilhar</button>' : ''}`;
     },
-    banner,
+    banner: () => `${budgetLine()}${banner()}`,
     panels: staplesPanel,
+    setItemPrice,
   };
 
   function exit() {
@@ -256,15 +358,10 @@ window.ComprasExtra = function ({ render }) {
   const actions = {
     'shop-mode': () => { VS.shopMode = true; render(); window.scrollTo(0, 0); keepAwake(true); },
     'shop-mode-exit': exit,
-    'shop-mode-finish': () => {
-      Store.update((s) => {
-        s.shopping = s.shopping.filter((i) => !i.done);
-        // Quem avisou "Vou às compras" já voltou.
-        if (trip()?.by === s.currentUser) s.shoptrip = [];
-      });
-      UI.toast('✔ Compras arrumadas. Até à próxima! 🛒');
-      exit();
-    },
+    'shop-mode-finish': () => finishShopping('✔ Compras arrumadas. Até à próxima! 🛒'),
+    'shop-price': priceForm,
+    'receipt-new': receiptForm,
+    'goto-groceries': () => { VS.finTab = 'contas'; location.hash = '#/financas'; },
     'shoptrip-new': announceForm,
     'shoptrip-done': () => { Store.update((s) => { s.shoptrip = []; }); UI.toast('✔ Compras feitas — aviso retirado.'); },
     'share-list': shareDialog,

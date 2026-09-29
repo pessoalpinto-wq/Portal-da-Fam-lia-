@@ -517,9 +517,17 @@
     const cats = [...new Set([...SHOP_CATS, ...s.shopping.map((x) => x.category || 'Outro')])];
     const pending = s.shopping.filter((x) => !x.done);
     const bought = s.shopping.filter((x) => x.done);
+    const C = CatalogoCompras;
+    const price = (x) => {
+      const t = C.lineTotal(x, s.shopstats);
+      if (!t) return '';
+      const up = C.priceChange(s.shopstats, x.text, today());
+      return `<small class="shop-price">${money(t)}${up > 0 ? ` <b class="up" title="Subiu ${money(up)} desde a última vez">↑</b>` : ''}</small>`;
+    };
     const row = (x) => `<li class="shop ${x.done ? 'done' : ''}">
       <label><input type="checkbox" data-action="toggle-shop" data-id="${x.id}" ${x.done ? 'checked' : ''}>
         <span>${x.qty ? `<b class="shop-qty">${esc(x.qty)}</b> ` : ''}${esc(x.text)}</span></label>
+      ${price(x)}
       ${avatar(x.addedBy, 'sm')}
       <button class="icon-btn small" data-action="edit-shop" data-id="${x.id}" aria-label="Editar quantidade e nome" title="Quantidade / editar">✎</button>
       <button class="icon-btn small" data-action="del-shop" data-id="${x.id}" aria-label="Remover">✕</button></li>`;
@@ -537,6 +545,10 @@
         <datalist id="shop-suggest">${CatalogoCompras.merged(s.products).map((i) => `<option value="${esc(i.nome)}"></option>`).join('')}</datalist>
         ${window.Views.shopHooks?.panels?.(pending) || ''}
         ${catalogo(pending)}
+        ${(() => {
+          const est = C.estimate(pending, s.shopstats);
+          return est.total ? `<p class="shop-total">💶 Total estimado: <b>~${money(est.total)}</b>${est.missing ? ` <small class="muted">· ${est.missing} sem preço</small>` : ''}</p>` : '';
+        })()}
         ${cats.map((c) => {
           const items = pending.filter((x) => (x.category || 'Outro') === c);
           return items.length ? `<h3 class="sub">${esc(c)}</h3><ul class="list">${items.map(row).join('')}</ul>` : '';

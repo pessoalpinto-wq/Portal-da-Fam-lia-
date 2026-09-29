@@ -71,6 +71,51 @@ test('texto para partilhar: por secções, com quantidades, sem o que já foi co
   assert.equal(shareText([{ text: 'Ovos', done: true }]), '🛒 A lista de compras está vazia.');
 });
 
+test('preços: quantidade, preço memorizado, total estimado e subidas', () => {
+  const { qtyFactor, rememberPrice, priceOf, lineTotal, estimate, priceChange } = globalThis.CatalogoCompras;
+  assert.equal(qtyFactor('6'), 6);
+  assert.equal(qtyFactor('1,5 kg'), 1.5);
+  assert.equal(qtyFactor('6 latas'), 6);
+  assert.equal(qtyFactor(''), 1);
+  assert.equal(qtyFactor('um pack'), 1);
+
+  const stats = [];
+  rememberPrice(stats, { text: 'Leite meio-gordo' }, '0,85', '2026-08-01');
+  rememberPrice(stats, { text: 'Leite meio-gordo' }, '0,89', '2026-09-20'); // subiu 4 cêntimos
+  rememberPrice(stats, { text: 'Bananas' }, 1.49, '2026-09-20');
+  rememberPrice(stats, { text: 'Pão' }, '', '2026-09-20'); // vazio: não memoriza
+  assert.equal(priceChange(stats, 'Leite meio-gordo', '2026-09-29'), 0.04);
+  assert.equal(priceChange(stats, 'Leite meio-gordo', '2026-12-29'), 0); // mudança antiga já não se mostra
+  assert.equal(priceChange(stats, 'Bananas', '2026-09-29'), 0);
+
+  const list = [
+    { text: 'leite meio-gordo', qty: '6' }, // preço memorizado 0,89 × 6
+    { text: 'Bananas', qty: '1,5 kg', done: true }, // 1,49 × 1,5
+    { text: 'Pão', price: 0.35, qty: '4', done: true }, // preço posto no item
+    { text: 'Gomas' }, // sem preço
+  ];
+  assert.equal(priceOf(list[0], stats), 0.89);
+  assert.equal(lineTotal(list[1], stats), 2.24);
+  // 5,34 (leite) + 2,24 (bananas) + 1,40 (pão) = 8,98; no carrinho: bananas + pão = 3,64
+  assert.deepEqual(estimate(list, stats), { total: 8.98, cart: 3.64, missing: 1, count: 4 });
+});
+
+test('talões e orçamento do mês', () => {
+  const { monthly, budgetStatus, receipts } = globalThis.CatalogoCompras;
+  const g = [
+    { id: 'budget', amount: 400 },
+    { id: 'r1', kind: 'receipt', date: '2026-09-05', amount: 120.5, store: 'Lidl' },
+    { id: 'r2', kind: 'receipt', date: '2026-09-19', amount: 230, store: 'Continente' },
+    { id: 'r3', kind: 'receipt', date: '2026-08-10', amount: 310 },
+    { id: 'r4', kind: 'receipt', date: '2026-09-20', amount: 0 }, // inválido
+  ];
+  assert.equal(receipts(g).length, 3);
+  assert.deepEqual(monthly(g, '2026-09-29', 3).map((m) => [m.ym, m.total, m.count]), [['2026-07', 0, 0], ['2026-08', 310, 1], ['2026-09', 350.5, 2]]);
+  assert.deepEqual(budgetStatus(g, '2026-09-29'), { budget: 400, spent: 350.5, left: 49.5, pct: 88, daysLeft: 1, level: 'near' });
+  assert.equal(budgetStatus([...g, { id: 'r5', kind: 'receipt', date: '2026-09-29', amount: 60 }], '2026-09-29').level, 'over');
+  assert.equal(budgetStatus([], '2026-09-29').level, '');
+});
+
 test('encontra produtos sem ligar a maiúsculas nem acentos', () => {
   assert.equal(find('iogurtes gregos').categoria, 'Frescos');
   assert.equal(find('LIXIVIA').categoria, 'Limpeza');
