@@ -505,6 +505,11 @@
       const n = daysBetween(t, nextOccurrence(d.date));
       if (n <= 7) alerts.push([n, `<a href="#/agenda">🎉 ${esc(d.title)} ${n === 0 ? '<b>hoje!</b>' : relDay(nextOccurrence(d.date))}</a>`]);
     });
+    // Despensa: o que já passou do prazo ou acaba hoje/amanhã.
+    (s.pantry || []).forEach((p) => {
+      const e = Despensa.expiry(p, t);
+      if (e && e.days <= 1) alerts.push([e.days, `<a href="#/refeicoes" data-action="goto-pantry">🧺 ${esc(p.name)} <b>${esc(Despensa.label(e, p.expires))}</b></a>`]);
+    });
     s.polls.filter((p) => !p.closed && !(p.closes && p.closes < t) && !s.votes.some((v) => v.pollId === p.id && v.memberId === s.currentUser))
       .forEach((p) => alerts.push([-1, `<a href="#/votacoes">🗳️ Falta o teu voto: <b>${esc(p.question)}</b></a>`]));
 

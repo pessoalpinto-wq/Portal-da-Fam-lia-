@@ -31,9 +31,15 @@ window.Refeicoes = function ({ render }) {
   const ingredientLines = (text) => String(text || '').split('\n').map((x) => x.replace(/^\s*[-•*]\s+/, '').trim()).filter(Boolean);
   const stepLines = (text) => String(text || '').split('\n').map((x) => x.replace(/^\s*(?:\d+\s*[.)º-]|[-•*])\s*/, '').trim()).filter(Boolean);
 
-  function addPantry(s, name) {
+  /** Junta à despensa. `fresh`: acabou de ser comprado — se já lá estava, deixa de estar "a acabar" e perde a validade antiga. */
+  function addPantry(s, name, fresh = false) {
     const k = I.parse(name).key || I.key(name);
-    if (!k || s.pantry.some((p) => p.key === k)) return false;
+    if (!k) return false;
+    const old = s.pantry.find((p) => p.key === k);
+    if (old) {
+      if (fresh) { delete old.low; delete old.expires; }
+      return false;
+    }
     s.pantry.push({ id: Store.uid(), name: I.capitalize(String(name).trim()), key: k });
     return true;
   }
@@ -204,20 +210,69 @@ window.Refeicoes = function ({ render }) {
       ${card('📖 Sugestões do portal', sug.length ? `<div class="recipe-grid">${sug.map(recipeCard).join('')}</div>` : empty('Sem sugestões nesta categoria.'))}`;
   }
 
+  const D = Despensa;
+  const lowToBuy = () => D.toBuy(S().pantry || [], S().shopping || [], I);
+
+  function pantryChip(p) {
+    const e = D.expiry(p, today());
+    return `<span class="pantry-chip ${e ? `exp-${e.level}` : ''} ${p.low ? 'low' : ''}">
+      <button class="pantry-name" data-action="pantry-edit" data-id="${p.id}" title="Validade e quantidade">${esc(p.name)}${e
+        ? ` <small class="exp-tag">${esc(D.label(e, p.expires))}</small>` : ''}</button>
+      <button class="icon-btn small" data-action="pantry-low" data-id="${p.id}" title="${p.low ? 'Afinal ainda há bastante' : 'Está a acabar'}"
+        aria-label="${p.low ? 'Ainda há' : 'Está a acabar'}: ${esc(p.name)}" aria-pressed="${!!p.low}">📉</button>
+      <button class="icon-btn small" data-action="pantry-to-shop" data-id="${p.id}" title="Acabou — pôr na lista de compras" aria-label="Acabou: ${esc(p.name)}">🛒</button>
+      <button class="icon-btn small" data-action="pantry-remove" data-id="${p.id}" title="Tirar" aria-label="Tirar ${esc(p.name)}">✕</button></span>`;
+  }
+
   function despensa() {
-    const items = [...(S().pantry || [])].sort((a, b) => a.name.localeCompare(b.name, 'pt'));
-    return card('🧺 O que há em casa', `
+    const all = S().pantry || [];
+    const g = D.groups(all, today());
+    const buy = lowToBuy();
+    // Receitas para aproveitar o que acaba o prazo (o que já passou não conta).
+    const use = D.recipesUsing(g.attention.filter((p) => D.expiry(p, today()).level !== 'expired'), allRecipes(), I);
+    const chips = (list) => `<div class="pantry">${list.map(pantryChip).join('')}</div>`;
+    return `${g.attention.length ? card('⏰ Atenção ao prazo', `${chips(g.attention)}
+        <p class="small muted">O que já passou do prazo: vejam se ainda está bom ou deitem fora (✕).</p>`, { cls: 'pantry-attention' }) : ''}
+      ${use.length ? card('🍳 Receitas para aproveitar', `<ul class="list pantry-recipes">${use.map(({ recipe, uses }) => `<li>
+          <button class="link pantry-recipe" data-action="open-recipe" data-id="${esc(recipe.id)}">${esc(recipe.emoji || '🍽️')} ${esc(recipe.title)}</button>
+          <small class="muted">usa ${uses.map((u) => esc(u.name.toLowerCase())).join(', ')}</small></li>`).join('')}</ul>`) : ''}
+      ${g.low.length ? card('📉 Está a acabar', `${chips(g.low)}
+        <div class="btn-row">${buy.length ? `<button class="btn primary" data-action="pantry-low-to-shop">🛒 Pôr na lista de compras (${buy.length})</button>`
+          : '<span class="small muted">✔ Já estão todos na lista de compras.</span>'}</div>`) : ''}
+      ${card('🧺 O que há em casa', `
       <form class="inline-add big-add" data-form="add-pantry">
         <input name="text" placeholder="Ex.: arroz, massa, atum (separados por vírgulas)" required aria-label="Adicionar à despensa">
         <button class="btn primary">Adicionar</button>
       </form>
       <div class="btn-row"><button class="btn small ghost" data-action="pantry-basics">＋ Básicos (sal, azeite, alho…)</button></div>
-      ${items.length ? `<div class="pantry">${items.map((p) => `<span class="pantry-chip">${esc(p.name)}
-        <button class="icon-btn small" data-action="pantry-to-shop" data-id="${p.id}" title="Acabou — pôr na lista de compras" aria-label="Acabou: ${esc(p.name)}">🛒</button>
-        <button class="icon-btn small" data-action="pantry-remove" data-id="${p.id}" title="Tirar" aria-label="Tirar ${esc(p.name)}">✕</button></span>`).join('')}</div>`
-        : empty('A despensa está vazia.')}
+      ${g.rest.length ? chips(g.rest) : all.length ? '' : empty('A despensa está vazia.')}
       <p class="small muted">Quando marcam algo como comprado na lista de compras, entra aqui sozinho.
-        Carreguem em 🛒 quando acabar para ir para a lista.</p>`);
+        Toquem no nome para pôr a <b>validade</b> · 📉 quando <b>está a acabar</b> · 🛒 quando <b>acabou</b>.</p>`)}`;
+  }
+
+  function pantryForm(id) {
+    const p = (S().pantry || []).find((x) => x.id === id);
+    if (!p) return;
+    openForm({
+      title: `🧺 ${p.name}`,
+      fields: [
+        { name: 'expires', label: 'Validade (opcional)', type: 'date', half: true },
+        { name: 'low', label: 'Quanto há', type: 'select', half: true, options: [['', 'Há bastante'], ['1', '📉 Está a acabar']] },
+        { name: 'name', label: 'Nome', required: true },
+        { type: 'note', html: 'Com validade, o portal avisa na véspera (às 19h, a quem tem os lembretes ligados) e sugere receitas para a aproveitar.' },
+      ],
+      values: { expires: p.expires || '', low: p.low ? '1' : '', name: p.name },
+      onSubmit: (d) => Store.update((s) => {
+        const x = s.pantry.find((y) => y.id === p.id);
+        if (!x) return;
+        x.name = I.capitalize(d.name.trim());
+        x.key = I.parse(x.name).key || I.key(x.name) || x.key;
+        if (d.expires) x.expires = d.expires; else delete x.expires;
+        if (d.low) x.low = true; else delete x.low;
+      }),
+      onDelete: () => Store.update((s) => { s.pantry = s.pantry.filter((y) => y.id !== p.id); }),
+      deleteLabel: 'Tirar da despensa', deleteConfirm: `Tirar "${p.name}" da despensa?`, deleteToast: 'Saiu da despensa.',
+    });
   }
 
   function view() {
@@ -438,6 +493,18 @@ window.Refeicoes = function ({ render }) {
       Store.update((s) => BASICS.forEach((b) => { if (addPantry(s, b)) n++; }));
       toast(n ? `${n} básicos adicionados à despensa` : 'Os básicos já lá estavam.');
     },
+    'pantry-edit': (el) => pantryForm(el.dataset.id),
+    'pantry-low': (el) => Store.update((s) => {
+      const p = s.pantry.find((x) => x.id === el.dataset.id);
+      if (!p) return;
+      if (p.low) delete p.low; else p.low = true;
+    }),
+    'pantry-low-to-shop': () => {
+      const list = lowToBuy();
+      if (!list.length) { toast('Já estão todos na lista de compras. 👍'); return; }
+      toShopping(list.map((p) => ({ name: p.name, key: p.key, qty: '' })));
+    },
+    'goto-pantry': () => { VS.mealsTab = 'despensa'; if (location.hash === '#/refeicoes') render(); else location.hash = '#/refeicoes'; },
     'pantry-remove': (el) => Store.update((s) => { s.pantry = s.pantry.filter((p) => p.id !== el.dataset.id); }),
     'pantry-to-shop': (el) => {
       const p = S().pantry.find((x) => x.id === el.dataset.id);
@@ -450,7 +517,7 @@ window.Refeicoes = function ({ render }) {
       const x = s.shopping.find((i) => i.id === el.dataset.id);
       if (!x) return;
       x.done = !x.done;
-      if (x.done && FOOD_CATS.includes(x.category || 'Mercearia')) addPantry(s, x.text);
+      if (x.done && FOOD_CATS.includes(x.category || 'Mercearia')) addPantry(s, x.text, true);
       // Conta as compras (para sugerir "os do costume"); desmarcar desfaz a contagem.
       CatalogoCompras.countPurchase(s.shopstats, x, today(), x.done ? 1 : -1);
     }),

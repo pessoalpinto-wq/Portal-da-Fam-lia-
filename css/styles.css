@@ -553,6 +553,18 @@ body.gate .view { margin-left: 0; }
 .pantry-chip { display: inline-flex; align-items: center; gap: .1rem; padding: .2rem .2rem .2rem .7rem; border-radius: 999px;
   background: color-mix(in srgb, var(--ok) 12%, var(--surface)); border: 1px solid color-mix(in srgb, var(--ok) 35%, transparent); font-weight: 600; font-size: .9rem; }
 
+.pantry-name { font: inherit; background: none; border: 0; color: inherit; cursor: pointer; padding: 0 .2rem 0 0; text-align: left; }
+.pantry-name .exp-tag { display: block; font-size: .7rem; font-weight: 600; opacity: .85; }
+.pantry-chip.low { background: color-mix(in srgb, var(--warn) 12%, var(--surface)); border-color: color-mix(in srgb, var(--warn) 40%, transparent); }
+.pantry-chip.exp-soon, .pantry-chip.exp-today { background: color-mix(in srgb, var(--warn) 18%, var(--surface)); border-color: var(--warn); }
+.pantry-chip.exp-today .exp-tag, .pantry-chip.exp-soon .exp-tag { color: var(--warn); }
+.pantry-chip.exp-expired { background: color-mix(in srgb, var(--danger) 12%, var(--surface)); border-color: var(--danger); }
+.pantry-chip.exp-expired .exp-tag { color: var(--danger); }
+.pantry-chip [aria-pressed="true"] { background: color-mix(in srgb, var(--warn) 25%, transparent); border-radius: 999px; }
+.pantry-attention { border-color: color-mix(in srgb, var(--warn) 50%, transparent); }
+.pantry-recipes li { display: flex; flex-wrap: wrap; align-items: baseline; gap: .1rem .5rem; }
+.pantry-recipes .link { font-size: .95rem; font-weight: 600; text-align: left; }
+
 .dialog:has(.recipe-dlg), .dialog:has(.picker) { width: min(720px, calc(100vw - 1.5rem)); }
 .recipe-dlg, .picker { display: flex; flex-direction: column; max-height: calc(100vh - 2rem); }
 .recipe-body, .picker-body { overflow-y: auto; padding: 0 1.25rem 1rem; }

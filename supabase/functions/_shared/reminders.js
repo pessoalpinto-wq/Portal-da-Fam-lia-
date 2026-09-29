@@ -24,6 +24,7 @@ export const NOTIFY_TYPES = {
   bills: 'Contas da casa (pais)',
   money: 'Mesada recebida',
   shopping: '"Vou às compras" (na hora)',
+  pantry: 'Despensa: validades (na véspera às 19h)',
 };
 
 const hhmm = (min) => `${String(Math.floor(min / 60) % 24).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
@@ -101,7 +102,7 @@ const list = (arr, max = 3) => arr.slice(0, max).join(', ') + (arr.length > max 
 export function computeReminders({ state, profiles, now }) {
   const s = {
     members: [], events: [], tasks: [], exams: [], trips: [], redemptions: [], classes: [],
-    docs: [], bills: [], dates: [], health: [], polls: [], votes: [], ...state,
+    docs: [], bills: [], dates: [], health: [], polls: [], votes: [], pantry: [], ...state,
   };
   const nowAbs = at(now.date, now.minutes);
   const due = (iso, time) => {
@@ -273,6 +274,15 @@ export function computeReminders({ state, profiles, now }) {
       profiles.filter((p) => p.role === 'parent' || p.member_id === h.memberId).forEach((p) => push(p, 'health', `hn:${h.id}:${h.next}`,
         `🏥 Amanhã: ${h.nextLabel || h.title}`, `${name(h.memberId)}${h.notes ? ` · ${h.notes}` : ''}`, '#/saude'));
     });
+  }
+
+  // Despensa: o que acaba o prazo amanhã, às 19h, numa só notificação (para toda a família).
+  if (due(today, 19 * 60)) {
+    const ending = s.pantry.filter((p) => p.expires === tomorrow).map((p) => p.name).sort((a, b) => a.localeCompare(b, 'pt'));
+    if (ending.length) {
+      profiles.forEach((p) => push(p, 'pantry', `pantry:${tomorrow}`, `🧺 Acaba o prazo amanhã: ${ending.join(', ')}`,
+        'Aproveitem ao jantar ou amanhã — há receitas sugeridas na Despensa.', '#/refeicoes'));
+    }
   }
 
   // Votações abertas: avisa quem ainda não votou (uma vez por votação).

@@ -94,11 +94,14 @@ window.ComprasExtra = function ({ render }) {
     const s = S();
     const staples = s.staples || [];
     const missing = C.missingStaples(staples, s.shopping);
+    // Marcados na despensa como "a acabar" e que ainda não estão na lista.
+    const low = Despensa.toBuy(s.pantry || [], s.shopping, Ingredients);
     const open = VS.staplesOpen;
     const bar = `<div class="catalog-bar staples-bar">
       <button class="btn small ${open ? '' : 'ghost'}" data-action="staples-toggle" aria-expanded="${!!open}">
         ⭐ Os do costume${staples.length ? ` (${staples.length})` : ''}</button>
-      ${!open && missing.length ? `<button class="btn small primary" data-action="staples-fill">🔄 Repor os do costume (${missing.length})</button>` : ''}</div>`;
+      ${!open && missing.length ? `<button class="btn small primary" data-action="staples-fill">🔄 Repor os do costume (${missing.length})</button>` : ''}
+      ${low.length ? `<button class="btn small" data-action="pantry-low-to-shop" title="${esc(low.map((p) => p.name).join(', '))}">📉 A acabar em casa (${low.length})</button>` : ''}</div>`;
     if (!open) return bar;
     const inList = new Set(pending.map((x) => C.strip(x.text)));
     const sugg = C.suggestions(s.shopstats, staples);

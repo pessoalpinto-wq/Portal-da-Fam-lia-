@@ -146,3 +146,19 @@ test('"vou às compras": avisa a família menos quem vai e quem desligou', async
   assert.ok(agora.body.endsWith('A lista está vazia.'));
   assert.equal(shoppingNotice({ state, profiles, senderId: 'U-pai', minutes: 999, now: { minutes: 23 * 60 } }).title, '🛒 Pai vai às compras às 03:00');
 });
+
+test('despensa: o que acaba o prazo amanhã, numa notificação às 19h', () => {
+  const pantry = [
+    { id: 'p1', name: 'Iogurtes', expires: addDays(T, 1) },
+    { id: 'p2', name: 'Fiambre', expires: addDays(T, 1) },
+    { id: 'p3', name: 'Queijo', expires: addDays(T, 5) },
+    { id: 'p4', name: 'Arroz' },
+  ];
+  const profs = profiles.map((p) => (p.user_id === 'U-f12' ? { ...p, notify: { pantry: false } } : p));
+  const r = run({ pantry }, T, '19:05', profs).filter((x) => x.type === 'pantry');
+  assert.deepEqual(who(r), ['U-f16', 'U-mae', 'U-pai']);
+  assert.equal(r[0].title, '🧺 Acaba o prazo amanhã: Fiambre, Iogurtes');
+  assert.equal(r[0].key, `pantry:${addDays(T, 1)}:${r[0].userId}`);
+  assert.equal(run({ pantry }, T, '18:30').filter((x) => x.type === 'pantry').length, 0);
+  assert.equal(run({ pantry: [pantry[2]] }, T, '19:05').filter((x) => x.type === 'pantry').length, 0);
+});

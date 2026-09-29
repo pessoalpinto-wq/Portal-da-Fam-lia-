@@ -19,6 +19,7 @@
     ['money', '💰 Mesada recebida', 'no dia'],
     ['bills', '💶 Contas da casa', '3 dias antes (pais)'],
     ['shopping', '🛒 "Vou às compras"', 'na hora'],
+    ['pantry', '🧺 Validades da despensa', 'na véspera às 19h'],
   ];
 
   const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent)
