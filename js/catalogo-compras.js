@@ -148,9 +148,13 @@
   };
 
   /** Texto da lista por comprar, por secções (para WhatsApp, SMS, etc.). */
-  function shareText(shopping = [], order = Object.keys(CAT_EMOJI)) {
+  function shareText(shopping = [], order = Object.keys(CAT_EMOJI), where = '') {
     const pending = shopping.filter((i) => !i.done);
     if (!pending.length) return '🛒 A lista de compras está vazia.';
+    if (where) {
+      const blocksW = shareText(shopping, order).split('\n').slice(1).join('\n');
+      return `🛒 Lista de compras (${where}) — ${pending.length} produto${pending.length === 1 ? '' : 's'}\n${blocksW}`;
+    }
     const cats = [...new Set([...order, ...pending.map((i) => i.category || 'Outro')])];
     const blocks = cats.map((c) => {
       const items = pending.filter((i) => (i.category || 'Outro') === c);
@@ -279,7 +283,51 @@
     return { budget, spent, left: round2(budget - spent), pct, daysLeft, level: !budget ? '' : pct >= 100 ? 'over' : pct >= 85 ? 'near' : 'ok' };
   }
 
+  /* ---------- Lojas ---------- */
+  const DEFAULT_STORES = ['Continente', 'Pingo Doce', 'Lidl', 'Mercadona', 'Farmácia', 'Talho', 'Padaria'];
+  /** Lojas da família (as escolhidas por eles, ou as habituais se ainda não mexeram). */
+  const storesOf = (shopstores = []) => {
+    const doc = shopstores.find((x) => x.id === 'list');
+    return doc ? (doc.names || []).filter(Boolean) : DEFAULT_STORES;
+  };
+
+  /**
+   * Loja de um item: a que lhe puseram ('' = qualquer loja), ou a memorizada para o produto.
+   * Uma loja que já não existe na lista conta como "qualquer loja".
+   */
+  function storeOf(item, stats = [], stores = DEFAULT_STORES) {
+    const s = 'store' in item ? item.store : stats.find((x) => x.id === statId(item.text))?.shopAt || '';
+    return s && stores.includes(s) ? s : '';
+  }
+
+  /** Memoriza onde se compra um produto ('' = qualquer loja). */
+  function rememberStore(stats, item, store) {
+    const id = statId(item.text);
+    let st = stats.find((x) => x.id === id);
+    if (!st) {
+      st = { id, name: item.text, category: item.category || 'Outro', count: 0, last: '' };
+      stats.push(st);
+    }
+    st.shopAt = store || '';
+    return stats;
+  }
+
+  /** Só o que se compra nesta loja, mais o que se compra em qualquer loja. '' ou 'all' = tudo. */
+  function forStore(items, stats, stores, store) {
+    if (!store || store === 'all') return items;
+    return items.filter((i) => [store, ''].includes(storeOf(i, stats, stores)));
+  }
+
+  /** Quantos itens por loja (sem contar os de "qualquer loja"). */
+  function storeCounts(items, stats, stores) {
+    const out = Object.fromEntries(stores.map((s) => [s, 0]));
+    let any = 0;
+    items.forEach((i) => { const s = storeOf(i, stats, stores); if (s) out[s]++; else any++; });
+    return { byStore: out, any };
+  }
+
   root.CatalogoCompras = {
+    DEFAULT_STORES, storesOf, storeOf, rememberStore, forStore, storeCounts,
     SECCOES, ITENS, NOSSOS, CAT_EMOJI, find, strip, merged, sections, hiddenCount, missingStaples, statId, countPurchase,
     suggestions, shareText, qtyFactor, memo, priceOf, lineTotal, estimate, rememberPrice, priceHistory, priceChange,
     receipts, budgetOf, monthly, budgetStatus,

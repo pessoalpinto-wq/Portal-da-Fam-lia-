@@ -118,6 +118,28 @@ test('preços com data e loja: histórico dos últimos 10', () => {
   assert.deepEqual(priceHistory([{ id: 'st-ovos', name: 'Ovos', price: 2.1, priceDate: '2026-09-01' }], 'Ovos'), [{ price: 2.1, date: '2026-09-01', store: '' }]);
 });
 
+test('lojas: loja memorizada por produto, filtro e contagens', () => {
+  const { storesOf, storeOf, rememberStore, forStore, storeCounts, DEFAULT_STORES } = globalThis.CatalogoCompras;
+  assert.deepEqual(storesOf([]), DEFAULT_STORES);
+  const stores = storesOf([{ id: 'list', names: ['Lidl', 'Farmácia', 'Talho'] }]);
+  assert.deepEqual(stores, ['Lidl', 'Farmácia', 'Talho']);
+  const stats = [];
+  rememberStore(stats, { text: 'Paracetamol' }, 'Farmácia');
+  rememberStore(stats, { text: 'Bifes de vaca' }, 'Talho');
+  rememberStore(stats, { text: 'Pão' }, 'Padaria'); // loja que a família apagou
+  const items = [
+    { text: 'Paracetamol' }, // memorizado: Farmácia
+    { text: 'Leite', store: 'Lidl' }, // posto no item
+    { text: 'Bifes de vaca', store: '' }, // posto "qualquer loja" no item: vence o memorizado
+    { text: 'Pão' }, // Padaria já não existe → qualquer loja
+    { text: 'Ovos' },
+  ];
+  assert.deepEqual(items.map((i) => storeOf(i, stats, stores)), ['Farmácia', 'Lidl', '', '', '']);
+  assert.deepEqual(forStore(items, stats, stores, 'Lidl').map((i) => i.text), ['Leite', 'Bifes de vaca', 'Pão', 'Ovos']);
+  assert.deepEqual(forStore(items, stats, stores, 'all').length, 5);
+  assert.deepEqual(storeCounts(items, stats, stores), { byStore: { Lidl: 1, 'Farmácia': 1, Talho: 0 }, any: 3 });
+});
+
 test('talões e orçamento do mês', () => {
   const { monthly, budgetStatus, receipts } = globalThis.CatalogoCompras;
   const g = [

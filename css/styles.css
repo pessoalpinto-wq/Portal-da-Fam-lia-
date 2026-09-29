@@ -761,6 +761,15 @@ button.link { font: inherit; font-size: .85rem; background: none; border: 0; col
 .gro-m .gro-bar.over { background: var(--danger); }
 .linkish.plain { text-decoration: none; color: inherit; text-align: left; }
 
+/* ---------- Compras: lojas ---------- */
+.store-bar { margin: .3rem 0 .4rem; align-items: center; }
+.store-bar .filter b { font-weight: 600; opacity: .75; margin-left: .15rem; }
+.store-note { margin: 0 0 .5rem; }
+.store-badge { font-size: .72rem; font-weight: 600; color: var(--muted); border: 1px solid var(--border); border-radius: 999px;
+  padding: 0 .45rem; margin-left: .3rem; white-space: nowrap; }
+.market .store-bar { flex-wrap: nowrap; overflow-x: auto; margin-bottom: .6rem; scrollbar-width: none; }
+.market .store-bar .filter { flex: none; }
+
 /* ---------- Compras: os do costume ---------- */
 .staples-bar { margin-bottom: .5rem; }
 .staples { background: color-mix(in srgb, #f59e0b 9%, var(--surface-2)); border-radius: 12px; padding: .7rem; margin-bottom: 1rem; }

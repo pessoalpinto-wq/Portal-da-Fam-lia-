@@ -197,10 +197,15 @@
         { name: 'qty', label: 'Quantidade', half: true, placeholder: 'Ex.: 2, 1 kg, 6 latas' },
         { name: 'price', label: 'Preço por unidade/kg (€)', type: 'number', min: 0, step: '0.01', half: true, placeholder: 'Ex.: 0,89' },
         { name: 'category', label: 'Categoria', type: 'select', half: true, options: catOptions() },
-        { name: 'text', label: 'Produto', required: true, half: true },
+        { name: 'store', label: 'Onde comprar', type: 'select', half: true,
+          options: [['', 'Qualquer loja'], ...Views.shopHooks.stores().map((st) => [st, st])] },
+        { name: 'text', label: 'Produto', required: true },
         { name: 'hist', type: 'note', html: Views.shopHooks.historyHtml(x.text) },
       ],
-      values: { qty: x.qty || '', price: known || '', category: x.category || 'Outro', text: x.text },
+      values: {
+        qty: x.qty || '', price: known || '', category: x.category || 'Outro', text: x.text,
+        store: CatalogoCompras.storeOf(x, S().shopstats, Views.shopHooks.stores()),
+      },
       onSubmit: (d) => {
         Store.update((s) => {
           const cur = s.shopping.find((i) => i.id === x.id);
@@ -210,6 +215,9 @@
         // foi registado hoje numa loja, é uma correcção desse preço (mesma loja).
         const m = CatalogoCompras.memo(S().shopstats, x.text);
         if (d.price > 0 && d.price !== known) Views.shopHooks.setItemPrice(x.id, d.price, m?.date === today() ? m.store : '');
+        // Loja: fica no item e memorizada para o produto (só se mudou).
+        const cur = S().shopping.find((i) => i.id === x.id);
+        if (cur && d.store !== CatalogoCompras.storeOf(cur, S().shopstats, Views.shopHooks.stores())) Views.shopHooks.setItemStore(x.id, d.store);
       },
       onDelete: () => Store.update((s) => { s.shopping = s.shopping.filter((i) => i.id !== x.id); }),
       deleteLabel: 'Tirar da lista', deleteConfirm: `Tirar "${x.text}" da lista?`, deleteToast: 'Saiu da lista.',

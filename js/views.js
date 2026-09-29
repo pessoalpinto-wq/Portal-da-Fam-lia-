@@ -528,9 +528,12 @@
       return `<button class="shop-price" data-action="edit-shop" data-id="${x.id}" title="${esc(when + rise)}" aria-label="${esc(`${money(t)}. ${when}${rise}`)}">
         ${money(t)}${up > 0 ? ' <b class="up">↑</b>' : ''}</button>`;
     };
+    const hooks = window.Views.shopHooks || {};
+    // Filtro por loja (js/compras-extra.js): mostra os da loja escolhida e os de "qualquer loja".
+    const shown = hooks.filterPending ? hooks.filterPending(pending) : pending;
     const row = (x) => `<li class="shop ${x.done ? 'done' : ''}">
       <label><input type="checkbox" data-action="toggle-shop" data-id="${x.id}" ${x.done ? 'checked' : ''}>
-        <span>${x.qty ? `<b class="shop-qty">${esc(x.qty)}</b> ` : ''}${esc(x.text)}</span></label>
+        <span>${x.qty ? `<b class="shop-qty">${esc(x.qty)}</b> ` : ''}${esc(x.text)}${hooks.storeBadge?.(x) || ''}</span></label>
       ${price(x)}
       ${avatar(x.addedBy, 'sm')}
       <button class="icon-btn small" data-action="edit-shop" data-id="${x.id}" aria-label="Editar quantidade e nome" title="Quantidade / editar">✎</button>
@@ -549,14 +552,15 @@
         <datalist id="shop-suggest">${CatalogoCompras.merged(s.products).map((i) => `<option value="${esc(i.nome)}"></option>`).join('')}</datalist>
         ${window.Views.shopHooks?.panels?.(pending) || ''}
         ${catalogo(pending)}
+        ${hooks.storeBar?.(pending) || ''}
         ${(() => {
-          const est = C.estimate(pending, s.shopstats);
+          const est = C.estimate(shown, s.shopstats);
           return est.total ? `<p class="shop-total">💶 Total estimado: <b>~${money(est.total)}</b>${est.missing ? ` <small class="muted">· ${est.missing} sem preço</small>` : ''}</p>` : '';
         })()}
         ${cats.map((c) => {
-          const items = pending.filter((x) => (x.category || 'Outro') === c);
+          const items = shown.filter((x) => (x.category || 'Outro') === c);
           return items.length ? `<h3 class="sub">${esc(c)}</h3><ul class="list">${items.map(row).join('')}</ul>` : '';
-        }).join('') || empty('A lista está vazia. 🧺')}
+        }).join('') || empty(pending.length ? 'Nada para comprar nesta loja. 👌' : 'A lista está vazia. 🧺')}
         ${bought.length ? `<details class="done-list"><summary>No carrinho (${bought.length})</summary><ul class="list">${bought.map(row).join('')}</ul></details>` : ''}
       </section>`;
   }

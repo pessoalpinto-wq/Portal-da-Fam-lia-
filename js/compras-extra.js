@@ -35,12 +35,15 @@ window.ComprasExtra = function ({ render }) {
   /* ---------- Vista "No supermercado" ---------- */
   function market() {
     const s = S();
-    const pending = s.shopping.filter((x) => !x.done);
+    const allPending = s.shopping.filter((x) => !x.done);
+    // Só o que se compra na loja escolhida (e em qualquer loja).
+    const pending = filterPending(allPending);
+    const elsewhere = allPending.length - pending.length;
     const done = s.shopping.filter((x) => x.done);
     const total = pending.length + done.length;
     const pct = total ? Math.round((done.length / total) * 100) : 0;
     const cats = [...new Set([...SHOP_CATS, ...pending.map((x) => x.category || 'Outro')])];
-    const est = C.estimate(s.shopping, s.shopstats);
+    const est = C.estimate([...pending, ...done], s.shopstats);
     const row = (x) => {
       const t = C.lineTotal(x, s.shopstats);
       return `<li class="market-row"><button class="market-item ${x.done ? 'done' : ''}" data-action="toggle-shop" data-id="${x.id}"
@@ -59,8 +62,10 @@ window.ComprasExtra = function ({ render }) {
         <button class="btn small" data-action="shop-mode-exit">Sair</button>
       </header>
       <div class="progress market-progress" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><span style="width:${pct}%"></span></div>
+      ${storeBar(allPending)}
       ${finished ? `<section class="market-done-card">
           <p class="market-big">🎉</p><h2>Compras feitas!</h2><p class="muted">Está tudo no carrinho${est.cart ? ` · cerca de ${money(est.cart)}` : ''}.</p>
+          ${elsewhere ? `<p class="small">Ficam na lista ${elsewhere} produto${elsewhere === 1 ? '' : 's'} para comprar noutras lojas.</p>` : ''}
           <div class="btn-row"><button class="btn primary" data-action="receipt-new">💶 Registar o talão e sair</button>
           <button class="btn" data-action="shop-mode-finish">✔ Limpar a lista e sair</button>
           <button class="btn ghost" data-action="shop-mode-exit">Sair sem limpar</button></div></section>` : ''}
@@ -209,8 +214,14 @@ window.ComprasExtra = function ({ render }) {
   }
 
   /* ---------- Partilhar a lista (WhatsApp, SMS, copiar) ---------- */
+  /** Texto da lista a partilhar: respeita o filtro de loja escolhido. */
+  function listText() {
+    const cur = curStore();
+    return C.shareText(filterPending(S().shopping.filter((i) => !i.done)), SHOP_CATS, cur === 'all' ? '' : cur);
+  }
+
   function shareDialog() {
-    const text = C.shareText(S().shopping, SHOP_CATS);
+    const text = listText();
     const dlg = document.getElementById('dialog');
     dlg.innerHTML = `<div class="form share-dlg">
       <header class="form-head"><h2>📤 Partilhar a lista</h2>
@@ -345,6 +356,61 @@ window.ComprasExtra = function ({ render }) {
       <span class="muted">· ${b.left >= 0 ? `faltam ${money(b.left)}` : `passou ${money(-b.left)}`}</span></a>`;
   }
 
+  /* ---------- Lojas ---------- */
+  const stores = () => C.storesOf(S().shopstores);
+  const curStore = () => (stores().includes(VS.shopStore) ? VS.shopStore : 'all');
+  const filterPending = (items) => C.forStore(items, S().shopstats, stores(), curStore());
+
+  /** Botões "Todas · Lidl (3) · Farmácia (1) …" e ✎ para editar as lojas. */
+  function storeBar(pending) {
+    const list = stores();
+    const { byStore, any } = C.storeCounts(pending, S().shopstats, list);
+    const cur = curStore();
+    const used = list.filter((st) => byStore[st] || st === cur);
+    if (!pending.length && cur === 'all') return '';
+    return `<div class="filters store-bar" role="group" aria-label="Filtrar por loja">
+      <button class="filter ${cur === 'all' ? 'active' : ''}" data-action="shop-store" data-id="all">🏪 Todas</button>
+      ${used.map((st) => `<button class="filter ${cur === st ? 'active' : ''}" data-action="shop-store" data-id="${esc(st)}">${esc(st)} <b>${byStore[st] || 0}</b></button>`).join('')}
+      ${!used.length ? '<span class="small muted">Escolham a loja de cada produto no ✎ para poderem filtrar.</span>' : ''}
+      <button class="linkish small" data-action="edit-stores">✎ lojas</button>
+    </div>
+    ${cur !== 'all' ? `<p class="small muted store-note">🏪 <b>${esc(cur)}</b>${any ? ` · mais ${any} produto${any === 1 ? '' : 's'} que se compra${any === 1 ? '' : 'm'} em qualquer loja` : ''}</p>` : ''}`;
+  }
+
+  /** Etiqueta com a loja, na lista (só quando se vê "Todas"). */
+  function storeBadge(x) {
+    if (curStore() !== 'all') return '';
+    const st = C.storeOf(x, S().shopstats, stores());
+    return st ? ` <small class="store-badge">${esc(st)}</small>` : '';
+  }
+
+  /** Põe a loja no item e memoriza-a para o produto ('' = qualquer loja). */
+  function setItemStore(id, store) {
+    Store.update((s) => {
+      const x = s.shopping.find((i) => i.id === id);
+      if (!x) return;
+      x.store = store || '';
+      C.rememberStore(s.shopstats, x, x.store);
+    });
+  }
+
+  function storesForm() {
+    UI.openForm({
+      title: '🏪 As nossas lojas',
+      fields: [{ name: 'names', label: 'Uma loja por linha', type: 'textarea', rows: 8, required: true }],
+      values: { names: stores().join('\n') },
+      onSubmit: (d) => {
+        const names = [...new Set(d.names.split('\n').map((x) => x.trim().slice(0, 30)).filter(Boolean))].slice(0, 20);
+        Store.update((s) => {
+          const doc = s.shopstores.find((x) => x.id === 'list');
+          if (doc) doc.names = names;
+          else s.shopstores.push({ id: 'list', names });
+        });
+        UI.toast(`🏪 ${names.length} loja${names.length === 1 ? '' : 's'}`);
+      },
+    });
+  }
+
   /* ---------- Ligações ---------- */
   const route = Views.routes.find((r) => r[0] === 'compras');
   const listView = route[3];
@@ -360,6 +426,11 @@ window.ComprasExtra = function ({ render }) {
     panels: staplesPanel,
     setItemPrice,
     historyHtml,
+    storeBar,
+    storeBadge,
+    filterPending,
+    setItemStore,
+    stores,
   };
 
   function exit() {
@@ -370,19 +441,30 @@ window.ComprasExtra = function ({ render }) {
   }
 
   const actions = {
-    'shop-mode': () => { VS.shopMode = true; render(); window.scrollTo(0, 0); keepAwake(true); },
+    'shop-mode': () => {
+      // Se avisaram "Vou às compras (Lidl)", abre já filtrado nessa loja.
+      const where = trip()?.store;
+      const match = where && stores().find((st) => C.strip(st) === C.strip(where));
+      if (match) VS.shopStore = match;
+      VS.shopMode = true;
+      render();
+      window.scrollTo(0, 0);
+      keepAwake(true);
+    },
     'shop-mode-exit': exit,
     'shop-mode-finish': () => finishShopping('✔ Compras arrumadas. Até à próxima! 🛒'),
     'shop-price': priceForm,
     'receipt-new': receiptForm,
     'goto-groceries': () => { VS.finTab = 'contas'; location.hash = '#/financas'; },
+    'shop-store': (el) => { VS.shopStore = el.dataset.id; render(); },
+    'edit-stores': storesForm,
     'shoptrip-new': announceForm,
     'shoptrip-done': () => { Store.update((s) => { s.shoptrip = []; }); UI.toast('✔ Compras feitas — aviso retirado.'); },
     'share-list': shareDialog,
     'share-native': () => {
-      navigator.share({ title: 'Lista de compras', text: C.shareText(S().shopping, SHOP_CATS) }).catch(() => {});
+      navigator.share({ title: 'Lista de compras', text: listText() }).catch(() => {});
     },
-    'share-copy': () => copyText(C.shareText(S().shopping, SHOP_CATS)),
+    'share-copy': () => copyText(listText()),
     'staples-toggle': () => { VS.staplesOpen = !VS.staplesOpen; render(); },
     'staples-fill': fillStaples,
     'staple-edit': stapleForm,
