@@ -1,6 +1,6 @@
 /* Arranque: navegação, render e tratamento de acções (delegação de eventos). */
 (function () {
-  const { $, today, esc } = U;
+  const { $, today, esc, fmtDate } = U;
   const { editItem, toast, completeTask, reopenTask } = UI;
   const { VS, Forms, routes } = Views;
   const S = () => Store.state;
@@ -127,9 +127,51 @@
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
 
-  const eventForm = edit('events', 'event', 'compromisso', () => ({
-    date: VS.calDay || today(), repeat: 'none', members: [S().currentUser], start: '', end: '', location: '', notes: '', driver: '',
-  }));
+  const REPEAT_TXT = { weekly: 'todas as semanas', monthly: 'todos os meses', yearly: 'todos os anos' };
+  /**
+   * Compromisso novo ou editar. Se se repete e foi aberto a partir de um dia (data-on), dá para
+   * cancelar só esse dia ("esta semana não há natação") sem mexer nos outros.
+   */
+  function eventForm(el) {
+    const id = el.dataset.id;
+    const e = id && S().events.find((x) => x.id === id);
+    const on = el.dataset.on;
+    const repeats = e && REPEAT_TXT[e.repeat];
+    const skipped = [...(e?.skip || [])].sort();
+    const fields = Forms.event();
+    if (repeats) {
+      fields.unshift({ name: 'info', type: 'note', html: `🔁 Repete-se ${REPEAT_TXT[e.repeat]}: o que mudares aqui vale para todas as vezes.`
+        + `${on && on !== e.date ? ` A data abaixo é a da primeira vez.` : ''}` });
+      if (skipped.length) {
+        fields.push({ name: 'restore', label: `Dias cancelados (${skipped.length}) — voltar a haver?`, type: 'select',
+          options: [['', `Não: ${skipped.map((d) => fmtDate(d)).join(', ')}`], ...skipped.map((d) => [d, `↩️ Voltar a haver em ${fmtDate(d)}`])] });
+      }
+    }
+    UI.editItem('events', id, {
+      title: 'compromisso',
+      fields,
+      defaults: () => ({
+        date: VS.calDay || today(), repeat: 'none', members: [S().currentUser], start: '', end: '', location: '', notes: '', driver: '',
+      }),
+      preset: presetFrom(el),
+      deleteConfirm: repeats ? `Apagar "${e.title}" de TODAS as vezes?${on ? ' (Para cancelar só um dia, usa o botão ❌.)' : ''}` : undefined,
+      extra: repeats && on && !skipped.includes(on) ? [{
+        label: `❌ Não há em ${fmtDate(on)}`,
+        onClick: () => {
+          Store.update((s) => {
+            const x = s.events.find((y) => y.id === id);
+            if (x) x.skip = [...new Set([...(x.skip || []), on])].sort();
+          });
+          toast(`❌ ${e.title}: cancelado só em ${fmtDate(on)}. As outras vezes continuam.`);
+        },
+      }] : [],
+      transform: (d) => {
+        const { restore, ...rest } = d;
+        if (restore) rest.skip = skipped.filter((x) => x !== restore);
+        return rest;
+      },
+    });
+  }
   /** Tarefa nova ou editar. As filhas não mudam os pontos e só apagam as tarefas que elas próprias criaram. */
   function taskForm(el) {
     const id = el.dataset.id;

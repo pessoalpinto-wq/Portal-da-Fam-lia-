@@ -78,7 +78,7 @@ const hm = (s) => {
 const at = (iso, time) => dayNum(iso) * 1440 + (typeof time === 'number' ? time : hm(time));
 
 export function occursOn(e, date) {
-  if (!e.date) return false;
+  if (!e.date || (e.skip || []).includes(date)) return false;
   if (e.date === date) return true;
   if (e.date > date || (e.until && date > e.until)) return false;
   if (e.repeat === 'weekly') return weekday(e.date) === weekday(date);

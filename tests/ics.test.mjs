@@ -55,3 +55,15 @@ test('datas especiais, documentos e saúde entram no calendário', () => {
   assert.ok(!out.includes('doc-k1'), 'o passaporte do pai não entra no calendário da filha');
   assert.match(out, /SUMMARY:🏥 Vacina \(2\.ª dose\)/);
 });
+
+test('compromisso que se repete: dias cancelados saem do calendário (EXDATE)', () => {
+  const st = { ...state, events: [
+    { ...state.events[0], skip: ['2026-10-08', 'lixo'] },
+    { id: 'e9', title: 'Dia inteiro semanal', date: '2026-09-26', repeat: 'weekly', skip: ['2026-10-03'], members: [] },
+    { id: 'e10', title: 'Sem repetir', date: '2026-10-10', skip: ['2026-10-10'], members: [] },
+  ] };
+  const out = ICS.build(st, { now });
+  assert.match(out, /EXDATE;TZID=Europe\/Lisbon:20261008T180000/);
+  assert.match(out, /EXDATE;VALUE=DATE:20261003/);
+  assert.equal((out.match(/EXDATE/g) || []).length, 2);
+});

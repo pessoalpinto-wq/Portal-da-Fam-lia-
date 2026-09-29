@@ -93,6 +93,7 @@
   function openForm({
     title, fields, values = {}, onSubmit, onDelete, submitLabel = 'Guardar',
     deleteLabel = 'Apagar', deleteConfirm = 'Tens a certeza que queres apagar?', deleteToast = 'Apagado.',
+    extra = [], // botões extra no rodapé: [{ label, onClick }] (fecham o diálogo)
   }) {
     const dlg = $('#dialog');
     dlg.innerHTML = `<form class="form" novalidate>
@@ -101,6 +102,7 @@
       <div class="form-grid">${fields.map((f) => fieldHTML(f, values[f.name])).join('')}</div>
       <footer class="form-actions">
         ${onDelete ? `<button type="button" class="btn danger" data-dlg="delete">${esc(deleteLabel)}</button>` : ''}
+        ${extra.map((b, i) => `<button type="button" class="btn" data-dlg-extra="${i}">${esc(b.label)}</button>`).join('')}
         <span class="spacer"></span>
         <button type="button" class="btn ghost" data-dlg="cancel">Cancelar</button>
         <button type="submit" class="btn primary">${esc(submitLabel)}</button>
@@ -113,6 +115,9 @@
       dlg.close();
     });
     dlg.querySelectorAll('[data-dlg=cancel]').forEach((b) => b.addEventListener('click', () => dlg.close()));
+    dlg.querySelectorAll('[data-dlg-extra]').forEach((b) => b.addEventListener('click', () => {
+      if (extra[b.dataset.dlgExtra].onClick() !== false) dlg.close();
+    }));
     if (onDelete) {
       dlg.querySelector('[data-dlg=delete]').addEventListener('click', () => {
         if (confirm(deleteConfirm)) {
@@ -127,13 +132,16 @@
   }
 
   /** Criar/editar um item de uma colecção do estado com um formulário. */
-  function editItem(coll, id, { title, fields, defaults = () => ({}), preset = {}, canDelete = true }) {
+  function editItem(coll, id, { title, fields, defaults = () => ({}), preset = {}, canDelete = true, extra = [], transform = (d) => d, deleteConfirm }) {
     const item = id ? S()[coll].find((x) => x.id === id) : null;
     openForm({
       title: `${item ? 'Editar' : 'Novo'}: ${title}`,
       fields,
       values: item || { ...defaults(), ...preset },
-      onSubmit: (data) => Store.update((s) => {
+      extra,
+      ...(deleteConfirm ? { deleteConfirm } : {}),
+      onSubmit: (raw) => Store.update((s) => {
+        const data = transform(raw);
         const cur = item && s[coll].find((x) => x.id === id);
         if (cur) Object.assign(cur, data);
         else s[coll].push({ id: Store.uid(), ...defaults(), ...preset, ...data });
@@ -146,7 +154,7 @@
   function eventsOn(date) {
     const wd = weekday(date);
     return S().events.filter((e) => {
-      if (!e.date) return false;
+      if (!e.date || (e.skip || []).includes(date)) return false; // cancelado só neste dia
       if (e.date === date) return true;
       if (e.date > date || (e.until && date > e.until)) return false;
       if (e.repeat === 'weekly') return weekday(e.date) === wd;
@@ -164,7 +172,7 @@
   function itemsOn(date) {
     const s = S();
     const out = [];
-    eventsOn(date).forEach((e) => out.push({ kind: 'event', id: e.id, time: e.start, title: e.title, members: e.members }));
+    eventsOn(date).forEach((e) => out.push({ kind: 'event', id: e.id, time: e.start, title: e.title, members: e.members, date }));
     s.exams.filter((x) => x.date === date).forEach((x) => out.push({
       kind: 'exam', id: x.id, title: `📝 ${x.kind}: ${x.subject}`, members: [x.memberId],
     }));

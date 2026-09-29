@@ -107,7 +107,7 @@
 
   function itemRow(it, date) {
     return `<li class="item" style="--c:${esc(colorOf(it.members))}">
-      <button class="item-main" data-action="${OPEN_ACTION[it.kind]}" data-id="${esc(it.id)}">
+      <button class="item-main" data-action="${OPEN_ACTION[it.kind]}" data-id="${esc(it.id)}"${it.date ? ` data-on="${esc(it.date)}"` : ''}>
         ${date ? `<span class="when">${esc(fmtDate(date))}</span>` : ''}
         ${it.time ? `<span class="time">${esc(it.time)}</span>` : ''}
         <span class="title">${esc(it.title)}</span>

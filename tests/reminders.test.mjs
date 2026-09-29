@@ -175,3 +175,11 @@ test('pedidos das filhas: os pais recebem o pedido e a filha a resposta', () => 
   assert.equal(a[0].body, 'Ainda há');
   assert.equal(run({ shopreqs: ans }, addDays(T, 5), '21:00').length, 0);
 });
+
+test('compromisso cancelado só num dia: sem lembrete nesse dia, os outros continuam', () => {
+  const ev = { id: 'sw', title: 'Natação', date: addDays(T, -7), repeat: 'weekly', start: '18:30', members: ['f12'], skip: [T] };
+  assert.equal(occursOn(ev, T), false);
+  assert.equal(occursOn(ev, addDays(T, 7)), true);
+  assert.equal(run({ events: [ev] }, T, '17:35').filter((r) => r.type === 'events').length, 0);
+  assert.equal(run({ events: [ev] }, addDays(T, 7), '17:35').filter((r) => r.type === 'events').length, 1);
+});

@@ -87,7 +87,10 @@
         ? [`DTSTART;TZID=${TZID}:${localDT(e.date, e.start)}`,
           `DTEND;TZID=${TZID}:${localDT(e.date, e.end && e.end > e.start ? e.end : plusHour(e.start))}`]
         : allDay(e.date);
-      vevent(`event-${e.id}`, [...when, rrule, `SUMMARY:${text(e.title)}`,
+      // Dias em que não há (cancelados só nesse dia).
+      const exdates = rrule ? (e.skip || []).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).map((d) => (e.start
+        ? `EXDATE;TZID=${TZID}:${localDT(d, e.start)}` : `EXDATE;VALUE=DATE:${d8(d)}`)) : [];
+      vevent(`event-${e.id}`, [...when, rrule, ...exdates, `SUMMARY:${text(e.title)}`,
         e.location && `LOCATION:${text(e.location)}`, desc && `DESCRIPTION:${text(desc)}`]);
     });
 
