@@ -476,27 +476,39 @@
   /* ---------- Compras ---------- */
   /** Catálogo de produtos habituais: um toque junta à lista, outro toque tira. */
   function catalogo(pending) {
-    const { SECCOES, ITENS, strip } = CatalogoCompras;
+    const { strip } = CatalogoCompras;
+    const products = S().products || [];
+    const items = CatalogoCompras.merged(products);
+    const secs = CatalogoCompras.sections(items);
     const open = VS.shopCatalog;
+    const editing = !!VS.catalogEdit;
     const toggle = `<button class="btn small ${open ? '' : 'primary'} catalog-toggle" data-action="catalog-toggle" aria-expanded="${!!open}">
-      🧺 ${open ? 'Fechar produtos habituais' : `Escolher dos produtos habituais (${ITENS.length})`}</button>`;
+      🧺 ${open ? 'Fechar produtos habituais' : `Escolher dos produtos habituais (${items.length})`}</button>`;
     if (!open) return `<div class="catalog-bar">${toggle}</div>`;
     const inList = new Set(pending.map((x) => strip(x.text)));
-    const sec = VS.shopSection || SECCOES[0][0];
+    const sec = secs.some(([n]) => n === VS.shopSection) ? VS.shopSection : secs[0][0];
     const q = strip(VS.catalogQuery || '');
     const shown = (i) => (q ? strip(i.nome).includes(q) : i.seccao === sec);
-    return `<div class="catalog-bar">${toggle}</div>
-      <div class="catalog">
+    const hidden = CatalogoCompras.hiddenCount(products);
+    return `<div class="catalog-bar">${toggle}
+        <button class="btn small ghost" data-action="product-new">＋ Novo produto</button>
+        <button class="btn small ${editing ? 'primary' : 'ghost'}" data-action="catalog-edit">${editing ? '✔ Terminar edição' : '✎ Editar produtos'}</button></div>
+      <div class="catalog ${editing ? 'editing' : ''}">
         <input type="search" id="catalog-search" placeholder="Procurar produto (ex.: iogurte, lixívia)…" aria-label="Procurar produto" value="${esc(VS.catalogQuery || '')}">
-        <div class="filters catalog-secs" ${q ? 'hidden' : ''}>${SECCOES.map(([nome, emoji, , produtos]) => {
-          const n = produtos.filter((p) => inList.has(strip(p))).length;
+        <div class="filters catalog-secs" ${q ? 'hidden' : ''}>${secs.map(([nome, emoji]) => {
+          const n = items.filter((i) => i.seccao === nome && inList.has(strip(i.nome))).length;
           return `<button class="filter ${nome === sec ? 'active' : ''}" data-action="catalog-sec" data-id="${esc(nome)}">${emoji} ${esc(nome)}${n ? ` <b>${n}</b>` : ''}</button>`;
         }).join('')}</div>
-        <p class="small muted catalog-hint">Toca para juntar à lista (✔ = já está lá; toca outra vez para tirar).</p>
-        <div class="catalog-items">${ITENS.map((i) => `<button class="cat-chip ${inList.has(strip(i.nome)) ? 'in' : ''}" data-action="catalog-add"
+        <p class="small muted catalog-hint">${editing
+          ? `✎ Toca num produto para mudar o nome, a secção ou a categoria, ou para o esconder.${hidden ? ` <button class="linkish" data-action="catalog-unhide">${hidden === 1 ? 'Mostrar outra vez o produto escondido' : `Mostrar outra vez os ${hidden} produtos escondidos`}</button>` : ''}`
+          : 'Toca para juntar à lista (✔ = já está lá; toca outra vez para tirar). A quantidade muda-se no ✎ de cada item da lista.'}</p>
+        <div class="catalog-items">${items.map((i) => {
+          const on = inList.has(strip(i.nome));
+          return `<button class="cat-chip ${on && !editing ? 'in' : ''}" data-action="${editing ? 'product-edit' : 'catalog-add'}"
           data-name="${esc(i.nome)}" data-sec="${esc(i.seccao)}" data-search="${esc(strip(i.nome))}" ${shown(i) ? '' : 'hidden'}>
-          ${inList.has(strip(i.nome)) ? '✔ ' : ''}${esc(i.nome)}</button>`).join('')}</div>
-        <p class="small muted catalog-none" ${q && !ITENS.some(shown) ? '' : 'hidden'}>Não encontrei. Escreve-o em cima e carrega em Adicionar.</p>
+          ${editing ? '✎ ' : on ? '✔ ' : ''}${esc(i.nome)}</button>`;
+        }).join('')}</div>
+        <p class="small muted catalog-none" ${q && !items.some(shown) ? '' : 'hidden'}>Não encontrei. Escreve-o em cima e carrega em Adicionar: fica guardado em ⭐ Os nossos produtos.</p>
       </div>`;
   }
 
@@ -507,8 +519,9 @@
     const bought = s.shopping.filter((x) => x.done);
     const row = (x) => `<li class="shop ${x.done ? 'done' : ''}">
       <label><input type="checkbox" data-action="toggle-shop" data-id="${x.id}" ${x.done ? 'checked' : ''}>
-        <span>${esc(x.text)}${x.qty ? ` <small class="muted">× ${esc(x.qty)}</small>` : ''}</span></label>
+        <span>${x.qty ? `<b class="shop-qty">${esc(x.qty)}</b> ` : ''}${esc(x.text)}</span></label>
       ${avatar(x.addedBy, 'sm')}
+      <button class="icon-btn small" data-action="edit-shop" data-id="${x.id}" aria-label="Editar quantidade e nome" title="Quantidade / editar">✎</button>
       <button class="icon-btn small" data-action="del-shop" data-id="${x.id}" aria-label="Remover">✕</button></li>`;
     return `<div class="page-head"><h1>Lista de compras</h1>
       ${bought.length ? '<div class="quick"><button class="btn small ghost" data-action="clear-shop">Limpar comprados</button></div>' : ''}</div>
@@ -519,7 +532,7 @@
           <select name="category" aria-label="Categoria">${SHOP_CATS.map((c) => `<option>${esc(c)}</option>`).join('')}</select>
           <button class="btn primary">Adicionar</button>
         </form>
-        <datalist id="shop-suggest">${CatalogoCompras.ITENS.map((i) => `<option value="${esc(i.nome)}"></option>`).join('')}</datalist>
+        <datalist id="shop-suggest">${CatalogoCompras.merged(s.products).map((i) => `<option value="${esc(i.nome)}"></option>`).join('')}</datalist>
         ${catalogo(pending)}
         ${cats.map((c) => {
           const items = pending.filter((x) => (x.category || 'Outro') === c);
@@ -614,7 +627,7 @@
   }
 
   window.Views = {
-    VS, Forms,
+    VS, Forms, SHOP_CATS,
     /** Peças reutilizadas pelas vistas da Fase 4. */
     h: { card, empty, addBtn, progress, itemRow, taskRow, leaderboard, albumLink },
     routes: [

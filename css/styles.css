@@ -709,6 +709,10 @@ button.link { font: inherit; font-size: .85rem; background: none; border: 0; col
   background: var(--surface); color: var(--text); cursor: pointer; }
 .cat-chip:hover { border-color: var(--primary); }
 .cat-chip.in { background: color-mix(in srgb, var(--ok) 16%, var(--surface)); border-color: var(--ok); font-weight: 600; }
+.catalog-bar { display: flex; flex-wrap: wrap; gap: .4rem; }
+.catalog.editing { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--primary) 45%, transparent); }
+.catalog.editing .cat-chip { border-style: dashed; }
+.shop-qty { color: var(--primary); font-variant-numeric: tabular-nums; }
 @media (max-width: 640px) {
   .catalog-secs { flex-wrap: nowrap; overflow-x: auto; padding-bottom: .35rem; scrollbar-width: thin; }
   .catalog-secs .filter { flex: none; white-space: nowrap; }

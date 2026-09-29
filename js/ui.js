@@ -87,14 +87,17 @@
     return out;
   }
 
-  function openForm({ title, fields, values = {}, onSubmit, onDelete, submitLabel = 'Guardar' }) {
+  function openForm({
+    title, fields, values = {}, onSubmit, onDelete, submitLabel = 'Guardar',
+    deleteLabel = 'Apagar', deleteConfirm = 'Tens a certeza que queres apagar?', deleteToast = 'Apagado.',
+  }) {
     const dlg = $('#dialog');
     dlg.innerHTML = `<form class="form" novalidate>
       <header class="form-head"><h2>${esc(title)}</h2>
         <button type="button" class="icon-btn" data-dlg="cancel" aria-label="Fechar">✕</button></header>
       <div class="form-grid">${fields.map((f) => fieldHTML(f, values[f.name])).join('')}</div>
       <footer class="form-actions">
-        ${onDelete ? '<button type="button" class="btn danger" data-dlg="delete">Apagar</button>' : ''}
+        ${onDelete ? `<button type="button" class="btn danger" data-dlg="delete">${esc(deleteLabel)}</button>` : ''}
         <span class="spacer"></span>
         <button type="button" class="btn ghost" data-dlg="cancel">Cancelar</button>
         <button type="submit" class="btn primary">${esc(submitLabel)}</button>
@@ -109,10 +112,10 @@
     dlg.querySelectorAll('[data-dlg=cancel]').forEach((b) => b.addEventListener('click', () => dlg.close()));
     if (onDelete) {
       dlg.querySelector('[data-dlg=delete]').addEventListener('click', () => {
-        if (confirm('Tens a certeza que queres apagar?')) {
+        if (confirm(deleteConfirm)) {
           onDelete();
           dlg.close();
-          toast('Apagado.');
+          toast(deleteToast);
         }
       });
     }

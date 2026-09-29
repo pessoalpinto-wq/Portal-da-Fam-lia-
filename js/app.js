@@ -133,6 +133,81 @@
   const taskForm = edit('tasks', 'task', 'tarefa', () => ({
     assignee: S().currentUser, due: today(), repeat: 'none', points: 2, category: 'Casa', done: false, notes: '', history: [],
   }));
+  /* ---------- Compras: produtos da família e itens da lista ---------- */
+  const catalog = () => CatalogoCompras.merged(S().products);
+  const secOptions = () => [CatalogoCompras.NOSSOS, ...CatalogoCompras.SECCOES.map(([n]) => n)].map((n) => [n, n]);
+  const catOptions = () => Views.SHOP_CATS.map((c) => [c, c]);
+
+  /** Novo produto, ou alterar um (dos da família ou do catálogo de origem). */
+  function productForm(item) {
+    const own = !item || item.own;
+    UI.openForm({
+      title: item ? `✎ ${item.nome}` : '＋ Novo produto',
+      fields: [
+        { name: 'nome', label: 'Nome do produto', required: true, placeholder: 'Ex.: Queijo de Azeitão' },
+        { name: 'seccao', label: 'Secção dos produtos habituais', type: 'select', half: true, options: secOptions() },
+        { name: 'categoria', label: 'Categoria na lista', type: 'select', half: true, options: catOptions() },
+      ],
+      values: item ? { nome: item.nome, seccao: item.seccao, categoria: item.categoria }
+        : { seccao: CatalogoCompras.NOSSOS, categoria: 'Outro' },
+      onSubmit: (d) => {
+        const { strip } = CatalogoCompras;
+        // Outro produto com o mesmo nome (o próprio produto pode manter o nome).
+        const clash = catalog().find((i) => strip(i.nome) === strip(d.nome) && (!item || strip(i.nome) !== strip(item.nome)));
+        if (clash) { toast(`Já existe "${clash.nome}" em ${clash.seccao}.`); return; }
+        VS.shopSection = d.seccao; // mostra a secção onde o produto ficou
+        VS.catalogQuery = '';
+        Store.update((s) => {
+          if (!item) {
+            s.products.push({ id: Store.uid(), nome: d.nome, seccao: d.seccao, categoria: d.categoria });
+          } else if (own) {
+            Object.assign(s.products.find((p) => p.id === item.id) || {}, { nome: d.nome, seccao: d.seccao, categoria: d.categoria });
+          } else {
+            const cur = s.products.find((p) => p.base && CatalogoCompras.strip(p.base) === CatalogoCompras.strip(item.base));
+            const data = { base: item.base, nome: d.nome, seccao: d.seccao, categoria: d.categoria, renamed: true, hidden: false };
+            if (cur) Object.assign(cur, data);
+            else s.products.push({ id: Store.uid(), ...data });
+          }
+        });
+        toast(item ? '✔ Produto alterado' : `⭐ ${d.nome} guardado nos vossos produtos`);
+      },
+      onDelete: item ? () => Store.update((s) => {
+        if (own) {
+          s.products = s.products.filter((p) => p.id !== item.id);
+          return;
+        }
+        const cur = s.products.find((p) => p.base && CatalogoCompras.strip(p.base) === CatalogoCompras.strip(item.base));
+        if (cur) cur.hidden = true;
+        else s.products.push({ id: Store.uid(), base: item.base, hidden: true });
+      }) : null,
+      deleteLabel: own ? 'Apagar' : 'Esconder',
+      deleteConfirm: own ? `Apagar "${item?.nome}" dos vossos produtos?` : `Esconder "${item?.nome}"? (Dá para o mostrar outra vez em ✎ Editar produtos.)`,
+      deleteToast: own ? 'Apagado.' : 'Escondido.',
+    });
+  }
+
+  /** Mudar a quantidade, o nome ou a categoria de um item da lista. */
+  function editShopItem(el) {
+    const x = S().shopping.find((i) => i.id === el.dataset.id);
+    if (!x) return;
+    UI.openForm({
+      title: `✎ ${x.text}`,
+      fields: [
+        { name: 'qty', label: 'Quantidade', half: true, placeholder: 'Ex.: 2, 1 kg, 6 latas' },
+        { name: 'category', label: 'Categoria', type: 'select', half: true, options: catOptions() },
+        { name: 'text', label: 'Produto', required: true },
+      ],
+      values: { qty: x.qty || '', category: x.category || 'Outro', text: x.text },
+      onSubmit: (d) => Store.update((s) => {
+        const cur = s.shopping.find((i) => i.id === x.id);
+        if (cur) Object.assign(cur, { qty: d.qty, category: d.category, text: d.text });
+      }),
+      onDelete: () => Store.update((s) => { s.shopping = s.shopping.filter((i) => i.id !== x.id); }),
+      deleteLabel: 'Tirar da lista', deleteConfirm: `Tirar "${x.text}" da lista?`, deleteToast: 'Saiu da lista.',
+    });
+    setTimeout(() => document.querySelector('#f-qty')?.focus(), 50);
+  }
+
   /** Copiar a mala de outra viagem ou de uma lista-modelo. */
   function copyPackForm(el) {
     const s = S();
@@ -244,8 +319,16 @@
     'clear-shop': () => Store.update((s) => { s.shopping = s.shopping.filter((i) => !i.done); }),
     'catalog-toggle': () => { VS.shopCatalog = !VS.shopCatalog; VS.catalogQuery = ''; render(); },
     'catalog-sec': (el) => { VS.shopSection = el.dataset.id; VS.catalogQuery = ''; render(); },
+    'catalog-edit': () => { VS.catalogEdit = !VS.catalogEdit; render(); },
+    'product-new': () => productForm(null),
+    'product-edit': (el) => productForm(CatalogoCompras.find(el.dataset.name, catalog())),
+    'catalog-unhide': () => Store.update((s) => {
+      s.products = s.products.filter((p) => !(p.base && p.hidden && !p.renamed));
+      s.products.forEach((p) => { if (p.hidden) p.hidden = false; });
+    }),
+    'edit-shop': editShopItem,
     'catalog-add': (el) => {
-      const item = CatalogoCompras.find(el.dataset.name);
+      const item = CatalogoCompras.find(el.dataset.name, catalog());
       if (!item) return;
       const k = CatalogoCompras.strip(item.nome);
       let added = true;
@@ -369,10 +452,16 @@
         toast(`${d.text} já está na lista 👍`);
         return;
       }
-      const known = CatalogoCompras.find(d.text);
+      const known = CatalogoCompras.find(d.text, catalog());
+      const text = known?.nome || d.text.charAt(0).toUpperCase() + d.text.slice(1);
       Store.update((s) => {
-        s.shopping.push({ id: Store.uid(), text: known?.nome || d.text, qty: d.qty, category: d.category, done: false, addedBy: s.currentUser });
+        s.shopping.push({ id: Store.uid(), text, qty: d.qty, category: d.category, done: false, addedBy: s.currentUser });
+        // Produto novo: fica guardado nos produtos habituais da família para a próxima vez.
+        if (!known && text.length >= 2) {
+          s.products.push({ id: Store.uid(), nome: text, seccao: CatalogoCompras.NOSSOS, categoria: d.category });
+        }
       });
+      if (!known) toast(`🛒 ${text} na lista · ⭐ guardado nos vossos produtos`);
     },
     'add-note': (f, d) => Store.update((s) => {
       s.notes.push({ id: Store.uid(), author: s.currentUser, text: d.text, date: today(), pinned: false });
@@ -398,7 +487,7 @@
       document.querySelector('.catalog-none').hidden = !q || chips.some((c) => !c.hidden);
     }
     if (el.name === 'text' && el.form?.dataset.form === 'add-shop') {
-      const item = CatalogoCompras.find(el.value);
+      const item = CatalogoCompras.find(el.value, catalog());
       if (item) el.form.elements.category.value = item.categoria;
     }
   });

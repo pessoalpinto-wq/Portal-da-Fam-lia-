@@ -75,8 +75,40 @@
   const ITENS = SECCOES.flatMap(([seccao, emoji, categoria, produtos]) => produtos.map((nome) => ({ nome, seccao, emoji, categoria })));
   const byName = new Map(ITENS.map((i) => [strip(i.nome), i]));
 
-  /** Produto do catálogo com este nome (sem ligar a maiúsculas e acentos). */
-  const find = (text) => byName.get(strip(text)) || null;
+  /* ---------- Produtos da família ---------- */
+  // Guardados na colecção "products":
+  //  - produtos novos: { id, nome, seccao, categoria }
+  //  - alterações a um produto do catálogo: { id, base: <nome original>, nome, seccao, categoria, hidden }
+  const NOSSOS = 'Os nossos produtos';
+  const EMOJI = new Map([[NOSSOS, '⭐'], ...SECCOES.map(([nome, emoji]) => [nome, emoji])]);
 
-  root.CatalogoCompras = { SECCOES, ITENS, find, strip };
+  /** Catálogo com as alterações da família aplicadas (sem os escondidos) + os produtos novos. */
+  function merged(custom = []) {
+    const over = new Map(custom.filter((c) => c.base).map((c) => [strip(c.base), c]));
+    const base = ITENS.map((i) => {
+      const o = over.get(strip(i.nome));
+      if (!o) return { ...i, base: i.nome };
+      if (o.hidden) return null;
+      const seccao = EMOJI.has(o.seccao) ? o.seccao : i.seccao;
+      return { ...i, id: o.id, base: i.nome, nome: o.nome || i.nome, seccao, emoji: EMOJI.get(seccao), categoria: o.categoria || i.categoria };
+    }).filter(Boolean);
+    const extra = custom.filter((c) => !c.base && !c.hidden && c.nome).map((c) => {
+      const seccao = EMOJI.has(c.seccao) ? c.seccao : NOSSOS;
+      return { id: c.id, nome: c.nome, seccao, emoji: EMOJI.get(seccao), categoria: c.categoria || 'Outro', own: true };
+    });
+    return [...base, ...extra];
+  }
+
+  /** Secções com produtos (a dos nossos produtos primeiro, se existir): [nome, emoji]. */
+  function sections(items) {
+    const used = new Set(items.map((i) => i.seccao));
+    return [[NOSSOS, '⭐'], ...SECCOES.map(([nome, emoji]) => [nome, emoji])].filter(([nome]) => used.has(nome));
+  }
+
+  /** Produto com este nome (sem ligar a maiúsculas e acentos), no catálogo dado ou no de origem. */
+  const find = (text, items) => (items ? items.find((i) => strip(i.nome) === strip(text)) || null : byName.get(strip(text)) || null);
+
+  const hiddenCount = (custom = []) => custom.filter((c) => c.base && c.hidden).length;
+
+  root.CatalogoCompras = { SECCOES, ITENS, NOSSOS, find, strip, merged, sections, hiddenCount };
 })(globalThis);
