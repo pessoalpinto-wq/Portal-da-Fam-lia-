@@ -77,6 +77,7 @@
       { name: 'lodging', label: 'Alojamento', half: true },
       { name: 'members', label: 'Quem vai?', type: 'members' },
       { name: 'notes', label: 'Notas (voos, reservas, ideias…)', type: 'textarea' },
+      { name: 'album', label: 'Álbum partilhado no Google Fotos (link, opcional)', type: 'url', placeholder: 'https://photos.app.goo.gl/…' },
     ],
     contact: () => [
       { name: 'name', label: 'Nome', required: true },
@@ -411,6 +412,11 @@
   }
 
   /* ---------- Viagens ---------- */
+  /** Link para o álbum partilhado (Google Fotos ou outro), só se for um endereço http(s). */
+  const safeUrl = (u) => (/^https?:\/\/\S+$/i.test(String(u || '').trim()) ? String(u).trim() : '');
+  const albumLink = (tr, label = '📷 Álbum no Google Fotos') => (safeUrl(tr.album)
+    ? `<a class="link album-link" href="${esc(safeUrl(tr.album))}" target="_blank" rel="noopener">${label} ↗</a>` : '');
+
   function viagens() {
     const t = today();
     const list = [...S().trips].sort((a, b) => b.start.localeCompare(a.start));
@@ -427,7 +433,8 @@
         <p class="meta-line"><span>${esc(fmtDate(tr.start))}${tr.end ? ` → ${esc(fmtDate(tr.end))}` : ''}${nights > 0 ? ` · ${nights} noites` : ''}</span>
           ${until > 0 ? `<span class="badge">faltam ${until} dias</span>` : until <= 0 && (tr.end || tr.start) >= t ? '<span class="badge">a decorrer</span>' : ''}</p>
         <p class="meta-line">${chips(tr.members)}${(S().photos || []).some((ph) => ph.tripId === tr.id)
-          ? `<a class="link" href="#/memorias" data-action="photos-trip" data-id="${tr.id}">📸 ${S().photos.filter((ph) => ph.tripId === tr.id).length} fotos</a>` : ''}</p>
+          ? `<a class="link" href="#/memorias" data-action="photos-trip" data-id="${tr.id}">📸 ${S().photos.filter((ph) => ph.tripId === tr.id).length} fotos</a>` : ''}
+          ${albumLink(tr)}</p>
         ${tr.lodging ? `<p>🏨 ${esc(tr.lodging)}</p>` : ''}
         ${tr.notes ? `<p class="muted pre">${esc(tr.notes)}</p>` : ''}
         <h3 class="sub">🧳 Mala e preparativos <button class="linkish" data-action="copy-pack" data-id="${tr.id}">📋 copiar lista</button>
@@ -579,7 +586,7 @@
   window.Views = {
     VS, Forms,
     /** Peças reutilizadas pelas vistas da Fase 4. */
-    h: { card, empty, addBtn, progress, itemRow, taskRow, leaderboard },
+    h: { card, empty, addBtn, progress, itemRow, taskRow, leaderboard, albumLink },
     routes: [
       ['painel', '🏠', 'Painel', painel],
       ['agenda', '📅', 'Agenda', agenda],

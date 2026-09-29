@@ -410,12 +410,16 @@
       .sort((a, b) => (b.taken || b.date || '').localeCompare(a.taken || a.date || ''));
     const filters = [['', 'Todas'], ...trips.map((t) => [t.id, `✈️ ${t.destination}`]), ['_none', 'Sem viagem']];
     const uploadTrip = f && f !== '_none' ? f : '';
+    // Álbuns partilhados (Google Fotos) das viagens: todos, ou só o da viagem escolhida.
+    const albums = s.trips.filter((t) => Views.h.albumLink(t) && (!f || t.id === f))
+      .sort((a, b) => (b.start || '').localeCompare(a.start || ''));
     return `<div class="page-head"><h1>Memórias</h1>
       <div class="quick"><label class="btn primary small upload-btn">📷 Adicionar fotos
         <input type="file" id="photo-input" accept="image/*" multiple hidden data-trip="${esc(uploadTrip)}"></label>
         ${s.trips.length ? `<select id="photo-trip" aria-label="Associar a uma viagem" class="small-select">
           <option value="">Sem viagem</option>${s.trips.map((t) => `<option value="${esc(t.id)}" ${t.id === uploadTrip ? 'selected' : ''}>✈️ ${esc(t.destination)}</option>`).join('')}</select>` : ''}</div></div>
       <div class="filters">${filters.map(([v, l]) => `<button class="filter ${f === v ? 'active' : ''}" data-action="photo-filter" data-id="${esc(v)}">${esc(l)}</button>`).join('')}</div>
+      ${albums.length ? `<p class="albums small">📷 <b>Todas as fotos, em qualidade original:</b> ${albums.map((t) => Views.h.albumLink(t, `✈️ ${esc(t.destination)}`)).join(' · ')}</p>` : ''}
       <p id="upload-status" class="small muted" role="status"></p>
       ${list.length ? `<div class="photo-grid">${list.map((p) => `<button class="ph" data-action="photo-open" data-id="${p.id}" aria-label="${esc(p.caption || 'Foto')}">
         <img data-path="${esc(p.thumb)}" alt="${esc(p.caption || '')}" loading="lazy">${p.caption ? `<span class="cap">${esc(p.caption)}</span>` : ''}</button>`).join('')}</div>`
