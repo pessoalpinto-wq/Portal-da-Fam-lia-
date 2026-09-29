@@ -539,7 +539,8 @@
     const t = today();
     const parent = Store.isParent();
     const alerts = [];
-    s.docs.filter((d) => d.expires && daysBetween(t, d.expires) <= 60).forEach((d) => {
+    // Documentos: os pais vêem todos; as filhas só os seus.
+    s.docs.filter((d) => d.expires && daysBetween(t, d.expires) <= 60 && (parent || d.memberId === s.currentUser)).forEach((d) => {
       const left = daysBetween(t, d.expires);
       alerts.push([left, `<a href="#/saude">🔐 ${esc(d.type)}${d.memberId ? ` (${esc(member(d.memberId)?.name || '')})` : ''} ${left < 0 ? '<b>expirou</b>' : `expira ${relDay(d.expires)}`}</a>`]);
     });

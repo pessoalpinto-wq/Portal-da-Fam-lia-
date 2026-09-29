@@ -155,9 +155,12 @@
 
   function leaderboard() {
     const ms = [...S().members].sort((a, b) => b.points - a.points);
+    if (!ms.some((m) => m.points > 0)) return empty('Ainda ninguém tem pontos. Façam tarefas e apareçam aqui! 🏆');
     const max = Math.max(1, ...ms.map((m) => m.points));
-    return `<ol class="leader">${ms.map((m, i) => `<li>
-      <span class="rank">${['🥇', '🥈', '🥉'][i] || i + 1}</span>${avatar(m.id)}
+    // Empates ficam com o mesmo lugar (e sem medalha quem tem 0).
+    const place = (m) => 1 + ms.filter((x) => x.points > m.points).length;
+    return `<ol class="leader">${ms.map((m) => `<li>
+      <span class="rank">${m.points > 0 ? ['🥇', '🥈', '🥉'][place(m) - 1] || place(m) : '–'}</span>${avatar(m.id)}
       <span class="lname">${esc(m.name)}</span>
       <span class="bar"><span style="width:${(m.points / max) * 100}%;background:${esc(m.color)}"></span></span>
       <b>${m.points}</b></li>`).join('')}</ol>`;
@@ -194,8 +197,9 @@
     const hour = new Date().getHours();
     const hello = hour < 13 ? 'Bom dia' : hour < 20 ? 'Boa tarde' : 'Boa noite';
 
-    const todayItems = itemsOn(t);
-    const overdue = pendingTasks((x) => x.due && x.due < t);
+    // As tarefas de quem está a ver já aparecem em "As minhas tarefas".
+    const todayItems = itemsOn(t).filter((it) => !(it.kind === 'task' && s.tasks.find((x) => x.id === it.id)?.assignee === s.currentUser));
+    const overdue = pendingTasks((x) => x.due && x.due < t && x.assignee !== s.currentUser);
     const hojeBody = (todayItems.length || overdue.length)
       ? `<ul class="list">${overdue.map((x) => itemRow({ kind: 'task', id: x.id, title: `⚠️ Atrasada: ${x.title}`, members: [x.assignee] })).join('')}
          ${todayItems.map((it) => itemRow(it)).join('')}</ul>`
@@ -210,12 +214,14 @@
     }).join('') || empty('Ainda não há horários. Vai a <a href="#/escola">Escola</a> para os adicionar.');
 
     const mine = pendingTasks((x) => x.assignee === s.currentUser && (!x.due || x.due <= addDays(t, 2)));
+    const tripDays = (tr) => (tr.start > t ? daysBetween(t, tr.start) : 0);
     const mineBody = mine.length ? `<ul class="list">${mine.map(taskRow).join('')}</ul>` : empty('Tudo em dia! 🎉');
 
     const next = [];
     for (let i = 1; i <= 7; i++) {
       const d = addDays(t, i);
-      itemsOn(d).filter((it) => it.kind !== 'task').forEach((it) => next.push(itemRow(it, d)));
+      // Sem tarefas, testes (têm cartão próprio) nem contas (já estão em "Atenção").
+      itemsOn(d).filter((it) => !['task', 'exam', 'bill'].includes(it.kind)).forEach((it) => next.push(itemRow(it, d)));
     }
     const exams = s.exams.filter((x) => x.date >= t && x.date <= addDays(t, 21)).sort((a, b) => a.date.localeCompare(b.date));
     const examsBody = exams.length ? `<ul class="list">${exams.map((x) => itemRow({
@@ -229,6 +235,12 @@
     return `<div class="page-head"><div><h1>${hello}${me ? `, ${esc(me.name)}` : ''}! 👋</h1>
       <p class="muted">${esc(fmtLongDate(t))}</p></div>
       <div class="quick">${addBtn('add-event', 'Compromisso')}${addBtn('add-task', 'Tarefa')}${addBtn('add-note', 'Recado')}</div></div>
+      <nav class="tiles" aria-label="Atalhos">
+        <a class="tile" href="#/compras"><b>🛒 ${shopLeft}</b><small>por comprar</small></a>
+        ${trip ? `<a class="tile" href="#/viagens" title="${esc(trip.destination)}"><b>✈️ ${trip.start > t ? tripDays(trip) : '🧳'}</b><small>${trip.start > t ? `dia${tripDays(trip) === 1 ? '' : 's'} · ` : 'a decorrer · '}${esc(trip.destination)}</small></a>`
+          : '<a class="tile" href="#/viagens"><b>✈️ —</b><small>sem viagem</small></a>'}
+        ${me ? `<a class="tile" href="#/tarefas"><b>⭐ ${Number(me.points) || 0}</b><small>os meus pontos</small></a>` : ''}
+      </nav>
       <div class="grid">
         ${approvals()}
         ${Views.painelExtra ? Views.painelExtra() : ''}
@@ -239,10 +251,6 @@
         ${card('📝 Testes e trabalhos', examsBody, { action: addBtn('add-exam') })}
         ${card('⭐ Pontos da família', leaderboard(), { action: '<a href="#/tarefas" class="link">Recompensas</a>' })}
         ${card('📌 Mural', notes.length ? `<ul class="notes-mini">${notes.map((n) => `<li>${avatar(n.author, 'sm')} <span>${n.pinned ? '📌 ' : ''}${esc(n.text)}</span></li>`).join('')}</ul>` : empty('Sem recados.'), { action: '<a href="#/mural" class="link">Abrir</a>' })}
-        ${card('🛒 Compras', `<p class="big">${shopLeft}</p><p class="muted">${shopLeft === 1 ? 'item por comprar' : 'itens por comprar'}</p>`, { action: '<a href="#/compras" class="link">Lista</a>' })}
-        ${card('✈️ Próxima viagem', trip ? `<p class="big">${trip.start > t ? daysBetween(t, trip.start) : '🧳'}</p>
-          <p><b>${esc(trip.destination)}</b><br><span class="muted">${trip.start > t ? 'dias até partir' : 'a decorrer!'} · ${esc(fmtDate(trip.start))}</span></p>`
-          : empty('Nenhuma viagem planeada.'), { action: '<a href="#/viagens" class="link">Viagens</a>' })}
       </div>`;
   }
 

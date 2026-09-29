@@ -932,3 +932,11 @@ body.shop-mode .view { margin-left: auto; max-width: 720px; padding: 0 16px 2rem
 .ing-group { border: 1px solid var(--border); border-radius: 12px; margin: .5rem 0; }
 .ing-group > summary { cursor: pointer; padding: .55rem .8rem; font-weight: 700; }
 .ing-group .ing-list { padding: 0 .6rem .5rem; }
+
+/* Painel: atalhos compactos */
+.tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .5rem; margin: 0 0 1rem; }
+.tile { display: grid; gap: .1rem; padding: .6rem .7rem; border-radius: 14px; background: var(--surface); border: 1px solid var(--border);
+  text-decoration: none; color: var(--text); min-width: 0; }
+.tile b { font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tile small { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tile:hover { border-color: var(--primary); }
