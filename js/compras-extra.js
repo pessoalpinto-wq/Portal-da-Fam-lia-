@@ -49,7 +49,7 @@ window.ComprasExtra = function ({ render }) {
       return `<li class="market-row"><button class="market-item ${x.done ? 'done' : ''}" data-action="toggle-shop" data-id="${x.id}"
         aria-pressed="${!!x.done}" aria-label="${esc(x.text)}${x.qty ? `, ${esc(x.qty)}` : ''}${x.done ? ', já no carrinho' : ''}">
         <span class="market-check" aria-hidden="true">${x.done ? '✔' : ''}</span>
-        <span class="market-text">${x.qty ? `<b class="market-qty">${esc(x.qty)}</b> ` : ''}${esc(x.text)}${prefsHtml(x)}</span>
+        <span class="market-text">${imgHtml(x)}${x.qty ? `<b class="market-qty">${esc(x.qty)}</b> ` : ''}${esc(x.text)}${prefsHtml(x)}</span>
       </button>
       <button class="market-price ${t ? 'has' : ''}" data-action="shop-price" data-id="${x.id}" aria-label="Preço de ${esc(x.text)}">${t ? money(t) : '€'}</button></li>`;
     };
@@ -59,6 +59,7 @@ window.ComprasExtra = function ({ render }) {
         <div class="market-title"><b>🛒 No supermercado</b>
           <small>${done.length} de ${total} no carrinho${canKeepAwake ? ' · 💡 ecrã sempre ligado' : ''}</small>
           ${est.total ? `<small class="market-money">💶 No carrinho <b>${money(est.cart)}</b> de ~${money(est.total)}${est.missing ? ` · ${est.missing} sem preço` : ''}</small>` : ''}</div>
+        <button class="btn small" data-action="shop-scan" title="Ler o código de barras: risca o produto (ou junta-o, se não estava na lista)">📷</button>
         <button class="btn small" data-action="shop-mode-exit">Sair</button>
       </header>
       <div class="progress market-progress" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><span style="width:${pct}%"></span></div>
@@ -387,6 +388,115 @@ window.ComprasExtra = function ({ render }) {
     return st ? ` <small class="store-badge">${esc(st)}</small>` : '';
   }
 
+  /* ---------- Código de barras e fotos (js/codigo-barras.js) ---------- */
+  /** Foto do produto (se já foi lido o código uma vez). */
+  function imgHtml(x, cls = 'prod-img') {
+    const src = C.imgOf(x, S().shopstats);
+    return src ? `<img class="${cls}" src="${esc(src)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : '';
+  }
+
+  const pendingByName = (name) => S().shopping.find((i) => !i.done && C.strip(i.text) === C.strip(name));
+
+  /** Junta um produto à lista e memoriza o código e a foto. Devolve o id do item. */
+  function addProduct({ text, qty = '', category = 'Outro', code = '', img = '', brand = '' }) {
+    let id = pendingByName(text)?.id;
+    Store.update((s) => {
+      if (!id) {
+        id = Store.uid();
+        s.shopping.push({ id, text, qty, category, done: false, addedBy: s.currentUser });
+      }
+      C.rememberProduct(s.shopstats, { text, category }, { code, img, brand });
+    });
+    return id;
+  }
+
+  /** Procura um código: primeiro nos produtos já conhecidos da família, depois nas bases abertas. */
+  async function identify(code) {
+    const mine = C.byCode(S().shopstats, code);
+    if (mine) return { known: true, product: { name: mine.name, category: mine.category || 'Outro', img: mine.img || '', code } };
+    UI.toast('🔎 A procurar o produto…');
+    try {
+      return { known: false, product: await CodigoBarras.lookup(code) };
+    } catch {
+      return { known: false, product: null, offline: true };
+    }
+  }
+
+  /** Confirmar o produto lido (nome, quantidade, categoria) antes de o juntar. */
+  function productForm(code, { product, offline }, { inCart = false } = {}) {
+    const p = product || {};
+    const inCatalog = p.name && C.find(p.name, catalog());
+    const card = product
+      ? `<div class="prod-card">${p.img ? `<img src="${esc(p.img)}" alt="" referrerpolicy="no-referrer">` : ''}
+          <div><b>${esc(p.name)}</b>${p.brand ? `<br>🏷️ ${esc(p.brand)}` : ''}${p.qty ? `<br><span class="muted">${esc(p.qty)}</span>` : ''}
+          <br><span class="prod-code muted">${esc(code)}</span></div></div>
+          <p class="small muted">Podem encurtar o nome (ex.: "Leite meio-gordo"). Da próxima vez que lerem este código, o portal já o reconhece.</p>`
+      : `<p>${offline ? '📡 Sem ligação às bases de produtos.' : '🤷 Este produto ainda não está na base aberta de produtos.'}
+          Escrevam o nome — da próxima vez que lerem o código <span class="prod-code">${esc(code)}</span>, o portal já o reconhece.</p>`;
+    UI.openForm({
+      title: product ? '📷 Produto encontrado' : '📷 Produto novo',
+      fields: [
+        { name: 'info', type: 'note', html: card },
+        { name: 'text', label: 'Nome na lista', required: true, placeholder: 'Ex.: Cereais Chocapic' },
+        { name: 'qty', label: 'Quantidade', half: true, placeholder: 'Ex.: 2' },
+        { name: 'category', label: 'Categoria', type: 'select', half: true, options: SHOP_CATS.map((c) => [c, c]) },
+      ],
+      values: { text: inCatalog?.nome || p.name || '', qty: '', category: inCatalog?.categoria || p.category || 'Mercearia' },
+      submitLabel: inCart ? '🛒 Pôr no carrinho' : '＋ Juntar à lista',
+      onSubmit: (d) => {
+        const id = addProduct({ text: d.text.trim(), qty: d.qty, category: d.category, code, img: p.img, brand: p.brand });
+        if (inCart) setTimeout(() => tick(id), 0);
+        else UI.toast(`🛒 ${d.text.trim()} na lista`);
+      },
+    });
+  }
+
+  /** Risca um item (como se lhe tocassem: conta a compra e vai para a despensa). */
+  function tick(id) {
+    const x = S().shopping.find((i) => i.id === id);
+    if (!x || x.done) return;
+    // Usa a mesma acção do toque (mesmo que o item esteja escondido pelo filtro de loja).
+    const b = document.createElement('button');
+    b.hidden = true;
+    b.dataset.action = 'toggle-shop';
+    b.dataset.id = id;
+    document.body.appendChild(b);
+    b.click();
+    b.remove();
+    UI.toast(`✔ ${x.text} no carrinho`);
+  }
+
+  async function scanAdd() {
+    const code = await CodigoBarras.scan();
+    if (!code) return;
+    const found = await identify(code);
+    if (found.known) {
+      if (pendingByName(found.product.name)) { UI.toast(`👍 ${found.product.name} já está na lista`); return; }
+      addProduct({ text: found.product.name, category: found.product.category, code });
+      UI.toast(`🛒 ${found.product.name} na lista`);
+      return;
+    }
+    productForm(code, found);
+  }
+
+  /** No supermercado: ler o código risca o produto; se não estava na lista, junta-o já no carrinho. */
+  async function scanInStore() {
+    const code = await CodigoBarras.scan({ title: '📷 Ler e pôr no carrinho' });
+    if (!code) return;
+    const found = await identify(code);
+    if (found.known) {
+      const x = pendingByName(found.product.name);
+      if (x) { tick(x.id); return; }
+      if (S().shopping.some((i) => i.done && C.strip(i.text) === C.strip(found.product.name))) {
+        UI.toast(`👍 ${found.product.name} já está no carrinho`);
+        return;
+      }
+      tick(addProduct({ text: found.product.name, category: found.product.category, code }));
+      return;
+    }
+    productForm(code, found, { inCart: true });
+  }
+
   /* ---------- Pedidos das filhas ---------- */
   const reqs = () => C.requestsFor(S().shopreqs || [], S().currentUser, Store.isParent(), today());
   const firstName = (id) => UI.member(id)?.name || 'Alguém';
@@ -458,7 +568,10 @@ window.ComprasExtra = function ({ render }) {
 
   /** Marca preferida e nota, por baixo do nome (na lista e no modo supermercado). */
   function prefsHtml(x) {
-    const { brand, note } = C.prefsOf(x, S().shopstats);
+    const prefs = C.prefsOf(x, S().shopstats);
+    const { note } = prefs;
+    // Não repete a marca se já está no nome (ex.: "Nutella" da marca Nutella).
+    const brand = prefs.brand && !C.strip(x.text).includes(C.strip(prefs.brand)) ? prefs.brand : '';
     if (!brand && !note) return '';
     return `<span class="shop-prefs">${brand ? `<span class="brand-tag">🏷️ ${esc(brand)}</span>` : ''}${note ? `<span class="shop-note">📝 ${esc(note)}</span>` : ''}</span>`;
   }
@@ -510,6 +623,7 @@ window.ComprasExtra = function ({ render }) {
       const has = S().shopping.some((x) => !x.done);
       return `${has ? '<button class="btn small primary" data-action="shop-mode">🛒 Modo supermercado</button>' : ''}
         <button class="btn small" data-action="shoptrip-new">📣 Vou às compras</button>
+        <button class="btn small" data-action="scan-add" title="Ler o código de barras de um produto">📷 Código</button>
         ${has ? '<button class="btn small" data-action="share-list">📤 Partilhar</button>' : ''}`;
     },
     banner: () => `${requestsPanel()}${budgetLine()}${banner()}`,
@@ -523,6 +637,7 @@ window.ComprasExtra = function ({ render }) {
     stores,
     prefsHtml,
     setItemPrefs,
+    imgHtml,
   };
 
   function exit() {
@@ -558,6 +673,8 @@ window.ComprasExtra = function ({ render }) {
     },
     'share-copy': () => copyText(listText()),
     'staples-toggle': () => { VS.staplesOpen = !VS.staplesOpen; render(); },
+    'scan-add': scanAdd,
+    'shop-scan': scanInStore,
     'req-approve': (el) => answer(el.dataset.id, 'approved'),
     'req-refuse': (el) => refuseForm(el.dataset.id),
     'req-cancel': (el) => {

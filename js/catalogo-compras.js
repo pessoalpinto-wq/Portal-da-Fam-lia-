@@ -343,6 +343,35 @@
   /** "Mimosa — sem lactose" (ou só uma das duas, ou ''). */
   const prefsText = ({ brand, note } = {}) => [brand, note].filter(Boolean).join(' — ');
 
+  /* ---------- Código de barras e fotos ---------- */
+  /** Memoriza o código de barras e a foto de um produto (e a marca, se ainda não tiver uma escolhida). */
+  function rememberProduct(stats, item, { code = '', img = '', brand = '' } = {}) {
+    const id = statId(item.text);
+    let st = stats.find((x) => x.id === id);
+    if (!st) {
+      st = { id, name: item.text, category: item.category || 'Outro', count: 0, last: '' };
+      stats.push(st);
+    }
+    const c = String(code).replace(/\D/g, '');
+    if (c) {
+      // Um código pertence a um só produto: tira-o de outro que o tivesse.
+      stats.forEach((x) => { if (x !== st && x.codes?.includes(c)) x.codes = x.codes.filter((k) => k !== c); });
+      st.codes = [...new Set([c, ...(st.codes || [])])].slice(0, 5);
+    }
+    if (/^https:\/\//.test(img)) st.img = img;
+    if (brand && !st.brand) st.brand = clean(brand, 40);
+    return st;
+  }
+
+  /** O produto (memorizado) a que pertence um código de barras, ou null. */
+  const byCode = (stats = [], code) => {
+    const c = String(code || '').replace(/\D/g, '');
+    return (c && stats.find((x) => x.codes?.includes(c))) || null;
+  };
+
+  /** Foto memorizada de um produto (URL https) ou ''. */
+  const imgOf = (item, stats = []) => stats.find((x) => x.id === statId(item.text))?.img || '';
+
   /* ---------- Pedidos das filhas ---------- */
   const REQ_DAYS = 7; // as respostas ficam à vista durante uma semana
   const dayDiff = (from, to) => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000);
@@ -390,7 +419,7 @@
   }
 
   root.CatalogoCompras = {
-    DEFAULT_STORES, storesOf, storeOf, rememberStore, forStore, storeCounts, prefsOf, rememberPrefs, prefsText, requestsFor, approveInto,
+    DEFAULT_STORES, storesOf, storeOf, rememberStore, forStore, storeCounts, prefsOf, rememberPrefs, prefsText, requestsFor, approveInto, rememberProduct, byCode, imgOf,
     SECCOES, ITENS, NOSSOS, CAT_EMOJI, find, strip, merged, sections, hiddenCount, missingStaples, statId, countPurchase,
     suggestions, shareText, qtyFactor, memo, priceOf, lineTotal, estimate, rememberPrice, priceHistory, priceChange,
     receipts, budgetOf, monthly, budgetStatus,

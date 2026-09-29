@@ -204,6 +204,7 @@
         { name: 'brand', label: '🏷️ Marca preferida', half: true, placeholder: 'Ex.: Mimosa, Compal…' },
         { name: 'note', label: '📝 Nota para quem vai às compras', half: true, placeholder: 'Ex.: sem lactose, o de pacote azul' },
         { name: 'hist', type: 'note', html: Views.shopHooks.historyHtml(x.text) },
+        { name: 'pic', type: 'note', html: Views.shopHooks.imgHtml(x, 'prod-photo') },
       ],
       values: {
         qty: x.qty || '', price: known || '', category: x.category || 'Outro', text: x.text,
