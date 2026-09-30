@@ -176,7 +176,8 @@ window.ComprasExtra = function ({ render }) {
     return `<section class="card shoptrip">
       <span class="shoptrip-ico" aria-hidden="true">📣</span>
       <p><b>${esc(m?.name || 'Alguém')} vai às compras ${when}</b>${t.store ? ` · ${esc(t.store)}` : ''}<br>
-        <small class="muted">${mine ? `${Store.isRemote ? 'A família foi avisada. ' : ''}Quando voltares, carrega em "Já fui".` : 'Falta alguma coisa? Acrescenta já à lista! 👇'}</small></p>
+        <small class="muted">${mine ? `${Store.isRemote ? 'A família foi avisada e tu recebes no telemóvel o que forem juntando. ' : ''}Quando voltares, carrega em "Já fui".`
+          : `Falta alguma coisa? Acrescenta já à lista${Store.isRemote ? ` — ${esc(m?.name || 'quem vai')} recebe logo no telemóvel` : ''}! 👇`}</small></p>
       ${mine ? '<button class="btn small" data-action="shoptrip-done">✔ Já fui</button>' : ''}
     </section>`;
   }
@@ -216,6 +217,38 @@ window.ComprasExtra = function ({ render }) {
       UI.toast('📣 Aviso posto na lista, mas não consegui enviar as notificações agora.');
     }
   }
+
+  /* ---------- Avisar a família dos produtos que junto ---------- */
+  // Vê que produtos novos, juntados por mim, aparecem na lista; ~15 s depois do último (ou ao sair
+  // da app) pede ao servidor para avisar quem está às compras e quem ligou "Novos produtos na lista".
+  // O servidor confirma que são mesmo recentes e nunca avisa duas vezes do mesmo produto.
+  let pendingIds = new Set();
+  let addTimer = null;
+  function flushAdded() {
+    clearTimeout(addTimer);
+    addTimer = null;
+    const ids = [...pendingIds];
+    pendingIds = new Set();
+    const ctx = window.Cloud?.ctx?.();
+    if (!ids.length || !ctx || !Store.isRemote) return;
+    ctx.client.functions.invoke('send-reminders', { body: { announce: 'added', ids } }).catch((e) => console.warn('aviso de produtos', e));
+  }
+  // Só as alterações feitas neste aparelho passam por Store.update (as que chegam da nuvem não).
+  const baseUpdate = Store.update.bind(Store);
+  Store.update = (fn) => {
+    const before = new Set((S().shopping || []).map((i) => i.id));
+    baseUpdate(fn);
+    if (!Store.isRemote) return;
+    const mine = (S().shopping || []).filter((i) => !before.has(i.id) && !i.done && i.addedBy === S().currentUser);
+    if (!mine.length) return;
+    mine.forEach((i) => pendingIds.add(i.id));
+    clearTimeout(addTimer);
+    addTimer = setTimeout(flushAdded, 15000);
+  };
+  // Ao sair da app avisa já (com 1,5 s para os produtos acabarem de chegar à nuvem).
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden' && pendingIds.size) { clearTimeout(addTimer); addTimer = setTimeout(flushAdded, 1500); }
+  });
 
   /* ---------- Partilhar a lista (WhatsApp, SMS, copiar) ---------- */
   /** Texto da lista a partilhar: respeita o filtro de loja escolhido. */

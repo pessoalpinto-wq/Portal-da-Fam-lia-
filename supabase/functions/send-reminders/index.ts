@@ -3,9 +3,10 @@
 //   Também paga as mesadas do dia (movimentos com id fixo: nunca paga duas vezes).
 // - Chamada pela app com { test: true } (utilizador autenticado) para enviar uma notificação de teste.
 // - Chamada pela app com { announce: 'shopping', minutes, store } para avisar a família "Vou às compras".
+// - Chamada pela app com { announce: 'added', ids } quando alguém junta produtos à lista de compras.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { importVapidKeys, sendPush } from '../_shared/webpush.js';
-import { allowanceNotices, computeAllowances, computeReminders, lisbonNow, shoppingNotice } from '../_shared/reminders.js';
+import { additionsNotice, allowanceNotices, computeAllowances, computeReminders, lisbonNow, shoppingNotice } from '../_shared/reminders.js';
 
 const SUBJECT = 'https://pessoalpinto-wq.github.io/Portal-da-Fam-lia-/';
 const cors = {
@@ -55,7 +56,7 @@ async function familyState(familyId: string) {
     const { data, error } = await admin.from('items').select('coll,data')
       .eq('family_id', familyId).eq('deleted', false)
       .in('coll', ['members', 'events', 'tasks', 'exams', 'trips', 'redemptions', 'classes',
-        'docs', 'bills', 'dates', 'health', 'polls', 'votes', 'allowances', 'shopping', 'pantry', 'shopreqs'])
+        'docs', 'bills', 'dates', 'health', 'polls', 'votes', 'allowances', 'shopping', 'pantry', 'shopreqs', 'shoptrip'])
       .order('coll').order('id').range(from, from + 999);
     if (error) throw error;
     data.forEach((r) => { (state[r.coll] ||= []).push(r.data); });
@@ -143,6 +144,50 @@ async function announceShopping(userId: string, body: { minutes?: number; store?
   return { people: new Set((subs || []).map((s) => s.user_id)).size, sent };
 }
 
+/**
+ * Produtos acabados de juntar à lista: avisa quem está às compras e quem ligou "Novos produtos na lista".
+ * Só conta produtos desta pessoa, por comprar e gravados há menos de 30 minutos; cada produto
+ * é avisado no máximo uma vez a cada pessoa (notification_log).
+ */
+async function announceAdded(userId: string, body: { ids?: unknown }, vapid: unknown) {
+  const ids = (Array.isArray(body.ids) ? body.ids : []).map(String).filter((x) => /^[\w-]{1,64}$/.test(x)).slice(0, 50);
+  if (!ids.length) return { people: 0, sent: 0 };
+  const { data: me } = await admin.from('profiles').select('family_id, member_id').eq('user_id', userId).maybeSingle();
+  if (!me) return { error: 'Sem família' };
+  const since = new Date(Date.now() - 30 * 60000).toISOString();
+  const { data: rows, error } = await admin.from('items').select('id, data, updated_at')
+    .eq('family_id', me.family_id).eq('coll', 'shopping').eq('deleted', false).in('id', ids).gt('updated_at', since);
+  if (error) throw error;
+  const items = (rows || []).map((r) => r.data as { id: string; text: string; qty?: string; done?: boolean; addedBy?: string })
+    .filter((d) => d && !d.done && d.addedBy === me.member_id && d.text);
+  if (!items.length) return { people: 0, sent: 0 };
+
+  const [{ data: profiles }, state] = await Promise.all([
+    admin.from('profiles').select('user_id, member_id, role, notify').eq('family_id', me.family_id),
+    familyState(me.family_id),
+  ]);
+  const notices = additionsNotice({ state, profiles: profiles || [], senderId: userId, items, nowMs: Date.now() });
+  let sent = 0;
+  let people = 0;
+  for (const n of notices) {
+    // Regista primeiro: só avisa dos produtos de que esta pessoa ainda não sabia.
+    const { data: fresh, error: logErr } = await admin.from('notification_log')
+      .upsert(n.itemIds.map((id: string) => ({ key: `add:${id}:${n.userId}`, family_id: me.family_id })), { onConflict: 'key', ignoreDuplicates: true })
+      .select('key');
+    if (logErr) throw logErr;
+    const freshIds = new Set((fresh || []).map((x) => x.key.split(':')[1]));
+    const mine = items.filter((i) => freshIds.has(i.id));
+    if (!mine.length) continue;
+    const [msg] = mine.length === items.length ? [n]
+      : additionsNotice({ state, profiles: (profiles || []).filter((p) => p.user_id === n.userId || p.user_id === userId), senderId: userId, items: mine, nowMs: Date.now() });
+    if (!msg) continue;
+    const { data: subs } = await admin.from('push_subscriptions').select('*').eq('user_id', n.userId);
+    if (subs?.length) people++;
+    sent += await deliver((subs || []) as Sub[], { title: msg.title, body: msg.body, url: '#/compras', tag: 'compras-novos' }, vapid);
+  }
+  return { people, sent };
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   try {
@@ -160,6 +205,7 @@ Deno.serve(async (req) => {
     if (!user) return json({ error: 'Não autorizado' }, 401);
     const body = await req.json().catch(() => ({}));
     if (body.announce === 'shopping') return json(await announceShopping(user.id, body, vapid));
+    if (body.announce === 'added') return json(await announceAdded(user.id, body, vapid));
     if (!body.test) return json({ error: 'Pedido inválido' }, 400);
     const { data: subs } = await admin.from('push_subscriptions').select('*').eq('user_id', user.id);
     const sent = await deliver((subs || []) as Sub[], {

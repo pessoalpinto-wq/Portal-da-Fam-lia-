@@ -25,7 +25,11 @@ export const NOTIFY_TYPES = {
   money: 'Mesada recebida',
   shopping: '"Vou às compras" (na hora)',
   pantry: 'Despensa: validades (na véspera às 19h)',
+  shopadd: 'Novos produtos na lista (só se ligares)',
 };
+
+/** Tipos que vêm desligados: só se recebem se a pessoa os ligar. */
+export const OPT_IN = ['shopadd'];
 
 const hhmm = (min) => `${String(Math.floor(min / 60) % 24).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
 
@@ -53,6 +57,50 @@ export function shoppingNotice({ state, profiles, senderId, minutes = 0, store =
     url: '#/compras',
     tag: 'compras',
   };
+}
+
+const listNames = (names, max = 4) => names.slice(0, max).join(', ') + (names.length > max ? ` e mais ${names.length - max}` : '');
+
+/** O "Vou às compras" está activo? (até 3 horas depois da hora de saída) */
+export function tripActive(trip, nowMs) {
+  if (!trip?.at) return false;
+  const leave = Date.parse(trip.at) + (Number(trip.minutes) || 0) * 60000;
+  return Number.isFinite(leave) && nowMs < leave + 3 * 3600000;
+}
+
+/**
+ * Produtos acabados de juntar à lista: quem recebe o aviso.
+ *  - quem está às compras ("Vou às compras" activo), a não ser que tenha desligado os avisos das compras;
+ *  - quem ligou "Novos produtos na lista" (vem desligado).
+ * Nunca quem juntou. Devolve [{ userId, itemIds, title, body }]; as chaves de "já avisado" fazem-se por produto.
+ * @param {object} p
+ * @param {object} p.state    { members, shoptrip }
+ * @param {Array}  p.profiles [{ user_id, member_id, notify }]
+ * @param {string} p.senderId user_id de quem juntou
+ * @param {Array}  p.items    [{ id, text, qty }] os produtos novos
+ * @param {number} p.nowMs    agora (ms)
+ */
+export function additionsNotice({ state, profiles, senderId, items, nowMs }) {
+  if (!items?.length) return [];
+  const sender = profiles.find((p) => p.user_id === senderId);
+  const who = (state.members || []).find((m) => m.id === sender?.member_id)?.name || 'Alguém';
+  const trip = (state.shoptrip || []).find((t) => t.id === 'current');
+  const shopper = tripActive(trip, nowMs) ? trip.by : null;
+  const names = items.map((i) => `${i.qty ? `${i.qty} ` : ''}${i.text}`);
+  const out = [];
+  profiles.forEach((p) => {
+    if (p.user_id === senderId) return;
+    const prefs = p.notify || {};
+    const isShopper = shopper && p.member_id === shopper && p.member_id !== sender?.member_id;
+    if (isShopper ? prefs.shopping === false : prefs.shopadd !== true) return;
+    out.push({
+      userId: p.user_id,
+      itemIds: items.map((i) => i.id),
+      title: isShopper ? `🛒 Já que estás às compras: ${who} juntou ${listNames(names, 3)}` : `🛒 ${who} juntou à lista: ${listNames(names)}`,
+      body: isShopper ? (items.length > 1 ? `${items.length} produtos novos na lista.` : 'Está na lista.') : 'Toca para ver a lista de compras.',
+    });
+  });
+  return out;
 }
 
 /** Data (AAAA-MM-DD) e minutos do dia em Lisboa. */

@@ -183,3 +183,25 @@ test('compromisso cancelado só num dia: sem lembrete nesse dia, os outros conti
   assert.equal(run({ events: [ev] }, T, '17:35').filter((r) => r.type === 'events').length, 0);
   assert.equal(run({ events: [ev] }, addDays(T, 7), '17:35').filter((r) => r.type === 'events').length, 1);
 });
+
+test('produtos juntados: quem está às compras recebe; os outros só se ligarem', async () => {
+  const { additionsNotice, tripActive } = await import('../supabase/functions/_shared/reminders.js');
+  const now = Date.parse('2026-09-30T17:40:00Z');
+  const trip = { id: 'current', by: 'pai', at: '2026-09-30T17:30:00Z', minutes: 0 };
+  const items = [{ id: 'i1', text: 'Leite', qty: '6' }, { id: 'i2', text: 'Ovos' }];
+  const profs = profiles.map((p) => (p.user_id === 'U-f16' ? { ...p, notify: { shopadd: true } } : p));
+  const r = additionsNotice({ state: { members, shoptrip: [trip] }, profiles: profs, senderId: 'U-mae', items, nowMs: now });
+  assert.deepEqual(r.map((x) => x.userId).sort(), ['U-f16', 'U-pai']);
+  const pai = r.find((x) => x.userId === 'U-pai');
+  assert.equal(pai.title, '🛒 Já que estás às compras: Mãe juntou 6 Leite, Ovos');
+  assert.equal(r.find((x) => x.userId === 'U-f16').title, '🛒 Mãe juntou à lista: 6 Leite, Ovos');
+  assert.deepEqual(pai.itemIds, ['i1', 'i2']);
+  // Sem ninguém às compras e sem ninguém com o aviso ligado: ninguém recebe.
+  assert.equal(additionsNotice({ state: { members, shoptrip: [] }, profiles, senderId: 'U-mae', items, nowMs: now }).length, 0);
+  // Quem está às compras e juntou ele próprio não recebe; o aviso acaba 3 h depois da saída.
+  assert.equal(additionsNotice({ state: { members, shoptrip: [trip] }, profiles, senderId: 'U-pai', items, nowMs: now }).length, 0);
+  assert.equal(tripActive(trip, now + 4 * 3600000), false);
+  // Quem desligou os avisos das compras não recebe, mesmo às compras.
+  const off = profiles.map((p) => (p.user_id === 'U-pai' ? { ...p, notify: { shopping: false } } : p));
+  assert.equal(additionsNotice({ state: { members, shoptrip: [trip] }, profiles: off, senderId: 'U-mae', items, nowMs: now }).length, 0);
+});

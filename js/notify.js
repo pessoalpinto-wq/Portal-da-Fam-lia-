@@ -20,7 +20,11 @@
     ['bills', '💶 Contas da casa', '3 dias antes (pais)'],
     ['shopping', '🛒 "Vou às compras"', 'na hora'],
     ['pantry', '🧺 Validades da despensa', 'na véspera às 19h'],
+    ['shopadd', '🛒 Novos produtos na lista', 'na hora · quem está às compras recebe sempre'],
   ];
+  // Estes vêm desligados: só se recebem se a pessoa os ligar.
+  const OPT_IN = ['shopadd'];
+  const isOn = (prefs, k) => (OPT_IN.includes(k) ? prefs[k] === true : prefs[k] !== false);
 
   const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent)
     || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -98,7 +102,7 @@
           : '<button class="btn primary" data-action="push-on">🔔 Ligar lembretes</button>'}</div>
         <h3 class="sub">O que queres receber</h3>
         <div class="notify-types">${TYPES.map(([k, label, when]) => `<label class="check-line">
-          <input type="checkbox" data-notify-pref="${k}" ${prefs[k] === false ? '' : 'checked'}>
+          <input type="checkbox" data-notify-pref="${k}" ${isOn(prefs, k) ? 'checked' : ''}>
           <span>${label} <small class="muted">· ${when}</small></span></label>`).join('')}</div>
         <p class="small muted">As preferências valem para todos os teus aparelhos. Liga os lembretes em cada telemóvel/computador.</p>`;
     }
