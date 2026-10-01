@@ -5,6 +5,9 @@
     DIAS, MESES, money,
   } = U;
   const { member, memberOptions, chips, avatar, colorOf, eventsOn, classesOn, itemsOn } = UI;
+  // Testes e aulas: as filhas só os marcam para si próprias.
+  const studentOptions = () => (Store.isParent() ? memberOptions(false)
+    : memberOptions(false).filter(([id]) => id === S().currentUser));
   const S = () => Store.state;
 
   /* Estado da interface (não persistido). */
@@ -57,7 +60,7 @@
     class: () => [
       { name: 'subject', label: 'Disciplina', required: true, suggest: subjects() },
       { name: 'day', label: 'Dia', type: 'select', half: true, options: [1, 2, 3, 4, 5, 6].map((d) => [d, DIAS[d]]) },
-      { name: 'memberId', label: 'Aluna/o', type: 'select', half: true, options: memberOptions(false) },
+      { name: 'memberId', label: 'Aluna/o', type: 'select', half: true, options: studentOptions() },
       { name: 'start', label: 'Início', type: 'time', required: true, half: true },
       { name: 'end', label: 'Fim', type: 'time', required: true, half: true },
       { name: 'room', label: 'Sala', half: true },
@@ -67,7 +70,7 @@
       { name: 'subject', label: 'Disciplina', required: true, half: true, suggest: subjects() },
       { name: 'kind', label: 'Tipo', type: 'select', half: true, options: ['Teste', 'Trabalho', 'Apresentação', 'Exame', 'Ficha', 'Reunião de pais', 'Visita de estudo', 'Outro'].map((k) => [k, k]) },
       { name: 'date', label: 'Data', type: 'date', required: true, half: true },
-      { name: 'memberId', label: 'Aluna/o', type: 'select', half: true, options: memberOptions(false) },
+      { name: 'memberId', label: 'Aluna/o', type: 'select', half: true, options: studentOptions() },
       { name: 'notes', label: 'Matéria / notas', type: 'textarea' },
       { name: 'grade', label: 'Nota obtida (opcional)', half: true },
     ],
@@ -309,7 +312,9 @@
     // Separadores: as filhas (e quem tiver horário ou testes).
     const students = s.members.filter((m) => !['pai', 'mae'].includes(m.role)
       || s.classes.some((c) => c.memberId === m.id) || s.exams.some((x) => x.memberId === m.id));
-    const tabsFor = students.length ? students : s.members;
+    // As filhas só vêem a sua escola (no servidor, os testes e horários das outras nem chegam cá).
+    const tabsFor = !Store.isParent() ? s.members.filter((m) => m.id === s.currentUser)
+      : students.length ? students : s.members;
     if (!tabsFor.some((m) => m.id === VS.schoolMember)) VS.schoolMember = tabsFor[0]?.id;
     const id = VS.schoolMember;
     const cls = s.classes.filter((c) => c.memberId === id);

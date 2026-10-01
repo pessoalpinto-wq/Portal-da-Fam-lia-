@@ -143,17 +143,18 @@
   async function fillCalendarPanel(el) {
     const ctx = Cloud.ctx();
     if (!ctx) return;
-    const { data } = await ctx.client.from('families').select('ics_token').eq('id', ctx.profile.family_id).maybeSingle();
+    const { data } = await ctx.client.rpc('my_calendar_token');
     if (!data || !document.body.contains(el)) return;
-    calToken = data.ics_token;
+    calToken = data;
     const s = Store.state;
+    const parent = Store.isParent();
     el.innerHTML = `<p class="small">Vê a agenda da família no calendário do telemóvel. O calendário actualiza-se sozinho
         (o Google demora algumas horas; o iPhone, cerca de 1 hora).</p>
       <div class="cal-options">
-        <label class="field"><span>Calendário de</span><select name="cal-member">
+        ${parent ? `<label class="field"><span>Calendário de</span><select name="cal-member">
           <option value="">👪 Família toda</option>
           ${s.members.map((m) => `<option value="${esc(m.id)}" ${m.id === s.currentUser ? 'selected' : ''}>${esc(m.emoji)} ${esc(m.name)}</option>`).join('')}
-        </select></label>
+        </select></label>` : '<p class="small muted">🔒 Este link é só teu: mostra a tua agenda, os teus testes e o teu horário.</p>'}
         <label class="check-line"><input type="checkbox" name="cal-classes" checked><span>Incluir horário escolar</span></label>
       </div>
       <div class="cal-links"></div>
@@ -163,8 +164,8 @@
         <p class="small"><b>iPhone:</b> carrega em "iPhone / Mac" e confirma "Subscrever". Ou: Definições → Calendário → Contas →
         Adicionar conta → Outra → Adicionar calendário subscrito → cola o link.</p>
       </details>
-      <p class="small muted">⚠️ Quem tiver o link consegue ver a agenda. ${Store.isParent()
-        ? 'Se o partilharem por engano, <button class="linkish" data-action="cal-reset">gerem um link novo</button>.' : ''}</p>`;
+      <p class="small muted">⚠️ Quem tiver o link consegue ver a agenda. Se o partilharem por engano,
+        <button class="linkish" data-action="cal-reset">gerem um link novo</button>${parent ? ' (os links das filhas também mudam)' : ''}.</p>`;
     renderCalendarLinks(el);
     el.addEventListener('change', (e) => { if (e.target.name?.startsWith('cal-')) renderCalendarLinks(el); });
   }
