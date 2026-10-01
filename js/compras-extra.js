@@ -650,6 +650,99 @@ window.ComprasExtra = function ({ render }) {
     });
   }
 
+  /* ---------- 🎤 Juntar por voz (js/voz.js) ---------- */
+  /** Produtos que a voz reconhece: o catálogo da família e o que já compraram alguma vez. */
+  const voiceCatalog = () => [...catalog(), ...S().shopstats.filter((x) => x.name).map((x) => ({ nome: x.name, categoria: x.category || 'Outro' }))];
+  const VOICE_ERR = {
+    'not-allowed': '🎙️ O microfone está bloqueado. Permitam o microfone para este site (cadeado ao lado do endereço) ou usem o 🎤 do teclado.',
+    'service-not-allowed': '🎙️ Este telemóvel não deixa ditar aqui. Toquem na caixa e usem o 🎤 do teclado.',
+    'audio-capture': '🎙️ Não encontrei o microfone.',
+    network: '📡 Para ditar é preciso internet. Podem escrever na caixa.',
+    unsupported: 'Toquem na caixa e usem o 🎤 do teclado para ditar.',
+    start: 'Não consegui ligar o microfone. Toquem na caixa e usem o 🎤 do teclado.',
+  };
+
+  function voiceForm() {
+    let mic = null;
+    const unticked = new Set();
+    UI.openForm({
+      title: '🎤 Juntar por voz',
+      fields: [
+        { name: 'mic', type: 'note', html: `<div class="voice-mic">
+          ${Voz.supported ? '<button type="button" class="btn primary voice-btn" data-voice="toggle">🎤 Falar</button>' : ''}
+          <span class="voice-state small muted">${Voz.supported ? 'Digam tudo de seguida — ex.: "leite, ovos, dois quilos de batatas e detergente".' : VOICE_ERR.unsupported}</span></div>` },
+        { name: 'said', label: 'O que falta', type: 'textarea', rows: 3, placeholder: 'leite, ovos, 2 kg de batatas e detergente' },
+        { name: 'preview', type: 'note', html: '<div class="voice-preview"></div>' },
+      ],
+      submitLabel: '＋ Juntar à lista',
+      onSubmit: (d) => {
+        mic?.stop();
+        const items = Voz.parse(d.said, voiceCatalog()).filter((x) => !unticked.has(Voz.keyOf(x.text)) && !pendingByName(x.text));
+        if (!items.length) { UI.toast('Nada de novo para juntar.'); return; }
+        const own = new Set(catalog().map((i) => C.strip(i.nome)));
+        Store.update((s) => items.forEach((x) => {
+          s.shopping.push({ id: Store.uid(), text: x.text, qty: x.qty, category: x.category, done: false, addedBy: s.currentUser });
+          // Como ao escrever: um produto novo fica nos produtos da família para a próxima vez.
+          if (!x.known && !own.has(C.strip(x.text)) && !s.shopstats.some((st) => C.strip(st.name || '') === C.strip(x.text))) {
+            s.products.push({ id: Store.uid(), nome: x.text, seccao: C.NOSSOS, categoria: x.category });
+            own.add(C.strip(x.text));
+          }
+        }));
+        UI.toast(`🛒 ${items.length === 1 ? `${items[0].text} na lista` : `${items.length} produtos juntados à lista`}`);
+      },
+    });
+    const dlg = document.querySelector('#dialog');
+    const box = dlg.querySelector('[name=said]');
+    const state = dlg.querySelector('.voice-state');
+    const btn = dlg.querySelector('[data-voice=toggle]');
+    const submit = dlg.querySelector('[type=submit]');
+    const preview = () => {
+      const items = Voz.parse(box.value, voiceCatalog());
+      let n = 0;
+      dlg.querySelector('.voice-preview').innerHTML = items.length ? `<ul class="voice-list">${items.map((x) => {
+        const k = Voz.keyOf(x.text);
+        const there = !!pendingByName(x.text);
+        if (!there && !unticked.has(k)) n++;
+        return `<li><label class="${there ? 'muted' : ''}"><input type="checkbox" data-voice-key="${esc(k)}" ${there ? 'disabled' : unticked.has(k) ? '' : 'checked'}>
+          ${x.qty ? `<b class="shop-qty">${esc(x.qty)}</b> ` : ''}${esc(x.text)}
+          <small class="muted">· ${there ? 'já está na lista' : esc(x.category)}</small></label></li>`;
+      }).join('')}</ul>` : '';
+      submit.textContent = n ? `＋ Juntar ${n === 1 ? '1 produto' : `${n} produtos`}` : '＋ Juntar à lista';
+      submit.disabled = !n;
+    };
+    box.addEventListener('input', preview);
+    dlg.querySelector('.voice-preview').addEventListener('change', (e) => {
+      const k = e.target.dataset.voiceKey;
+      if (!k) return;
+      if (e.target.checked) unticked.delete(k); else unticked.add(k);
+      preview();
+    });
+    const setListening = (on, err) => {
+      if (!btn) return;
+      btn.textContent = on ? '⏹️ Parar' : '🎤 Falar';
+      btn.classList.toggle('listening', on);
+      state.textContent = err ? VOICE_ERR[err] || VOICE_ERR.start : on ? '🎙️ A ouvir… façam uma pequena pausa entre produtos.' : 'Podem corrigir o texto na caixa ou falar outra vez.';
+      if (!on) mic = null;
+    };
+    btn?.addEventListener('click', () => {
+      if (mic) { mic.stop(); return; }
+      mic = Voz.listen({
+        onText: (fin, interim) => {
+          if (fin) {
+            const cur = box.value.trim().replace(/[\s,]+$/, '');
+            box.value = cur ? `${cur}, ${fin}` : fin;
+            preview();
+          }
+          if (interim) state.textContent = `🎙️ ${interim}…`;
+        },
+        onState: setListening,
+      });
+    });
+    dlg.addEventListener('close', () => mic?.stop(), { once: true });
+    preview();
+    if (Voz.supported) { box.blur(); btn?.focus(); }
+  }
+
   /* ---------- Ligações ---------- */
   const route = Views.routes.find((r) => r[0] === 'compras');
   const listView = route[3];
@@ -659,6 +752,7 @@ window.ComprasExtra = function ({ render }) {
       const has = S().shopping.some((x) => !x.done);
       return `${has ? '<button class="btn small primary" data-action="shop-mode">🛒 Modo supermercado</button>' : ''}
         <button class="btn small" data-action="shoptrip-new">📣 Vou às compras</button>
+        <button class="btn small" data-action="voice-shop" title="Dizer o que falta, de seguida">🎤 Ditar</button>
         <button class="btn small" data-action="scan-add" title="Ler o código de barras de um produto">📷 Código</button>
         ${has ? '<button class="btn small" data-action="share-list">📤 Partilhar</button>' : ''}`;
     },
@@ -710,6 +804,7 @@ window.ComprasExtra = function ({ render }) {
     'share-copy': () => copyText(listText()),
     'staples-toggle': () => { VS.staplesOpen = !VS.staplesOpen; render(); },
     'scan-add': scanAdd,
+    'voice-shop': voiceForm,
     'shop-scan': scanInStore,
     'req-approve': (el) => answer(el.dataset.id, 'approved'),
     'req-refuse': (el) => refuseForm(el.dataset.id),
