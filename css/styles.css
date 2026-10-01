@@ -983,3 +983,7 @@ body.shop-mode .view { margin-left: auto; max-width: 720px; padding: 0 16px 2rem
 .dup-row label { display: flex; align-items: center; gap: .5rem; }
 .dup-row img { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; background: var(--surface-2); flex: none; }
 .dup-row span { min-width: 0; overflow-wrap: anywhere; }
+
+/* ☁️ Guardar fotos no Drive */
+.drive-line { margin: .25rem 0 .5rem; }
+.drive-btns { display: flex; flex-wrap: wrap; gap: .5rem; margin: .5rem 0; }

@@ -505,6 +505,7 @@
           <option value="">Sem viagem</option>${s.trips.map((t) => `<option value="${esc(t.id)}" ${t.id === uploadTrip ? 'selected' : ''}>✈️ ${esc(t.destination)}</option>`).join('')}</select>` : ''}</div></div>
       <div class="filters">${filters.map(([v, l]) => `<button class="filter ${f === v ? 'active' : ''}" data-action="photo-filter" data-id="${esc(v)}">${esc(l)}</button>`).join('')}</div>
       ${albums.length ? `<p class="albums small">📷 <b>Todas as fotos, em qualidade original:</b> ${albums.map((t) => Views.h.albumLink(t, `✈️ ${esc(t.destination)}`)).join(' · ')}</p>` : ''}
+      ${f && list.length ? `<p class="drive-line"><button class="btn small" data-action="photos-drive">☁️ Guardar ${list.length === 1 ? 'esta foto' : `estas ${list.length} fotos`} no Google Drive</button></p>` : ''}
       <p id="upload-status" class="small muted" role="status"></p>
       ${onThisDay.length ? `<section class="card on-this-day"><header class="card-head"><h2>📅 Neste dia</h2>
           <small class="muted">${esc(fmtDate(t))}, noutros anos</small></header><div class="photo-grid">${onThisDay.map(thumb).join('')}</div></section>` : ''}

@@ -464,6 +464,88 @@ window.Fase4 = function ({ render, withButton }) {
     });
   }
 
+  /* ---------- ☁️ Guardar as fotos de uma viagem no Google Drive (js/pasta-fotos.js) ---------- */
+  function driveForm() {
+    const f = VS.photoTrip || '';
+    const trip = S().trips.find((t) => t.id === f);
+    const label = trip ? trip.destination : 'Memórias sem viagem';
+    const photos = S().photos.filter((p) => (f === '_none' ? !p.tripId : p.tripId === f));
+    const named = PastaFotos.fileNames(photos, label);
+    let canShare = false;
+    try {
+      canShare = !!navigator.canShare?.({ files: [new File([new Blob(['x'], { type: 'image/jpeg' })], 'x.jpg', { type: 'image/jpeg' })] });
+    } catch { /* sem partilha de ficheiros */ }
+    const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
+    const how = canShare
+      ? (ios ? 'Toquem em cada 📤 e escolham <b>Drive</b> (com a app Google Drive instalada) ou <b>Guardar em Ficheiros → Google Drive</b>.'
+        : 'Toquem em cada 📤 e escolham <b>Drive</b>. Escolham a pasta (podem criar uma nova, ex.: «' + esc(label) + '») e <b>Carregar</b>.')
+      : 'Descarreguem o .zip, abram-no e arrastem a pasta para <a href="https://drive.google.com" target="_blank" rel="noopener">drive.google.com</a>.';
+    let closed = false;
+    openForm({
+      title: '☁️ Guardar no Google Drive',
+      fields: [{ name: 'info', type: 'note', html: `<p><b>${named.length} foto${named.length === 1 ? '' : 's'}</b> de ${trip ? '✈️ ' : ''}${esc(label)}.</p>
+        <p class="small">${how}</p>
+        <p class="small muted drive-status" role="status">A preparar as fotos…</p>
+        <div class="drive-btns"></div>
+        <p class="small muted">São as fotos como estão no portal (até 1600 px). Ficam com o nome da viagem e a data, por ordem.</p>` }],
+      submitLabel: 'Fechar',
+      onSubmit: () => {},
+    });
+    const dlg = $('#dialog');
+    dlg.addEventListener('close', () => { closed = true; }, { once: true });
+    const status = dlg.querySelector('.drive-status');
+    const box = dlg.querySelector('.drive-btns');
+    (async () => {
+      const urls = await Photos.signed(named.map((x) => x.photo.path));
+      const files = new Array(named.length);
+      let done = 0;
+      const queue = named.map((x, i) => i);
+      await Promise.all([1, 2, 3, 4].map(async () => {
+        for (let i = queue.shift(); i != null && !closed; i = queue.shift()) {
+          const { photo, name } = named[i];
+          const res = await fetch(urls[photo.path]);
+          if (!res.ok) throw new Error(`Não consegui ir buscar a foto ${i + 1}.`);
+          const when = Date.parse(photo.taken || photo.date || '') || Date.now();
+          files[i] = new File([await res.blob()], name, { type: 'image/jpeg', lastModified: when });
+          done++;
+          status.textContent = `A preparar ${done} de ${named.length}…`;
+        }
+      }));
+      if (closed) return;
+      const groups = PastaFotos.batches(files);
+      let from = 1;
+      box.innerHTML = `${canShare ? groups.map((g, i) => {
+        const label2 = groups.length === 1 ? `📤 Partilhar ${g.length === 1 ? 'a foto' : `as ${g.length} fotos`}` : `📤 Fotos ${from}–${from + g.length - 1}`;
+        from += g.length;
+        return `<button type="button" class="btn ${i ? '' : 'primary'}" data-drive-batch="${i}">${label2}</button>`;
+      }).join('') : ''}
+        <button type="button" class="btn ${canShare ? 'ghost' : 'primary'}" data-drive-zip>⬇️ Descarregar .zip</button>`;
+      status.textContent = canShare && groups.length > 1
+        ? `Prontas! São ${groups.length} grupos (o telemóvel não aguenta muitas de uma vez): partilhem um de cada vez.` : 'Prontas!';
+      box.addEventListener('click', async (e) => {
+        const b = e.target.closest('button');
+        if (!b) return;
+        if (b.dataset.driveBatch != null) {
+          try {
+            await navigator.share({ files: groups[Number(b.dataset.driveBatch)], title: label });
+            b.textContent = `✔ ${b.textContent.replace(/^📤 /, '')}`;
+            b.classList.remove('primary');
+            box.querySelector(`[data-drive-batch="${Number(b.dataset.driveBatch) + 1}"]`)?.classList.add('primary');
+          } catch (err) {
+            if (err?.name !== 'AbortError') toast('Não foi possível partilhar. Experimentem o .zip.');
+          }
+        } else if (b.dataset.driveZip != null) {
+          const datas = await Promise.all(files.map(async (fl) => ({ name: fl.name, data: new Uint8Array(await fl.arrayBuffer()), date: new Date(fl.lastModified) })));
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(new Blob([PastaFotos.zip(datas)], { type: 'application/zip' }));
+          a.download = `${PastaFotos.safe(label) || 'Fotos'}.zip`;
+          a.click();
+          setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+        }
+      });
+    })().catch((e) => { if (!closed) status.textContent = `⚠️ ${e.message || e}`; });
+  }
+
   const findExam = (el) => S().exams.find((x) => x.id === el.dataset.id);
 
   const actions = {
@@ -513,6 +595,7 @@ window.Fase4 = function ({ render, withButton }) {
     'photo-filter': (el) => { VS.photoTrip = el.dataset.id; render(); },
     'photos-trip': (el) => { VS.photoTrip = el.dataset.id; location.hash = '#/memorias'; },
     'photo-open': openPhoto,
+    'photos-drive': driveForm,
     'dlg-close': () => $('#dialog').close(),
     'photo-caption': (el) => {
       const p = S().photos.find((x) => x.id === el.dataset.id);
