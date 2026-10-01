@@ -388,21 +388,80 @@ window.Fase4 = function ({ render, withButton }) {
   });
 
   async function uploadPhotos(input) {
-    const files = [...input.files];
+    const files = [...input.files].filter((f) => f.type.startsWith('image/'));
+    input.value = '';
     if (!files.length) return;
     const status = $('#upload-status');
     const tripId = $('#photo-trip')?.value || '';
+    const say = (t) => { if (status) status.textContent = t; };
+    let send = files;
+    let prints = new Map();
     try {
-      const n = await Photos.upload(files, { tripId }, (i, total) => {
-        if (status) status.textContent = `A enviar ${i} de ${total}…`;
-      });
-      toast(`📸 ${n} foto${n === 1 ? '' : 's'} guardada${n === 1 ? '' : 's'}!`);
+      // Fotos repetidas no mesmo álbum (a mesma viagem, ou "sem viagem").
+      say('🔎 A ver se alguma já cá está…');
+      // Uma de cada vez: no telemóvel, muitas fotos grandes abertas ao mesmo tempo esgotam a memória.
+      const fps = [];
+      for (const f of files) fps.push(await FotosRepetidas.fingerprint(f).catch(() => ({ sha: '', phash: '' })));
+      prints = new Map(files.map((f, i) => [f, fps[i]]));
+      const album = await Photos.fingerprintAlbum(S().photos.filter((p) => (p.tripId || '') === tripId)).catch(() => []);
+      const dups = FotosRepetidas.find(files.map((f, i) => ({ key: i, ...fps[i] })), album);
+      if (dups.size) {
+        say('');
+        send = await askDuplicates(files, dups, album, tripId);
+        if (send === null) { toast('Nada enviado.'); return; }
+        if (!send.length) { toast(dups.size === 1 ? 'Essa foto já está cá — não foi enviada outra vez.' : 'Essas fotos já estão cá — nada enviado.'); return; }
+      }
+    } catch (e) {
+      console.warn('fotos repetidas', e); // se a verificação falhar, envia-se como antes
+    }
+    try {
+      const n = await Photos.upload(send, { tripId, prints }, (i, total) => say(`A enviar ${i} de ${total}…`));
+      const skipped = files.length - send.length;
+      toast(`📸 ${n} foto${n === 1 ? '' : 's'} guardada${n === 1 ? '' : 's'}!${skipped ? ` · ${skipped} repetida${skipped === 1 ? '' : 's'} ficou${skipped === 1 ? '' : 'ram'} de fora` : ''}`);
     } catch (e) {
       toast(e.message || String(e));
     } finally {
-      input.value = '';
-      if (status) status.textContent = '';
+      say('');
     }
+  }
+
+  /** Mostra as fotos repetidas e pergunta o que enviar. Devolve os ficheiros a enviar (null = cancelou). */
+  function askDuplicates(files, dups, album, tripId) {
+    const where = tripId ? `na viagem ✈️ ${S().trips.find((t) => t.id === tripId)?.destination || ''}` : 'nas fotos sem viagem';
+    const fresh = files.length - dups.size;
+    const urls = files.map((f) => URL.createObjectURL(f));
+    const row = ([i, d]) => {
+      const old = d.photoId && album.find((p) => p.id === d.photoId);
+      return `<li class="dup-row"><label>
+        <input type="checkbox" data-dup="${i}">
+        <img src="${urls[i]}" alt="Foto nova">
+        ${old ? `<img data-path="${esc(old.thumb)}" alt="A que já lá está">` : `<img src="${urls[d.sameAs]}" alt="A outra igual">`}
+        <span class="small">${d.sameAs != null ? 'Escolhida duas vezes' : d.exact ? 'Já está cá (igual)' : 'Já está cá (parece a mesma)'}
+          <br><span class="muted">${esc(files[i].name || '')}</span><br><b>Enviar mesmo assim</b></span></label></li>`;
+    };
+    return new Promise((resolve) => {
+      let done = false;
+      const finish = (v) => { if (done) return; done = true; urls.forEach((u) => URL.revokeObjectURL(u)); resolve(v); };
+      openForm({
+        title: `🔁 ${dups.size === 1 ? '1 foto repetida' : `${dups.size} fotos repetidas`}`,
+        fields: [{ name: 'info', type: 'note', html: `<p>${dups.size === 1 ? 'Esta foto já está' : 'Estas fotos já estão'} ${esc(where)} (à esquerda a nova, à direita a que lá está).
+          ${fresh === 1 ? 'A outra é nova e vai ser enviada.' : fresh ? `As outras ${fresh} são novas e vão ser enviadas.` : ''}</p>
+          <ul class="dup-list">${[...dups].map(row).join('')}</ul>` }],
+        submitLabel: fresh ? `📸 Enviar ${fresh === 1 ? 'a nova' : `as ${fresh} novas`}` : 'OK, não enviar',
+        onSubmit: () => {
+          const extra = new Set([...document.querySelectorAll('#dialog [data-dup]:checked')].map((c) => Number(c.dataset.dup)));
+          finish(files.filter((f, i) => !dups.has(i) || extra.has(i)));
+        },
+      });
+      const dlg = $('#dialog');
+      Photos.hydrate(dlg).catch(() => {});
+      const btn = dlg.querySelector('[type=submit]');
+      dlg.querySelector('.dup-list').addEventListener('change', () => {
+        const n = fresh + dlg.querySelectorAll('[data-dup]:checked').length;
+        btn.textContent = n ? `📸 Enviar ${n === 1 ? '1 foto' : `${n} fotos`}` : 'OK, não enviar';
+      });
+      dlg.addEventListener('close', () => finish(null), { once: true });
+    });
   }
 
   const findExam = (el) => S().exams.find((x) => x.id === el.dataset.id);

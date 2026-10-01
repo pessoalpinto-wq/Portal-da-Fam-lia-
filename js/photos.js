@@ -25,7 +25,7 @@
   }
 
   /** Envia fotos; devolve quantas foram guardadas. */
-  async function upload(files, { tripId = '', caption = '' } = {}, onProgress = () => {}) {
+  async function upload(files, { tripId = '', caption = '', prints = new Map() } = {}, onProgress = () => {}) {
     const ctx = ctxOrThrow();
     const store = ctx.client.storage.from(BUCKET);
     let ok = 0;
@@ -42,6 +42,7 @@
       Store.update((s) => s.photos.push({
         id, path: `${base}.jpg`, thumb: `${base}_t.jpg`, w: big.w, h: big.h, caption, tripId,
         by: s.currentUser, date: U.today(), taken: file.lastModified ? U.toISO(new Date(file.lastModified)) : U.today(),
+        ...(prints.get(file) || {}), // impressão digital (para não repetir fotos)
       }));
       ok++;
     }
@@ -76,5 +77,31 @@
     imgs.forEach((i) => { if (map[i.dataset.path]) i.src = map[i.dataset.path]; });
   }
 
-  window.Photos = { upload, remove, signed, hydrate };
+  /**
+   * Fotos antigas sem impressão digital: calcula-a a partir da miniatura e guarda-a (só uma vez).
+   * @returns as fotos do álbum, já com phash quando foi possível.
+   */
+  async function fingerprintAlbum(photos) {
+    const todo = photos.filter((p) => !p.phash && p.thumb);
+    if (todo.length) {
+      const map = await signed(todo.map((p) => p.thumb));
+      const found = {};
+      const queue = [...todo];
+      await Promise.all([1, 2, 3, 4].map(async () => {
+        for (let p = queue.shift(); p; p = queue.shift()) {
+          try {
+            const res = await fetch(map[p.thumb]);
+            if (res.ok) found[p.id] = await FotosRepetidas.phashOf(await res.blob());
+          } catch { /* sem miniatura: fica sem comparação */ }
+        }
+      }));
+      if (Object.keys(found).length) {
+        Store.update((s) => s.photos.forEach((p) => { if (found[p.id]) p.phash = found[p.id]; }));
+      }
+    }
+    const ids = new Set(photos.map((p) => p.id));
+    return Store.state.photos.filter((p) => ids.has(p.id));
+  }
+
+  window.Photos = { upload, remove, signed, hydrate, fingerprintAlbum };
 })();
