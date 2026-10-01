@@ -56,6 +56,26 @@
     Store.update((s) => { s.photos = s.photos.filter((p) => p.id !== photo.id); });
   }
 
+  /**
+   * Apaga várias fotos de uma vez. O servidor só deixa apagar as próprias (ou tudo, aos pais):
+   * só saem da lista as que foram mesmo apagadas. Devolve quantas.
+   */
+  async function removeMany(photos) {
+    const ctx = ctxOrThrow();
+    const store = ctx.client.storage.from(BUCKET);
+    const gone = new Set();
+    for (let i = 0; i < photos.length; i += 50) {
+      const chunk = photos.slice(i, i + 50);
+      const { data, error } = await store.remove(chunk.flatMap((p) => [p.path, p.thumb].filter(Boolean)));
+      if (error) throw error;
+      const removed = new Set((data || []).map((o) => o.name));
+      // Se o servidor não disser quais apagou, contam todas (a app só tenta apagar as que pode).
+      chunk.forEach((p) => { if (!removed.size || removed.has(p.path) || removed.has(p.path.split('/').pop())) gone.add(p.id); });
+    }
+    if (gone.size) Store.update((s) => { s.photos = s.photos.filter((p) => !gone.has(p.id)); });
+    return gone.size;
+  }
+
   /** Links temporários (1 hora) para mostrar as fotos privadas. */
   async function signed(paths) {
     const now = Date.now();
@@ -103,5 +123,5 @@
     return Store.state.photos.filter((p) => ids.has(p.id));
   }
 
-  window.Photos = { upload, remove, signed, hydrate, fingerprintAlbum };
+  window.Photos = { upload, remove, removeMany, signed, hydrate, fingerprintAlbum };
 })();

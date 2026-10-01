@@ -482,9 +482,13 @@
     const list = photoList();
     const t = today();
     // "Neste dia": fotos tiradas neste mesmo dia (dia e mês) noutros anos.
-    const onThisDay = f ? [] : s.photos.filter((p) => (p.taken || '').slice(5) === t.slice(5) && (p.taken || '') < t.slice(0, 4));
-    const thumb = (p) => `<button class="ph" data-action="photo-open" data-id="${p.id}" aria-label="${esc(p.caption || 'Foto')}">
-        <img data-path="${esc(p.thumb)}" alt="${esc(p.caption || '')}" loading="lazy">${p.caption ? `<span class="cap">${esc(p.caption)}</span>` : ''}</button>`;
+    const onThisDay = f || VS.photoSel ? [] : s.photos.filter((p) => (p.taken || '').slice(5) === t.slice(5) && (p.taken || '') < t.slice(0, 4));
+    // Modo "selecionar": tocar escolhe a foto em vez de a abrir.
+    const sel = VS.photoSel;
+    const thumb = (p) => `<button class="ph ${sel?.has(p.id) ? 'picked' : ''}" data-action="${sel ? 'photo-pick' : 'photo-open'}" data-id="${p.id}"
+        aria-label="${esc(p.caption || 'Foto')}"${sel ? ` aria-pressed="${sel.has(p.id)}"` : ''}>
+        <img data-path="${esc(p.thumb)}" alt="${esc(p.caption || '')}" loading="lazy">${p.caption ? `<span class="cap">${esc(p.caption)}</span>` : ''}
+        ${sel ? `<span class="pick" aria-hidden="true">${sel.has(p.id) ? '✓' : ''}</span>` : ''}</button>`;
     // Agrupadas por mês (da mais recente para a mais antiga).
     const months = [];
     list.forEach((p) => {
@@ -499,18 +503,27 @@
     const albums = s.trips.filter((t) => Views.h.albumLink(t) && (!f || t.id === f))
       .sort((a, b) => (b.start || '').localeCompare(a.start || ''));
     return `<div class="page-head"><h1>Memórias</h1>
-      <div class="quick"><label class="btn primary small upload-btn">📷 Adicionar fotos
+      <div class="quick">${list.length && !sel ? '<button class="btn small" data-action="photo-select" title="Escolher várias fotos para apagar, mudar de viagem ou guardar no Drive">☑️ Selecionar</button>' : ''}
+        <label class="btn primary small upload-btn">📷 Adicionar fotos
         <input type="file" id="photo-input" accept="image/*" multiple hidden data-trip="${esc(uploadTrip)}"></label>
         ${s.trips.length ? `<select id="photo-trip" aria-label="Associar a uma viagem" class="small-select">
           <option value="">Sem viagem</option>${s.trips.map((t) => `<option value="${esc(t.id)}" ${t.id === uploadTrip ? 'selected' : ''}>✈️ ${esc(t.destination)}</option>`).join('')}</select>` : ''}</div></div>
       <div class="filters">${filters.map(([v, l]) => `<button class="filter ${f === v ? 'active' : ''}" data-action="photo-filter" data-id="${esc(v)}">${esc(l)}</button>`).join('')}</div>
       ${albums.length ? `<p class="albums small">📷 <b>Todas as fotos, em qualidade original:</b> ${albums.map((t) => Views.h.albumLink(t, `✈️ ${esc(t.destination)}`)).join(' · ')}</p>` : ''}
-      ${f && list.length ? `<p class="drive-line"><button class="btn small" data-action="photos-drive">☁️ Guardar ${list.length === 1 ? 'esta foto' : `estas ${list.length} fotos`} no Google Drive</button></p>` : ''}
+      ${sel ? `<div class="select-bar" role="toolbar" aria-label="Fotos escolhidas">
+          <b>${sel.size ? `${sel.size} escolhida${sel.size === 1 ? '' : 's'}` : 'Toquem nas fotos'}</b>
+          <button class="btn small ghost" data-action="photo-pick-all">${list.every((p) => sel.has(p.id)) ? 'Nenhuma' : 'Todas'}</button>
+          <span class="spacer"></span>
+          ${sel.size ? `<button class="btn small" data-action="photos-move">✈️ Mudar de viagem</button>
+          <button class="btn small" data-action="photos-drive-sel">☁️ Drive</button>
+          <button class="btn small danger" data-action="photos-del">🗑️ Apagar</button>` : ''}
+          <button class="btn small ghost" data-action="photo-select-end">Cancelar</button></div>` : ''}
+      ${f && list.length && !sel ? `<p class="drive-line"><button class="btn small" data-action="photos-drive">☁️ Guardar ${list.length === 1 ? 'esta foto' : `estas ${list.length} fotos`} no Google Drive</button></p>` : ''}
       <p id="upload-status" class="small muted" role="status"></p>
       ${onThisDay.length ? `<section class="card on-this-day"><header class="card-head"><h2>📅 Neste dia</h2>
           <small class="muted">${esc(fmtDate(t))}, noutros anos</small></header><div class="photo-grid">${onThisDay.map(thumb).join('')}</div></section>` : ''}
       ${list.length ? months.map((m) => `<h3 class="photo-month">${esc(monthLabel(m.ym))} <small class="muted">(${m.items.length})</small></h3>
-        <div class="photo-grid">${m.items.map(thumb).join('')}</div>`).join('')
+        <div class="photo-grid ${sel ? 'selecting' : ''}">${m.items.map(thumb).join('')}</div>`).join('')
         : `<section class="card">${empty('Ainda não há fotos aqui. Partilhem os melhores momentos! 📸')}</section>`}`;
   }
 

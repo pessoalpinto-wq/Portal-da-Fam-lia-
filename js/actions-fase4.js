@@ -464,12 +464,82 @@ window.Fase4 = function ({ render, withButton }) {
     });
   }
 
+  /* ---------- Várias fotos de uma vez ---------- */
+  const chosenPhotos = () => S().photos.filter((p) => VS.photoSel?.has(p.id));
+
+  async function deleteChosen(el) {
+    const chosen = chosenPhotos();
+    const parent = Store.isParent();
+    const mine = chosen.filter((p) => parent || p.by === S().currentUser);
+    const others = chosen.length - mine.length;
+    if (!mine.length) { toast('Só podem apagar as fotos que enviaram (os pais podem apagar todas).'); return; }
+    const what = mine.length === 1 ? 'esta foto' : `estas ${mine.length} fotos`;
+    if (!confirm(`Apagar ${what} para toda a família?${others ? `\n\n(${others} ${others === 1 ? 'é' : 'são'} de outras pessoas e fica${others === 1 ? '' : 'm'}.)` : ''}\n\nNão dá para desfazer.`)) return;
+    el.disabled = true;
+    el.textContent = 'A apagar…';
+    try {
+      const n = await Photos.removeMany(mine);
+      VS.photoSel = null;
+      render();
+      toast(`🗑️ ${n} foto${n === 1 ? '' : 's'} apagada${n === 1 ? '' : 's'}.${n < mine.length ? ` ${mine.length - n} não foi possível apagar.` : ''}`);
+    } catch (e) {
+      el.disabled = false;
+      el.textContent = '🗑️ Apagar';
+      toast(e.message || String(e));
+    }
+  }
+
+  function moveChosen() {
+    const chosen = chosenPhotos();
+    const trips = [...S().trips].sort((a, b) => (b.start || '').localeCompare(a.start || ''));
+    openForm({
+      title: `✈️ Mudar ${chosen.length === 1 ? '1 foto' : `${chosen.length} fotos`} de viagem`,
+      fields: [{ name: 'tripId', label: 'Passam para', type: 'select', options: [['', 'Sem viagem'], ...trips.map((t) => [t.id, `✈️ ${t.destination}`])] }],
+      values: { tripId: VS.photoTrip && VS.photoTrip !== '_none' ? '' : trips[0]?.id || '' },
+      submitLabel: 'Mudar',
+      onSubmit: (d) => {
+        const ids = new Set(chosen.map((p) => p.id));
+        Store.update((s) => s.photos.forEach((p) => { if (ids.has(p.id)) p.tripId = d.tripId; }));
+        VS.photoSel = null;
+        const dest = trips.find((t) => t.id === d.tripId);
+        toast(`✈️ ${ids.size === 1 ? 'Foto passou' : `${ids.size} fotos passaram`} para ${dest ? dest.destination : '"Sem viagem"'}.`);
+        render();
+      },
+    });
+  }
+
+  // Carregar e manter o dedo numa foto também começa a escolher (como na galeria do telemóvel).
+  let pressTimer = null;
+  let skipClick = false;
+  document.addEventListener('touchstart', (e) => {
+    const ph = e.target.closest?.('.ph[data-action=photo-open]');
+    if (!ph) return;
+    clearTimeout(pressTimer);
+    pressTimer = setTimeout(() => {
+      skipClick = true;
+      VS.photoSel = new Set([ph.dataset.id]);
+      navigator.vibrate?.(30);
+      render();
+    }, 550);
+  }, { passive: true });
+  ['touchend', 'touchmove', 'touchcancel'].forEach((ev) => document.addEventListener(ev, () => clearTimeout(pressTimer), { passive: true }));
+  document.addEventListener('click', (e) => {
+    if (skipClick && e.target.closest?.('.ph')) { e.stopPropagation(); e.preventDefault(); }
+    skipClick = false;
+  }, true);
+  document.addEventListener('contextmenu', (e) => { if (e.target.closest?.('.ph')) e.preventDefault(); });
+  // Sair das Memórias acaba a escolha.
+  window.addEventListener('hashchange', () => { if (!location.hash.startsWith('#/memorias')) VS.photoSel = null; });
+
   /* ---------- ☁️ Guardar as fotos de uma viagem no Google Drive (js/pasta-fotos.js) ---------- */
-  function driveForm() {
+  /** @param {Array} [chosen] fotos escolhidas (sem isto: as da viagem que está aberta) */
+  function driveForm(chosen) {
     const f = VS.photoTrip || '';
-    const trip = S().trips.find((t) => t.id === f);
-    const label = trip ? trip.destination : 'Memórias sem viagem';
-    const photos = S().photos.filter((p) => (f === '_none' ? !p.tripId : p.tripId === f));
+    const pick = Array.isArray(chosen) ? chosen : null;
+    const trips = new Set((pick || []).map((p) => p.tripId || ''));
+    const trip = S().trips.find((t) => t.id === (pick ? (trips.size === 1 ? [...trips][0] : null) : f));
+    const label = trip ? trip.destination : pick ? 'Memórias' : 'Memórias sem viagem';
+    const photos = pick || S().photos.filter((p) => (f === '_none' ? !p.tripId : p.tripId === f));
     const named = PastaFotos.fileNames(photos, label);
     let canShare = false;
     try {
@@ -592,10 +662,28 @@ window.Fase4 = function ({ render, withButton }) {
       if (p.closed || closedByDate) { p.closed = false; if (closedByDate) p.closes = ''; } else p.closed = true;
     }),
 
-    'photo-filter': (el) => { VS.photoTrip = el.dataset.id; render(); },
+    'photo-filter': (el) => { VS.photoTrip = el.dataset.id; if (VS.photoSel) VS.photoSel = new Set(); render(); },
     'photos-trip': (el) => { VS.photoTrip = el.dataset.id; location.hash = '#/memorias'; },
     'photo-open': openPhoto,
-    'photos-drive': driveForm,
+    'photos-drive': () => driveForm(),
+    // Escolher várias fotos (apagar, mudar de viagem, guardar no Drive).
+    'photo-select': () => { VS.photoSel = new Set(); render(); },
+    'photo-select-end': () => { VS.photoSel = null; render(); },
+    'photo-pick': (el) => {
+      const sel = VS.photoSel;
+      if (!sel) return;
+      if (sel.has(el.dataset.id)) sel.delete(el.dataset.id); else sel.add(el.dataset.id);
+      render();
+    },
+    'photo-pick-all': () => {
+      const ids = Views.photoList().map((p) => p.id);
+      const all = ids.every((id) => VS.photoSel.has(id));
+      VS.photoSel = new Set(all ? [] : ids);
+      render();
+    },
+    'photos-del': (el) => deleteChosen(el),
+    'photos-move': moveChosen,
+    'photos-drive-sel': () => driveForm(chosenPhotos()),
     'dlg-close': () => $('#dialog').close(),
     'photo-caption': (el) => {
       const p = S().photos.find((x) => x.id === el.dataset.id);

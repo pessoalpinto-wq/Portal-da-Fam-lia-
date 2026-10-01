@@ -987,3 +987,18 @@ body.shop-mode .view { margin-left: auto; max-width: 720px; padding: 0 16px 2rem
 /* ☁️ Guardar fotos no Drive */
 .drive-line { margin: .25rem 0 .5rem; }
 .drive-btns { display: flex; flex-wrap: wrap; gap: .5rem; margin: .5rem 0; }
+
+/* ☑️ Escolher várias fotos */
+.ph img { -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
+.photo-grid.selecting .ph img { transition: transform .12s; }
+.ph.picked img { transform: scale(.88); border-radius: 10px; }
+.ph.picked { outline: 3px solid var(--primary, #4f46e5); outline-offset: -3px; }
+.ph .pick { position: absolute; top: .4rem; right: .4rem; width: 1.6rem; height: 1.6rem; border-radius: 50%; display: grid; place-items: center;
+  border: 2px solid #fff; background: rgba(0, 0, 0, .25); color: #fff; font-weight: 700; box-shadow: 0 1px 3px rgba(0, 0, 0, .3); }
+.ph.picked .pick { background: var(--primary, #4f46e5); }
+.select-bar { position: fixed; z-index: 20; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom, 0px) + .75rem);
+  width: min(720px, calc(100% - 32px)); display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; padding: .6rem .75rem;
+  border-radius: 14px; background: var(--surface); border: 1px solid var(--border); box-shadow: 0 6px 24px rgba(0, 0, 0, .18); }
+/* Espaço para a barra não tapar as últimas fotos. */
+.photo-grid.selecting:last-of-type { margin-bottom: 9rem; }
+.select-bar .spacer { flex: 1; }
