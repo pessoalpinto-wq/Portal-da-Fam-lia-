@@ -163,7 +163,10 @@
       if (e.repeat === 'monthly') return parseISO(e.date).getDate() === parseISO(date).getDate();
       if (e.repeat === 'yearly') return e.date.slice(5) === date.slice(5);
       return false;
-    }).sort((a, b) => (a.start || '').localeCompare(b.start || ''));
+    })
+      // Alterações só deste dia (hora, local, quem leva): ver o ✎ de um compromisso que se repete.
+      .map((e) => (e.overrides?.[date] ? { ...e, ...e.overrides[date], special: true } : e))
+      .sort((a, b) => (a.start || '').localeCompare(b.start || ''));
   }
 
   const classesOn = (memberId, date) => S().classes
@@ -174,7 +177,7 @@
   function itemsOn(date) {
     const s = S();
     const out = [];
-    eventsOn(date).forEach((e) => out.push({ kind: 'event', id: e.id, time: e.start, title: e.title, members: e.members, date }));
+    eventsOn(date).forEach((e) => out.push({ kind: 'event', id: e.id, time: e.start, title: `${e.special ? '🕐 ' : ''}${e.title}`, members: e.members, date }));
     s.exams.filter((x) => x.date === date).forEach((x) => out.push({
       kind: 'exam', id: x.id, title: `📝 ${x.kind}: ${x.subject}`, members: [x.memberId],
     }));

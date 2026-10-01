@@ -125,6 +125,12 @@ const hm = (s) => {
 /** Minutos "absolutos" em hora local (evita conversões de fuso). */
 const at = (iso, time) => dayNum(iso) * 1440 + (typeof time === 'number' ? time : hm(time));
 
+/** O compromisso como é neste dia: com as alterações só deste dia (hora, local, quem leva), se houver. */
+export function occurrence(e, date) {
+  const o = e.overrides?.[date];
+  return o ? { ...e, ...o, special: true } : e;
+}
+
 export function occursOn(e, date) {
   if (!e.date || (e.skip || []).includes(date)) return false;
   if (e.date === date) return true;
@@ -172,7 +178,7 @@ export function computeReminders({ state, profiles, now }) {
 
   // Compromissos: 1 hora antes (ou às 8h se não tiver hora).
   [today, tomorrow].forEach((date) => {
-    s.events.filter((e) => occursOn(e, date)).forEach((e) => {
+    s.events.filter((e) => occursOn(e, date)).map((e) => occurrence(e, date)).forEach((e) => {
       const target = e.start ? hm(e.start) - 60 : 8 * 60;
       if (!due(date, target)) return;
       const ids = new Set([...(e.members || []), ...(e.driver ? [e.driver] : [])]);
@@ -181,7 +187,9 @@ export function computeReminders({ state, profiles, now }) {
         const bits = [e.start ? `${date === today ? 'Hoje' : 'Amanhã'} às ${e.start}` : 'Hoje', e.location].filter(Boolean);
         if (e.driver && e.driver === p.member_id) bits.push('🚗 És tu quem leva / vai buscar');
         else if (e.driver) bits.push(`🚗 ${name(e.driver)} leva`);
-        push(p, 'events', `ev:${e.id}:${date}`, `⏰ ${e.title}`, bits.join(' · '), '#/agenda');
+        if (e.special) bits.push('🕐 horário só deste dia');
+        // A chave inclui a hora: se mudarem a hora depois do aviso, avisa outra vez com a hora nova.
+        push(p, 'events', `ev:${e.id}:${date}${e.special ? `:${e.start || ''}` : ''}`, `⏰ ${e.title}`, bits.join(' · '), '#/agenda');
       });
     });
   });
@@ -213,8 +221,8 @@ export function computeReminders({ state, profiles, now }) {
   // Resumo do dia: às 7h30.
   if (due(today, 7 * 60 + 30)) {
     profiles.forEach((p) => {
-      const evs = s.events.filter((e) => occursOn(e, today)
-        && (!(e.members || []).length || e.members.includes(p.member_id) || e.driver === p.member_id))
+      const evs = s.events.filter((e) => occursOn(e, today)).map((e) => occurrence(e, today))
+        .filter((e) => !(e.members || []).length || e.members.includes(p.member_id) || e.driver === p.member_id)
         .sort((a, b) => (a.start || '').localeCompare(b.start || ''));
       const exams = s.exams.filter((x) => x.date === today && x.memberId === p.member_id);
       const cls = s.classes.filter((c) => c.memberId === p.member_id && Number(c.day) === weekday(today))

@@ -92,6 +92,23 @@
         ? `EXDATE;TZID=${TZID}:${localDT(d, e.start)}` : `EXDATE;VALUE=DATE:${d8(d)}`)) : [];
       vevent(`event-${e.id}`, [...when, rrule, ...exdates, `SUMMARY:${text(e.title)}`,
         e.location && `LOCATION:${text(e.location)}`, desc && `DESCRIPTION:${text(desc)}`]);
+      // Dias com horário especial: a mesma ocorrência (RECURRENCE-ID) com a hora/local desse dia.
+      if (rrule) {
+        Object.entries(e.overrides || {}).forEach(([d, o]) => {
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || (e.skip || []).includes(d) || !o) return;
+          const start = o.start || e.start;
+          const end = o.end || (o.start ? '' : e.end);
+          const rid = e.start ? `RECURRENCE-ID;TZID=${TZID}:${localDT(d, e.start)}` : `RECURRENCE-ID;VALUE=DATE:${d8(d)}`;
+          const at = start
+            ? [`DTSTART;TZID=${TZID}:${localDT(d, start)}`, `DTEND;TZID=${TZID}:${localDT(d, end && end > start ? end : plusHour(start))}`]
+            : allDay(d);
+          const dr = o.driver ?? e.driver;
+          const desc2 = [e.members?.length ? `Quem vai: ${names(e.members)}` : '', dr ? `Quem leva: ${names([dr])}` : '',
+            o.note || '', '(horário só deste dia)'].filter(Boolean).join('\n');
+          vevent(`event-${e.id}`, [rid, ...at, `SUMMARY:${text(e.title)}`,
+            (o.location ?? e.location) && `LOCATION:${text(o.location ?? e.location)}`, `DESCRIPTION:${text(desc2)}`]);
+        });
+      }
     });
 
     s.exams.forEach((x) => {

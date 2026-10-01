@@ -67,3 +67,12 @@ test('compromisso que se repete: dias cancelados saem do calendário (EXDATE)', 
   assert.match(out, /EXDATE;VALUE=DATE:20261003/);
   assert.equal((out.match(/EXDATE/g) || []).length, 2);
 });
+
+test('compromisso que se repete com horário diferente só num dia (RECURRENCE-ID)', () => {
+  const st = { ...state, events: [{ ...state.events[0], overrides: { '2026-10-08': { start: '19:00', end: '20:00', location: 'Piscina B' } } }] };
+  const out = ICS.build(st, { now });
+  assert.match(out, /RECURRENCE-ID;TZID=Europe\/Lisbon:20261008T180000/);
+  assert.match(out, /DTSTART;TZID=Europe\/Lisbon:20261008T190000/);
+  assert.match(out, /LOCATION:Piscina B/);
+  assert.equal((out.match(/UID:event-e1@portal-familia/g) || []).length, 2);
+});

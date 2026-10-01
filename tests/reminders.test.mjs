@@ -205,3 +205,13 @@ test('produtos juntados: quem está às compras recebe; os outros só se ligarem
   const off = profiles.map((p) => (p.user_id === 'U-pai' ? { ...p, notify: { shopping: false } } : p));
   assert.equal(additionsNotice({ state: { members, shoptrip: [trip] }, profiles: off, senderId: 'U-mae', items, nowMs: now }).length, 0);
 });
+
+test('horário só de um dia: o lembrete usa a hora desse dia', () => {
+  const ev = { id: 'sw2', title: 'Natação', date: addDays(T, -7), repeat: 'weekly', start: '18:30', members: ['f12'], overrides: { [T]: { start: '19:30' } } };
+  assert.equal(run({ events: [ev] }, T, '17:35').filter((r) => r.type === 'events').length, 0);
+  const r = run({ events: [ev] }, T, '18:35').filter((x) => x.type === 'events');
+  assert.equal(r.length, 1);
+  assert.match(r[0].body, /Hoje às 19:30 · 🕐 horário só deste dia/);
+  // Na semana seguinte volta à hora normal.
+  assert.equal(run({ events: [ev] }, addDays(T, 7), '17:35').filter((x) => x.type === 'events').length, 1);
+});

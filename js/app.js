@@ -204,8 +204,9 @@
     const skipped = [...(e?.skip || [])].sort();
     const fields = Forms.event();
     if (repeats) {
-      fields.unshift({ name: 'info', type: 'note', html: `🔁 Repete-se ${REPEAT_TXT[e.repeat]}: o que mudares aqui vale para todas as vezes.`
-        + `${on && on !== e.date ? ` A data abaixo é a da primeira vez.` : ''}` });
+      fields.unshift({ name: 'info', type: 'note', html: `<p>🔁 Repete-se ${REPEAT_TXT[e.repeat]}: o que mudares aqui vale para todas as vezes.`
+        + `${on && on !== e.date ? ` A data abaixo é a da primeira vez.` : ''}</p>`
+        + `${on && e.overrides?.[on] ? `<p>🕐 <b>${esc(fmtDate(on))} tem horário especial</b> (${esc(e.overrides[on].start || e.start || 'sem hora')}) — usa "🕐 Só em…" para o mudar.</p>` : ''}` });
       if (skipped.length) {
         fields.push({ name: 'restore', label: `Dias cancelados (${skipped.length}) — voltar a haver?`, type: 'select',
           options: [['', `Não: ${skipped.map((d) => fmtDate(d)).join(', ')}`], ...skipped.map((d) => [d, `↩️ Voltar a haver em ${fmtDate(d)}`])] });
@@ -220,11 +221,16 @@
       preset: presetFrom(el),
       deleteConfirm: repeats ? `Apagar "${e.title}" de TODAS as vezes?${on ? ' (Para cancelar só um dia, usa o botão ❌.)' : ''}` : undefined,
       extra: repeats && on && !skipped.includes(on) ? [{
+        label: `🕐 Só em ${fmtDate(on)}`,
+        onClick: () => { setTimeout(() => dayForm(id, on), 0); },
+      }, {
         label: `❌ Não há em ${fmtDate(on)}`,
         onClick: () => {
           Store.update((s) => {
             const x = s.events.find((y) => y.id === id);
-            if (x) x.skip = [...new Set([...(x.skip || []), on])].sort();
+            if (!x) return;
+            x.skip = [...new Set([...(x.skip || []), on])].sort();
+            if (x.overrides?.[on]) delete x.overrides[on];
           });
           toast(`❌ ${e.title}: cancelado só em ${fmtDate(on)}. As outras vezes continuam.`);
         },
@@ -236,6 +242,50 @@
       },
     });
   }
+  /**
+   * Mudar só um dia de um compromisso que se repete ("esta terça a natação é às 19h"):
+   * hora, local e quem leva desse dia; as outras vezes ficam como estão.
+   */
+  function dayForm(id, on) {
+    const e = S().events.find((x) => x.id === id);
+    if (!e) return;
+    const o = e.overrides?.[on] || {};
+    UI.openForm({
+      title: `🕐 ${e.title} — só em ${fmtDate(on)}`,
+      fields: [
+        { name: 'info', type: 'note', html: `<p>Normalmente: <b>${esc(e.start || 'sem hora')}${e.end ? `–${esc(e.end)}` : ''}</b>${e.location ? ` · ${esc(e.location)}` : ''}. O que mudares aqui vale <b>só para este dia</b>.</p>` },
+        { name: 'start', label: 'Início', type: 'time', half: true },
+        { name: 'end', label: 'Fim', type: 'time', half: true },
+        { name: 'location', label: 'Local', half: true },
+        { name: 'driver', label: 'Quem leva / vai buscar?', type: 'select', half: true, options: UI.memberOptions(true, '—') },
+        { name: 'note', label: 'Nota (ex.: treino de compensação)' },
+      ],
+      values: { start: o.start ?? e.start ?? '', end: o.end ?? e.end ?? '', location: o.location ?? e.location ?? '', driver: o.driver ?? e.driver ?? '', note: o.note || '' },
+      submitLabel: 'Guardar só este dia',
+      onSubmit: (d) => {
+        // Só guarda o que é diferente do habitual.
+        const diff = {};
+        ['start', 'end', 'location', 'driver'].forEach((k) => { if ((d[k] || '') !== (e[k] || '')) diff[k] = d[k] || ''; });
+        if (d.note) diff.note = d.note;
+        Store.update((s) => {
+          const x = s.events.find((y) => y.id === id);
+          if (!x) return;
+          const all = { ...(x.overrides || {}) };
+          if (Object.keys(diff).length) all[on] = diff; else delete all[on];
+          x.overrides = all;
+        });
+        toast(Object.keys(diff).length ? `🕐 ${e.title}: ${fmtDate(on)}${diff.start ? ` às ${diff.start}` : ''} — só este dia.` : 'Sem alterações: fica como habitual.');
+      },
+      ...(e.overrides?.[on] ? {
+        onDelete: () => Store.update((s) => {
+          const x = s.events.find((y) => y.id === id);
+          if (x?.overrides) { const all = { ...x.overrides }; delete all[on]; x.overrides = all; }
+        }),
+        deleteLabel: 'Voltar ao habitual', deleteConfirm: `Voltar ao horário habitual em ${fmtDate(on)}?`, deleteToast: 'Voltou ao horário habitual.',
+      } : {}),
+    });
+  }
+
   /** Tarefa nova ou editar. As filhas não mudam os pontos e só apagam as tarefas que elas próprias criaram. */
   function taskForm(el) {
     const id = el.dataset.id;
