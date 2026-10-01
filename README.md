@@ -81,7 +81,7 @@ mexendo na página. Cada família só vê os seus dados.
 
 | Secção | Para quê |
 |---|---|
-| 🏠 **Painel** | O dia de hoje num relance: atalhos (🛒 por comprar · ✈️ dias até à viagem · ⭐ os meus pontos), aprovações, 🔔 avisos, compromissos, quem está na escola e a que horas sai, as minhas tarefas, próximos 7 dias, testes, pontos e recados — sem repetir o mesmo em dois cartões. As filhas só vêem os avisos dos seus documentos. |
+| 🏠 **Painel** | **🚀 Pôr a família a funcionar**: guia com os passos que faltam (contas, notificações, datas de nascimento, mesadas, horários, fichas de saúde, produtos do costume, contas da casa), que se riscam sozinhos e levam ao sítio certo com "Ir ›"; as filhas vêem só os seus passos. O dia de hoje num relance: atalhos (🛒 por comprar · ✈️ dias até à viagem · ⭐ os meus pontos), aprovações, 🔔 avisos, compromissos, quem está na escola e a que horas sai, as minhas tarefas, próximos 7 dias, testes, pontos e recados — sem repetir o mesmo em dois cartões. As filhas só vêem os avisos dos seus documentos. |
 | 📅 **Agenda** | Calendário mensal partilhado com cor por pessoa. Compromissos com repetição (semanal/mensal/anual), local, participantes e **quem leva / vai buscar**. Mostra também testes, tarefas, viagens e aniversários. **❌ Cancelar só um dia** de um compromisso que se repete ("esta semana não há natação"): sai da agenda, das boleias, dos lembretes e do calendário do telemóvel; dá para voltar a pôr. |
 | 🎒 **Escola** | Horário semanal de cada filha (abre no dia de hoje), testes/trabalhos/reuniões de pais com tópicos para estudar, histórico com as notas e **📊 média por disciplina** (0–20, 1–5 ou %, com ↑/↓ da última nota); os testes já feitos sem nota mostram "＋ nota". As disciplinas já usadas são sugeridas ao escrever. |
 | ✅ **Tarefas** | Tarefas domésticas atribuídas a cada pessoa, com data, repetição (diária/semanal/mensal) e **pontos ⭐**. Tarefas repetidas avançam sozinhas para a próxima data. **💡 Ideias**: mais de 70 tarefas domésticas por zona da casa e idade, com dicas, que se juntam com um toque, e "Montar a semana" para os pais. **🏆 Conquistas**: níveis com XP (que não desce ao trocar pontos), dias seguidos com bónus, 16 medalhas, estrela da semana, desafio da família com prémio comum e festejos quando se sobe de nível. |
@@ -149,6 +149,7 @@ js/photos.js               fotos: redução no telemóvel, envio e links tempor�
 js/refeicoes.js            refeições: plano da semana, receitas, despensa, em falta → compras
 js/despensa.js             despensa: validades, "a acabar", receitas para aproveitar (testado)
 js/codigo-barras.js        código de barras (câmara) e produtos do Open Food Facts (testado)
+js/guia.js                 guia "Pôr a família a funcionar" no Painel (testado)
 js/receitas.js             livro de receitas portuguesas incluído
 js/ingredients.js          percebe linhas de ingredientes ("400 g de bacalhau") e soma quantidades
 js/vendor/supabase.js      biblioteca supabase-js (MIT)

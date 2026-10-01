@@ -235,6 +235,7 @@
     return `<div class="page-head"><div><h1>${hello}${me ? `, ${esc(me.name)}` : ''}! 👋</h1>
       <p class="muted">${esc(fmtLongDate(t))}</p></div>
       <div class="quick">${addBtn('add-event', 'Compromisso')}${addBtn('add-task', 'Tarefa')}${addBtn('add-note', 'Recado')}</div></div>
+      ${Guia.card(s, { parent: Store.isParent(), me: s.currentUser, remote: Store.isRemote, esc, onChange: () => Views.rerender?.() })}
       <nav class="tiles" aria-label="Atalhos">
         <a class="tile" href="#/compras"><b>🛒 ${shopLeft}</b><small>por comprar</small></a>
         ${trip ? `<a class="tile" href="#/viagens" title="${esc(trip.destination)}"><b>✈️ ${trip.start > t ? tripDays(trip) : '🧳'}</b><small>${trip.start > t ? `dia${tripDays(trip) === 1 ? '' : 's'} · ` : 'a decorrer · '}${esc(trip.destination)}</small></a>`

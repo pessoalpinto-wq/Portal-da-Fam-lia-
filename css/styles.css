@@ -940,3 +940,14 @@ body.shop-mode .view { margin-left: auto; max-width: 720px; padding: 0 16px 2rem
 .tile b { font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tile small { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tile:hover { border-color: var(--primary); }
+
+/* Painel: guia "Pôr a família a funcionar" */
+.guide { border-color: color-mix(in srgb, var(--primary) 40%, transparent); }
+.guide .progress { margin: .2rem 0 .3rem; }
+.guide-steps { list-style: none; padding: 0; margin: .5rem 0 0; display: grid; gap: .35rem; }
+.guide-steps li { display: flex; align-items: center; gap: .6rem; padding: .5rem .6rem; border-radius: 12px; background: var(--surface-2); }
+.guide-steps li.done { opacity: .6; }
+.guide-steps .g-ico { font-size: 1.2rem; flex: none; }
+.guide-steps .g-text { flex: 1; min-width: 0; display: grid; }
+.guide-steps .g-text small { color: var(--muted); }
+.guide-steps .btn { flex: none; }

@@ -106,6 +106,7 @@
     window.scrollTo(0, scroll);
   }
 
+  Views.rerender = () => { if (location.hash.startsWith('#/painel') || !location.hash) render(); };
   window.addEventListener('hashchange', () => { render(); window.scrollTo(0, 0); });
   Store.subscribe(render);
 
@@ -357,6 +358,15 @@
       Store.update((s) => { s.classes = s.classes.filter((c) => c.memberId !== VS.schoolMember); });
     },
 
+    // Guia "Pôr a família a funcionar" (js/guia.js): leva ao sítio certo de cada passo.
+    'guide-go': (el) => {
+      const go = el.dataset.id;
+      if (go === 'contas') VS.finTab = 'contas';
+      if (go === 'financas') VS.finTab = 'carteiras';
+      if (go === 'compras') VS.staplesOpen = true;
+      location.hash = `#/${go === 'contas' ? 'financas' : go}`;
+    },
+    'guide-hide': () => { Guia.hide(S().currentUser); render(); toast('Guia escondido — volta daqui a uma semana se ainda faltar alguma coisa.'); },
     'pack-group': (el) => {
       VS.packOpen = { ...(VS.packOpen || {}), [el.dataset.id]: el.dataset.open !== '1' };
       render();
