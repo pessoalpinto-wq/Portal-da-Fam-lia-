@@ -15,7 +15,7 @@
     docs: '🔐 Documentos', polls: '🗳️ Votações', votes: '🗳️ Votos', photos: '📸 Fotos (só a lista)', recipes: '📖 Receitas da família',
     pantry: '🧺 Despensa', challenges: '🤝 Desafios', savings: '🏦 Banco dos Pais', products: '⭐ Os nossos produtos',
     staples: '⭐ Os do costume', shopstats: '🛒 Histórico de compras e preços', groceries: '🧾 Talões e orçamento', shopstores: '🏪 Lojas',
-    shopreqs: '🙋 Pedidos para as compras', shoptrip: '📣 Vou às compras',
+    shopreqs: '🙋 Pedidos para as compras', shoptrip: '📣 Vou às compras', mealhist: '🕘 Semanas de refeições',
   };
 
   const colls = (state) => Object.keys(state || {}).filter((k) => Array.isArray(state[k]));

@@ -958,3 +958,11 @@ body.shop-mode .view { margin-left: auto; max-width: 720px; padding: 0 16px 2rem
 .backup-diff { background: var(--surface-2); border-radius: 10px; padding: .5rem .7rem; }
 @media (max-width: 480px) { .backup-sum { columns: 1; } }
 .form-note p { margin: 0 0 .3rem; } .form-note p:last-child { margin-bottom: 0; }
+
+/* Refeições: histórico das ementas */
+.meal-week { border: 1px solid var(--border); border-radius: 12px; margin: .45rem 0; padding: 0 .7rem; }
+.meal-week > summary { cursor: pointer; padding: .55rem 0; }
+.meal-week-days { list-style: none; padding: 0; margin: 0 0 .5rem; display: grid; gap: .3rem; font-size: .9rem; }
+.meal-week-days li { display: flex; gap: .6rem; }
+.meal-week-days .dw { flex: none; width: 2.6rem; font-weight: 700; color: var(--muted); }
+.meal-week .btn { margin-bottom: .6rem; }

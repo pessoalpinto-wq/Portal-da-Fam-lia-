@@ -109,6 +109,44 @@ window.Refeicoes = function ({ render }) {
     </div>`;
   }
 
+  /* ---------- Histórico das ementas (js/ementas.js) ---------- */
+  const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
+  function historyCard() {
+    const weeks = Ementas.pastWeeks(S().mealhist || [], today());
+    if (!weeks.length) {
+      return card('🕘 Semanas anteriores', '<p class="small muted">O que comerem fica guardado aqui, semana a semana (cada dia regista-se no próprio dia). Depois dá para ver "o que comemos na semana passada?" e repetir uma semana inteira.</p>');
+    }
+    const top = Ementas.topDishes(S().mealhist || []);
+    const label = (ws) => `${U.fmtDate(ws).replace(/^[^,]+,\s*/, '')} a ${U.fmtDate(Ementas.addDays(ws, 6)).replace(/^[^,]+,\s*/, '')}`;
+    return card('🕘 Semanas anteriores', `
+      ${top.length ? `<p class="small">⭐ Os mais repetidos: ${top.map((t) => `<b>${esc(t.name)}</b> <small class="muted">${t.n}×</small>`).join(' · ')}</p>` : ''}
+      ${weeks.map((w, i) => `<details class="meal-week">
+        <summary><b>${i === 0 ? 'Semana passada' : esc(label(w.id))}</b>${i === 0 ? ` <small class="muted">${esc(label(w.id))}</small>` : ''}</summary>
+        <ul class="meal-week-days">${DAY_ORDER.filter((d) => w.days[d]).map((d) => {
+          const m = w.days[d];
+          return `<li><span class="dw">${esc(DIAS_CURTOS[d])}</span><span>${m.lunch ? `☀️ ${esc(m.lunch)}` : ''}${m.lunch && m.dinner ? '<br>' : ''}${m.dinner ? `🌙 ${esc(m.dinner)}` : ''}</span></li>`;
+        }).join('')}</ul>
+        <button class="btn small" data-action="meal-repeat" data-id="${esc(w.id)}">📋 Repetir esta ementa esta semana</button>
+      </details>`).join('')}`, { cls: 'meal-history' });
+  }
+
+  /** Grava no histórico o que se come hoje (e os dias passados desta semana sem registo). */
+  let recording = false;
+  function recordHistory() {
+    if (recording) return;
+    const changes = Ementas.record(S().mealhist || [], S().meals || {}, today());
+    if (!changes.length) return;
+    recording = true;
+    setTimeout(() => {
+      Store.update((s) => changes.forEach((w) => {
+        const i = s.mealhist.findIndex((h) => h.id === w.id);
+        if (i >= 0) s.mealhist[i] = w; else s.mealhist.push(w);
+      }));
+      recording = false;
+    }, 0);
+  }
+  Store.subscribe(recordHistory);
+
   function semana() {
     const wd = parseISO(today()).getDay();
     const needs = weekNeeds();
@@ -133,7 +171,8 @@ window.Refeicoes = function ({ render }) {
           ${mealCell(d, 'lunch')}${mealCell(d, 'dinner')}
           <input data-meal="${d}:cook" value="${esc(S().meals[d]?.cook || '')}" aria-label="${DIAS[d]} quem cozinha" placeholder="Quem cozinha?">`).join('')}
       </div></section>
-      ${card('🧺 Ingredientes da semana', needsBody, { cls: 'week-needs' })}`;
+      ${card('🧺 Ingredientes da semana', needsBody, { cls: 'week-needs' })}
+      ${historyCard()}`;
   }
 
   function recipeCard(r) {
@@ -422,13 +461,17 @@ window.Refeicoes = function ({ render }) {
   }
 
   function suggestWeek() {
-    const pool = [...familyRecipes(), ...builtins()].filter((r) => !['Sobremesas', 'Sopa'].includes(r.category));
+    // Só pratos principais: sem sobremesas, sopas, petiscos nem receitas de 1–2 ingredientes (ex.: ovos cozidos).
+    const pool = [...familyRecipes(), ...builtins()].filter((r) => !['Sobremesas', 'Sopa', 'Petiscos'].includes(r.category)
+      && (r.ingredients || []).length >= 3);
     // Primeiro as que aproveitam o que está a acabar o prazo na despensa, depois as que precisam de
     // menos compras — com uma boa dose de acaso, para variar. Evita duas seguidas da mesma categoria.
     const t = today();
     const ending = (S().pantry || []).filter((p) => ['today', 'soon'].includes(Despensa.expiry(p, t)?.level));
     const uses = (r) => Despensa.recipesUsing(ending, [r], I, 1).length;
-    const score = (r) => (uses(r) ? -6 : 0) + Math.min(missingOf(r).length, 8) * 0.6 + Math.random() * 4;
+    // Evita o que comeram nas últimas 2 semanas (histórico).
+    const recent = Ementas.recentRecipes(S().mealhist || [], t);
+    const score = (r) => (uses(r) ? -6 : 0) + (recent.has(r.id) ? 5 : 0) + Math.min(missingOf(r).length, 8) * 0.3 + Math.random() * 5;
     const bag = pool.map((r) => [score(r), r]).sort((a, b) => a[0] - b[0]).map(([, r]) => r);
     let last = '';
     let n = 0;
@@ -449,6 +492,19 @@ window.Refeicoes = function ({ render }) {
   /* ---------- Acções ---------- */
   const actions = {
     'meals-tab': (el) => { VS.mealsTab = el.dataset.id; render(); },
+    'meal-repeat': (el) => {
+      const w = (S().mealhist || []).find((h) => h.id === el.dataset.id);
+      if (!w) return;
+      const planned = Object.values(S().meals || {}).some((m) => m && (m.lunch || m.dinner));
+      if (planned && !confirm('Substituir a ementa desta semana por esta?')) return;
+      Store.update((s) => {
+        const meals = {};
+        Object.entries(w.days).forEach(([d, m]) => { meals[d] = { ...m, cook: s.meals[d]?.cook || '' }; });
+        s.meals = meals;
+      });
+      window.scrollTo(0, 0);
+      toast('📋 Ementa repetida — troquem com 📖 o que quiserem.');
+    },
     'ing-toggle': (el) => { VS[el.dataset.id] = !VS[el.dataset.id]; render(); },
     'recipe-cat': (el) => { VS.recipeCat = el.dataset.id; render(); },
     'recipe-air': () => { VS.recipeAir = !VS.recipeAir; render(); },
