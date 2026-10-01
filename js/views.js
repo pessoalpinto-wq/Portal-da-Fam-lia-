@@ -235,7 +235,7 @@
     return `<div class="page-head"><div><h1>${hello}${me ? `, ${esc(me.name)}` : ''}! 👋</h1>
       <p class="muted">${esc(fmtLongDate(t))}</p></div>
       <div class="quick">${addBtn('add-event', 'Compromisso')}${addBtn('add-task', 'Tarefa')}${addBtn('add-note', 'Recado')}</div></div>
-      ${Guia.card(s, { parent: Store.isParent(), me: s.currentUser, remote: Store.isRemote, esc, onChange: () => Views.rerender?.() })}
+      ${Guia.card(s, { parent: Store.isParent(), me: s.currentUser, remote: Store.isRemote, esc, onChange: () => Views.rerender?.(), lastBackup: Views.lastBackup?.() })}
       <nav class="tiles" aria-label="Atalhos">
         <a class="tile" href="#/compras"><b>🛒 ${shopLeft}</b><small>por comprar</small></a>
         ${trip ? `<a class="tile" href="#/viagens" title="${esc(trip.destination)}"><b>✈️ ${trip.start > t ? tripDays(trip) : '🧳'}</b><small>${trip.start > t ? `dia${tripDays(trip) === 1 ? '' : 's'} · ` : 'a decorrer · '}${esc(trip.destination)}</small></a>`
@@ -684,10 +684,16 @@
           <div><b>${esc(m.name)}</b><br><small class="muted">${m.birthday ? `🎂 ${esc(fmtDate(m.birthday))}` : 'Sem data de nascimento'} · ⭐ ${m.points}</small></div>
           ${parent ? `<button class="btn small ghost" data-action="edit-member" data-id="${m.id}">Editar</button>` : ''}</li>`).join('')}</ul>
           ${parent ? '' : '<p class="small muted">Só os pais podem alterar os membros.</p>'}`)}
-        ${card('💾 Cópia de segurança', `<p class="small">Descarrega uma cópia de todos os dados${Store.isRemote ? '' : `.
-          Enquanto não usam a nuvem, também serve para passar os dados para outro dispositivo`}.</p>
-          <div class="btn-row"><button class="btn" data-action="export">⬇️ Exportar cópia</button>
-          ${Store.isRemote ? '' : '<button class="btn" data-action="import">⬆️ Importar cópia</button>'}</div>
+        ${card('💾 Cópia de segurança', `${!Store.isRemote || parent ? (() => {
+            const days = Copia.daysSince(Views.lastBackup?.());
+            return `<p class="small">Um ficheiro com <b>todos os dados da família</b> (tarefas, agenda, finanças, saúde, receitas, compras…).
+              Os dados já estão guardados na nuvem; a cópia é uma segunda garantia, guardada por vocês${Store.isRemote ? '' : ' — e serve para passar os dados para outro aparelho'}.</p>
+            <p class="small backup-last ${days == null || days > 30 ? 'old' : ''}">${days == null ? '⚠️ Ainda não fizeram nenhuma cópia neste aparelho.'
+              : `Última cópia neste aparelho: <b>${days === 0 ? 'hoje' : days === 1 ? 'ontem' : `há ${days} dias`}</b>${days > 30 ? ' — está na altura de fazer outra.' : '.'}`}</p>
+            <div class="btn-row"><button class="btn primary" data-action="export">⬇️ Descarregar cópia</button>
+              <button class="btn" data-action="import">⬆️ Repor uma cópia</button></div>
+            <p class="small muted">Dica: guardem o ficheiro no Google Drive (no telemóvel: Partilhar → Drive). Uma vez por mês chega; o Painel lembra-vos.</p>`;
+          })() : '<p class="small muted">Só os pais fazem e repõem as cópias de segurança.</p>'}
           ${parent ? `<h3 class="sub">Zona de perigo</h3>
           <div class="btn-row">${Store.isRemote ? '' : '<button class="btn ghost" data-action="reset">Repor dados de exemplo</button>'}
           <button class="btn danger" data-action="wipe">Começar do zero</button></div>

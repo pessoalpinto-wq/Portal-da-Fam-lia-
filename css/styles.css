@@ -951,3 +951,9 @@ body.shop-mode .view { margin-left: auto; max-width: 720px; padding: 0 16px 2rem
 .guide-steps .g-text { flex: 1; min-width: 0; display: grid; }
 .guide-steps .g-text small { color: var(--muted); }
 .guide-steps .btn { flex: none; }
+
+/* Cópia de segurança */
+.backup-last.old { color: var(--warn); font-weight: 600; }
+.backup-sum { columns: 2; column-gap: 1rem; padding-left: 1.1rem; margin: .3rem 0 .6rem; font-size: .9rem; }
+.backup-diff { background: var(--surface-2); border-radius: 10px; padding: .5rem .7rem; }
+@media (max-width: 480px) { .backup-sum { columns: 1; } }

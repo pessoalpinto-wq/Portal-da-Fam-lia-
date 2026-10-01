@@ -21,7 +21,7 @@
    * @param {object|null} o.devices { memberId: n.º de aparelhos } das pessoas com conta (null = sem nuvem / ainda não se sabe)
    * @returns {Array<{id, emoji, title, hint, done, go}>}
    */
-  function steps(s, { parent, me, devices }) {
+  function steps(s, { parent, me, devices, lastBackup }) {
     const members = s.members || [];
     const kids = members.filter(isKid);
     const out = [];
@@ -66,6 +66,13 @@
       () => 'Compras → ⭐ Os do costume: o que compram todas as semanas, para repor num toque.', 'compras');
     add('contas-casa', '💶', 'Contas da casa', (s.bills || []).filter((b) => !b.archived).length ? [] : ['x'],
       () => 'Finanças → Contas da casa: luz, água, internet, seguros… o portal avisa 3 dias antes.', 'contas');
+    // Cópia de segurança: volta a aparecer quando a última tem mais de 30 dias (neste aparelho).
+    if (lastBackup !== undefined) {
+      const days = lastBackup ? Math.floor((Date.now() - Date.parse(lastBackup)) / 86400000) : null;
+      add('copia', '💾', 'Cópia de segurança do mês', days != null && days <= 30 ? [] : ['x'],
+        () => (days == null ? 'Descarreguem uma cópia de todos os dados e guardem-na no Google Drive.'
+          : `A última foi há ${days} dias. Definições → Cópia de segurança.`), 'definicoes');
+    }
     return out;
   }
 
@@ -109,10 +116,10 @@
   }
 
   /** HTML do cartão (ou '' se está tudo feito ou escondido). */
-  function card(s, { parent, me, remote, esc, onChange }) {
+  function card(s, { parent, me, remote, esc, onChange, lastBackup }) {
     if (remote) refresh(onChange);
     if (hiddenUntil(me) > Date.now()) return '';
-    const list = steps(s, { parent, me, devices: remote ? devices : null });
+    const list = steps(s, { parent, me, devices: remote ? devices : null, lastBackup });
     const done = list.filter((x) => x.done).length;
     if (!list.length || done === list.length) return '';
     const pct = Math.round((done / list.length) * 100);

@@ -130,6 +130,59 @@
     return parent && parent[key].find((x) => x.id === el.dataset.sub);
   };
 
+  /* ---------- Cópia de segurança (js/copia.js) ---------- */
+  const LAST_BACKUP = 'pf-ultima-copia';
+  const lastBackup = () => { try { return localStorage.getItem(LAST_BACKUP) || ''; } catch { return ''; } };
+  Views.lastBackup = lastBackup;
+
+  /** Descarrega uma cópia de tudo (e lembra a data, neste aparelho). */
+  function saveBackup(name) {
+    const s = S();
+    const now = new Date();
+    const by = s.members.find((m) => m.id === s.currentUser)?.name || '';
+    download(name || Copia.fileName(now), JSON.stringify(Copia.build(s, { by, now }), null, 1));
+    if (!name) {
+      try { localStorage.setItem(LAST_BACKUP, now.toISOString()); } catch { /* sem armazenamento */ }
+      toast('💾 Cópia descarregada. Guardem-na no Google Drive ou noutro sítio seguro.');
+      render();
+    }
+  }
+
+  /** Mostra o que tem a cópia e o que muda; repõe só depois de confirmar (e guarda antes uma cópia do estado actual). */
+  function restoreBackup(text) {
+    let b;
+    try { b = Copia.parse(text); } catch (err) { alert(err.message); return; }
+    const s = S();
+    if (Store.isRemote && !Copia.sameFamily(s, b.data)) {
+      alert('Esta cópia é de outra família (os membros não coincidem). Por segurança, não foi reposta.');
+      return;
+    }
+    const d = Copia.diff(s, b.data);
+    const items = Copia.summary(b.data);
+    const when = b.created ? new Date(b.created).toLocaleString('pt-PT', { dateStyle: 'long', timeStyle: 'short' }) : 'data desconhecida';
+    UI.openForm({
+      title: '⬆️ Repor cópia de segurança',
+      fields: [
+        { name: 'info', type: 'note', html: `<p>Cópia de <b>${esc(when)}</b>${b.family ? ` · ${esc(b.family)}` : ''}:</p>
+          <ul class="backup-sum">${items.map((x) => `<li>${esc(x.label)} <b>${x.n}</b></li>`).join('')}</ul>
+          <p class="backup-diff">Ao repor: <b>${d.added}</b> registos voltam ou entram, <b>${d.changed}</b> mudam e <b>${d.removed}</b> são apagados${Store.isRemote ? ' — <b>para toda a família</b>' : ''}.</p>
+          <p class="small muted">Antes de repor, o portal descarrega uma cópia do que está agora (para poderem voltar atrás). As fotos não estão na cópia: ficam no álbum.</p>` },
+      ],
+      submitLabel: 'Repor esta cópia',
+      onSubmit: () => {
+        saveBackup(`portal-familia-antes-de-repor-${today()}.json`);
+        Store.update((st) => {
+          Object.keys(b.data).forEach((c) => {
+            if (c === 'shoptrip') return; // o aviso "Vou às compras" não se repõe
+            if (c === 'meals') st.meals = { ...(b.data.meals || {}) };
+            else if (Array.isArray(st[c]) && Array.isArray(b.data[c])) st[c] = b.data[c];
+          });
+        });
+        toast(`✔ Cópia reposta (${d.added + d.changed} registos repostos, ${d.removed} apagados).`);
+      },
+    });
+  }
+
   function download(name, text) {
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
@@ -500,7 +553,7 @@
         prompt('Copia o código:', el.dataset.text);
       }
     },
-    export: () => download(`portal-familia-${today()}.json`, Store.exportJSON()),
+    export: () => saveBackup(),
     import: () => $('#import-file').click(),
     reset: () => { if (confirm('Substituir todos os dados pelos dados de exemplo?')) { Store.resetToExample(); toast('Dados de exemplo repostos.'); } },
     wipe: () => {
@@ -613,12 +666,9 @@
     const file = e.target.files[0];
     if (!file) return;
     try {
-      const text = await file.text();
-      if (!confirm('Importar este ficheiro? Os dados actuais deste dispositivo serão substituídos.')) return;
-      Store.importJSON(text);
-      toast('Dados importados ✔');
+      restoreBackup(await file.text());
     } catch (err) {
-      alert('Ficheiro inválido.');
+      alert('Não foi possível ler o ficheiro.');
     } finally {
       e.target.value = '';
     }
