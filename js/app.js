@@ -429,7 +429,7 @@
     memberId: !Store.isParent() ? S().currentUser : VS.schoolMember || S().members.find((m) => m.role === 'filha')?.id, kind: 'Teste', date: today(), notes: '', grade: '',
   }));
   const classForm = edit('classes', 'class', 'aula', () => ({
-    memberId: !Store.isParent() ? S().currentUser : VS.schoolMember, day: 1, start: '08:30', end: '10:00', room: '', teacher: '',
+    memberId: !Store.isParent() ? S().currentUser : VS.schoolMember, every: 1, day: 1, start: '08:30', end: '10:00', room: '', teacher: '',
   }));
 
   const actions = {

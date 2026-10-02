@@ -3,6 +3,7 @@
 // O token é secreto (está em Definições); pode-se gerar um novo a qualquer momento.
 // O link dos pais é o da família; cada filha tem um link pessoal que só mostra o que é dela.
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import '../_shared/aulas.js';
 import '../_shared/ics.js';
 
 const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {

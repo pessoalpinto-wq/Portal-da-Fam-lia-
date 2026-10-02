@@ -170,7 +170,7 @@
   }
 
   const classesOn = (memberId, date) => S().classes
-    .filter((c) => c.memberId === memberId && Number(c.day) === weekday(date))
+    .filter((c) => c.memberId === memberId && Aulas.on(c, date)) // inclui semanas alternadas (aulas.js)
     .sort((a, b) => a.start.localeCompare(b.start));
 
   /** Tudo o que acontece num dia (para o calendário e o painel). */

@@ -149,14 +149,19 @@
     });
 
     if (includeClasses) {
-      // Aulas: repetição semanal a partir da semana actual.
+      // Aulas: repetição semanal (ou de N em N semanas, ou só parte do ano — ver aulas.js) a partir da semana actual.
       const monday = addDays(today, -((weekday(today) + 6) % 7));
+      const A = root.Aulas;
       s.classes.forEach((c) => {
         if (memberId && c.memberId !== memberId) return;
-        const date = addDays(monday, (Number(c.day) + 6) % 7);
+        const every = A ? A.everyOf(c) : 1;
+        const date = A ? A.firstOn(c, monday) : addDays(monday, (Number(c.day) + 6) % 7);
+        if (!date || !c.start || !c.end) return; // ex.: de 3 em 3 semanas sem data de referência
+        const rule = `RRULE:FREQ=WEEKLY${every > 1 ? `;INTERVAL=${every}` : ''}${/^\d{4}-\d{2}-\d{2}$/.test(c.until || '') ? `;UNTIL=${d8(c.until)}T235959Z` : ''}`;
         const who = memberId ? '' : ` (${names([c.memberId])})`;
         vevent(`class-${c.id}`, [`DTSTART;TZID=${TZID}:${localDT(date, c.start)}`, `DTEND;TZID=${TZID}:${localDT(date, c.end)}`,
-          'RRULE:FREQ=WEEKLY', `SUMMARY:${text(`🎒 ${c.subject}${who}`)}`, c.room && `LOCATION:${text(`Sala ${c.room}`)}`]);
+          rule, `SUMMARY:${text(`🎒 ${c.subject}${who}`)}`, c.room && `LOCATION:${text(`Sala ${c.room}`)}`,
+          c.teacher && `DESCRIPTION:${text(c.teacher)}`]);
       });
     }
 

@@ -65,6 +65,11 @@
       { name: 'end', label: 'Fim', type: 'time', required: true, half: true },
       { name: 'room', label: 'Sala', half: true },
       { name: 'teacher', label: 'Professor/a', half: true },
+      { name: 'every', label: 'Repete-se', type: 'select', half: true, options: [[1, 'Todas as semanas'], [2, 'Semanas alternadas'], [3, 'De 3 em 3 semanas'], [4, 'De 4 em 4 semanas']] },
+      { name: 'anchor', label: 'Uma data em que há esta aula', type: 'date', half: true },
+      { name: 'from', label: 'Só a partir de (opcional)', type: 'date', half: true },
+      { name: 'until', label: 'Só até (opcional)', type: 'date', half: true },
+      { name: 'repeatNote', type: 'note', html: '<small class="muted">Para aulas que alternam (ex.: reforço de Matemática numa semana e de Português na outra) ou que são só num semestre. "Uma data" só é precisa se não for todas as semanas.</small>' },
     ],
     exam: () => [
       { name: 'subject', label: 'Disciplina', required: true, half: true, suggest: subjects() },
@@ -320,13 +325,21 @@
     const cls = s.classes.filter((c) => c.memberId === id);
     const days = cls.some((c) => Number(c.day) === 6) ? [1, 2, 3, 4, 5, 6] : [1, 2, 3, 4, 5];
     const todayWd = parseISO(today()).getDay();
+    // Data do dia `d` (1 = segunda) desta semana; ao fim de semana mostra-se já a semana seguinte.
+    const weekDate = (d) => addDays(today(), (todayWd === 0 ? 1 : todayWd === 6 ? 2 : 1 - todayWd) + d - 1);
     const cols = days.map((d) => {
       const list = cls.filter((c) => Number(c.day) === d).sort((a, b) => a.start.localeCompare(b.start));
       return `<div class="tt-col ${d === todayWd ? 'is-today' : ''}"><h3>${DIAS[d]}</h3>
-        ${list.map((c) => `<button class="tt-block" data-action="edit-class" data-id="${c.id}" style="--c:${esc(colorOf([id]))}">
+        ${list.map((c) => {
+          // Aulas que não são todas as semanas: as que não há nesta semana ficam esbatidas.
+          const extra = Aulas.label(c);
+          const thisWeek = Aulas.on(c, weekDate(d));
+          return `<button class="tt-block ${thisWeek ? '' : 'not-this-week'}" data-action="edit-class" data-id="${c.id}" style="--c:${esc(colorOf([id]))}">
           <span class="time">${esc(c.start)}–${esc(c.end)}</span><b>${esc(c.subject)}</b>
           ${c.room || c.teacher ? `<small>${esc([c.room && `Sala ${c.room}`, c.teacher].filter(Boolean).join(' · '))}</small>` : ''}
-        </button>`).join('') || '<p class="empty small">Livre</p>'}
+          ${extra ? `<small class="tt-rep">🔁 ${esc(extra)}${thisWeek ? ' · esta semana' : ''}</small>` : ''}
+        </button>`;
+        }).join('') || '<p class="empty small">Livre</p>'}
         <button class="tt-add" data-action="add-class" data-day="${d}" aria-label="Adicionar aula na ${DIAS[d]}">＋</button>
       </div>`;
     }).join('');

@@ -1002,3 +1002,7 @@ body.shop-mode .view { margin-left: auto; max-width: 720px; padding: 0 16px 2rem
 /* Espaço para a barra não tapar as últimas fotos. */
 .photo-grid.selecting:last-of-type { margin-bottom: 9rem; }
 .select-bar .spacer { flex: 1; }
+
+/* 🔁 Aulas que não são todas as semanas */
+.tt-block .tt-rep { display: block; margin-top: .15rem; font-size: .7rem; opacity: .85; }
+.tt-block.not-this-week { opacity: .45; border-style: dashed; }

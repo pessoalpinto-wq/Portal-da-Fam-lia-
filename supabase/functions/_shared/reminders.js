@@ -5,6 +5,8 @@
  * chave única por notificação para nunca enviar a mesma duas vezes.
  */
 
+import './aulas.js'; // aulas de semanas alternadas / parte do ano (define globalThis.Aulas)
+
 export const TZ = 'Europe/Lisbon';
 /** Um lembrete é enviado se a hora-alvo foi há menos de WINDOW minutos. */
 export const WINDOW = 30;
@@ -225,7 +227,7 @@ export function computeReminders({ state, profiles, now }) {
         .filter((e) => !(e.members || []).length || e.members.includes(p.member_id) || e.driver === p.member_id)
         .sort((a, b) => (a.start || '').localeCompare(b.start || ''));
       const exams = s.exams.filter((x) => x.date === today && x.memberId === p.member_id);
-      const cls = s.classes.filter((c) => c.memberId === p.member_id && Number(c.day) === weekday(today))
+      const cls = s.classes.filter((c) => c.memberId === p.member_id && globalThis.Aulas.on(c, today))
         .sort((a, b) => a.start.localeCompare(b.start));
       const bits = [];
       if (cls.length) bits.push(`🎒 Aulas ${cls[0].start}–${cls[cls.length - 1].end}`);
