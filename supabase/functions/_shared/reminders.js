@@ -25,6 +25,7 @@ export const NOTIFY_TYPES = {
   docs: 'Documentos a expirar',
   bills: 'Contas da casa (pais)',
   fecho: 'Fecho do mês (último dia às 19h, pais)',
+  orcamento: 'Orçamento: 80 % e 100 % de uma categoria (às 20h, pais)',
   money: 'Mesada recebida',
   shopping: '"Vou às compras" (na hora)',
   pantry: 'Despensa: validades (na véspera às 19h)',
@@ -144,6 +145,15 @@ export function occursOn(e, date) {
   return false;
 }
 
+// Orçamento (mesmos ids que js/orcamento.js): o que não conta como despesa e os nomes curtos.
+const BUDGET_SKIP = new Set(['entradas', 'poupanca', 'transferencias']);
+const BUDGET_NAMES = {
+  supermercado: 'Supermercado', casa: 'Casa', contas: 'Luz, água, gás e telecom', carro: 'Carro e combustível', transportes: 'Transportes',
+  saude: 'Saúde', educacao: 'Escola e educação', restaurantes: 'Restaurantes e cafés', lazer: 'Lazer e férias', roupa: 'Roupa e calçado',
+  compras: 'Compras', subscricoes: 'Subscrições', seguros: 'Seguros', impostos: 'Impostos e taxas', credito: 'Créditos', filhas: 'Filhas',
+  animais: 'Animais', levantamentos: 'Levantamentos', outros: 'Outras despesas',
+};
+
 const DIAS = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
 const shortDate = (iso) => `${DIAS[weekday(iso)]}, ${Number(iso.slice(8))}/${Number(iso.slice(5, 7))}`;
 const money = (n) => `${(Math.round(Number(n) * 100) / 100).toFixed(2).replace('.', ',')} €`;
@@ -159,7 +169,7 @@ const list = (arr, max = 3) => arr.slice(0, max).join(', ') + (arr.length > max 
 export function computeReminders({ state, profiles, now }) {
   const s = {
     members: [], events: [], tasks: [], exams: [], trips: [], redemptions: [], classes: [],
-    docs: [], bills: [], dates: [], health: [], polls: [], votes: [], pantry: [], shopreqs: [], faccounts: [], fsnaps: [], ...state,
+    docs: [], bills: [], dates: [], health: [], polls: [], votes: [], pantry: [], shopreqs: [], faccounts: [], fsnaps: [], ftx: [], fbudgets: [], ...state,
   };
   const nowAbs = at(now.date, now.minutes);
   const due = (iso, time) => {
@@ -334,6 +344,24 @@ export function computeReminders({ state, profiles, now }) {
       parents.forEach((p) => push(p, 'fecho', `fecho:${month}`, `📅 Fecho de ${nome}`,
         'Hoje é o último dia do mês: ponham o saldo de cada conta para ver a evolução do vosso dinheiro.', '#/financas'));
     }
+  }
+
+  // Orçamento: às 20h, as categorias que passaram 80 % ou 100 % do orçamento do mês (uma vez por nível, por mês).
+  if (due(today, 20 * 60) && s.fbudgets.length) {
+    const month = today.slice(0, 7);
+    const spent = {};
+    s.ftx.filter((t) => String(t.date).startsWith(month) && !BUDGET_SKIP.has(t.cat))
+      .forEach((t) => { spent[t.cat] = (spent[t.cat] || 0) - Number(t.amount || 0); });
+    s.fbudgets.filter((b) => Number(b.limit) > 0).forEach((b) => {
+      const v = Math.round((spent[b.id] || 0) * 100) / 100;
+      const pct = Math.round((v / Number(b.limit)) * 100);
+      if (pct < 80) return;
+      const level = pct >= 100 ? 100 : 80;
+      const label = BUDGET_NAMES[b.id] || b.id;
+      parents.forEach((p) => push(p, 'orcamento', `bud:${month}:${b.id}:${level}`,
+        level === 100 ? `⛔ ${label}: passou o orçamento` : `⚠️ ${label}: ${pct}% do orçamento`,
+        `${money(v)} de ${money(b.limit)} este mês${level === 100 ? ` (+${money(v - Number(b.limit))})` : ` · faltam ${money(Number(b.limit) - v)}`}.`, '#/financas'));
+    });
   }
 
   // Datas especiais: 7 dias e 1 dia antes, às 20h, para todos.

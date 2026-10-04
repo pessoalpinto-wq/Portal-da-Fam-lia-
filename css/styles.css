@@ -1063,3 +1063,39 @@ body.shop-mode .view { margin-left: auto; max-width: 720px; padding: 0 16px 2rem
 .pat-facts { list-style: none; margin: .25rem 0; padding: 0; display: grid; gap: .35rem; font-size: .9rem; }
 .pat-stats { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
 .pat-stats .fin-tile b { font-size: 1.15rem; white-space: nowrap; }
+
+/* 🎯 Orçamento */
+.bud-nav { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .6rem; margin-bottom: .9rem; }
+.bud-nav b { font-size: 1.05rem; min-width: 9.5rem; text-align: center; text-transform: capitalize; }
+.bud-nav .spacer { flex: 1; }
+.bud-how { padding-left: 1.2rem; display: grid; gap: .35rem; }
+.bud-unsorted { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .8rem; border-left: 4px solid var(--warn); }
+.bud-unsorted .small { flex: 1 1 14rem; }
+.bud-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .8rem; }
+.bud-main { display: flex; justify-content: space-between; gap: .5rem; width: 100%; background: none; border: 0; padding: 0; color: inherit; font: inherit; cursor: pointer; text-align: left; }
+.bud-main[aria-pressed="true"] .bud-name { text-decoration: underline; text-underline-offset: 3px; }
+.bud-vals { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.bud-meter { height: 8px; border-radius: 999px; background: color-mix(in srgb, var(--primary) 16%, transparent); overflow: hidden; margin: .35rem 0 .2rem; }
+.bud-meter span { display: block; height: 100%; border-radius: 999px; background: var(--primary); }
+.bud-row.warn .bud-meter { background: color-mix(in srgb, var(--warn) 18%, transparent); }
+.bud-row.warn .bud-meter span { background: var(--warn); }
+.bud-row.over .bud-meter { background: color-mix(in srgb, var(--danger) 18%, transparent); }
+.bud-row.over .bud-meter span { background: var(--danger); }
+.bud-note { color: var(--muted); font-size: .8rem; }
+.bud-filters { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .6rem; }
+.bud-filters input { flex: 1 1 12rem; min-width: 0; }
+.tx-list { list-style: none; margin: 0; padding: 0; }
+.tx { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: .5rem; padding: .45rem 0; border-bottom: 1px solid var(--border); }
+.tx-main { display: grid; min-width: 0; background: none; border: 0; padding: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.tx-desc { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .9rem; }
+.tx-cat { display: inline-flex; align-items: center; gap: .25rem; max-width: 8.5rem; border: 1px solid var(--border); background: var(--surface-2); color: inherit;
+  border-radius: 999px; padding: .15rem .5rem; font: inherit; font-size: .75rem; cursor: pointer; }
+.tx-cat span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tx-cat.unsorted { border-color: var(--warn); background: color-mix(in srgb, var(--warn) 12%, var(--surface)); }
+.tx-amt { font-variant-numeric: tabular-nums; white-space: nowrap; font-size: .9rem; }
+.tx-amt.in { color: var(--up); }
+.bud-preview { columns: 2; padding-left: 1.1rem; }
+.bud-sample { width: 100%; font-size: .8rem; border-collapse: collapse; }
+.bud-sample td { padding: .2rem .3rem; border-bottom: 1px solid var(--border); }
+.bud-sample td.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+@media (max-width: 420px) { .tx-cat span { display: none; } }

@@ -322,7 +322,7 @@
     const parent = Store.isParent();
     const list = parent ? kids() : kids().filter((k) => k.id === s.currentUser);
     const tab = parent ? VS.finTab || 'patrimonio' : 'carteiras';
-    const tabs = parent ? `<div class="tabs" role="tablist">${[['patrimonio', '📈 Património'], ['contas', '🏠 Contas da casa'], ['carteiras', '👛 Dinheiro das filhas']].map(([id, label]) =>
+    const tabs = parent ? `<div class="tabs" role="tablist">${[['patrimonio', '📈 Património'], ['orcamento', '🎯 Orçamento'], ['contas', '🏠 Contas da casa'], ['carteiras', '👛 Dinheiro das filhas']].map(([id, label]) =>
       `<button role="tab" aria-selected="${tab === id}" class="tab ${tab === id ? 'active' : ''}" data-action="fin-tab" data-id="${id}" style="--c:#16a34a">${label}</button>`).join('')}</div>` : '';
     const how = `<details class="fin-how"><summary>❓ Como funciona</summary><ul class="tips">
       <li><b>👛 Carteira</b> é o dinheiro que ${parent ? 'cada filha' : 'tens e'} pode gastar. A mesada entra aqui sozinha${Store.isRemote ? ', às 9h do dia certo' : ' (com a conta na nuvem)'}.</li>
@@ -333,7 +333,7 @@
       ${parent ? '<li><b>＋ Dar dinheiro</b>: prendas, mesada extra, recompensa por uma nota boa…</li>' : ''}
     </ul></details>`;
     return `<div class="page-head"><h1>Finanças</h1></div>${tabs}
-      ${tab === 'patrimonio' && Views.patrimonioView ? Views.patrimonioView() : tab === 'contas' ? billsView() : `${how}
+      ${tab === 'patrimonio' && Views.patrimonioView ? Views.patrimonioView() : tab === 'orcamento' && Views.orcamentoView ? Views.orcamentoView() : tab === 'contas' ? billsView() : `${how}
         ${bankCard()}
         <div class="grid two">${list.map(kidWallet).join('') || empty('Sem carteiras para mostrar.')}</div>`}`;
   }
@@ -559,6 +559,10 @@
       alerts.push([left, `<a href="#/saude">🔐 ${esc(d.type)}${d.memberId ? ` (${esc(member(d.memberId)?.name || '')})` : ''} ${left < 0 ? '<b>expirou</b>' : `expira ${relDay(d.expires)}`}</a>`]);
     });
     if (parent) {
+      // Orçamento: categorias perto do limite (80 %) ou que já passaram (100 %) neste mês.
+      Orcamento.budgetAlerts(s.ftx || [], s.fbudgets || [], t.slice(0, 7)).forEach((a) => {
+        alerts.push([a.level === 100 ? -2 : 1, `<a href="#/financas" data-action="goto-orcamento">${a.level === 100 ? '⛔' : '⚠️'} ${esc(Orcamento.CAT[a.cat].name.split(' (')[0])}: <b>${a.pct}%</b> do orçamento (${money(a.spent)} de ${money(a.limit)})</a>`]);
+      });
       // Fecho do mês por fazer (último dia do mês, ou até dia 10 do seguinte).
       const close = Views.patrimonioPending?.();
       if (close && (s.faccounts || []).some((a) => !a.archived)) {

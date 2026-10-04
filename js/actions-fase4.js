@@ -629,6 +629,7 @@ window.Fase4 = function ({ render, withButton }) {
     'pay-bill': payBill,
     'fin-tab': (el) => { VS.finTab = el.dataset.id; render(); },
     'goto-patrimonio': () => { VS.finTab = 'patrimonio'; location.hash = '#/financas'; },
+    'goto-orcamento': () => { VS.finTab = 'orcamento'; location.hash = '#/financas'; },
     'edit-bank': bankForm,
     'add-receipt': () => receiptForm(null),
     'edit-receipt': receiptForm,

@@ -88,3 +88,20 @@ test('fecho do mês: último dia às 19h, só aos pais, e só se o mês ainda n�
   assert.equal(run({ fsnaps: [] }, '2026-10-31', '19:05').filter((x) => x.type === 'fecho').length, 0); // sem contas
   assert.equal(run(state, '2027-02-28', '19:10').filter((x) => x.type === 'fecho').length, 2); // fevereiro
 });
+
+test('orçamento: às 20h avisa os pais aos 80 % e aos 100 % (cada nível uma vez por mês)', () => {
+  const state = {
+    fbudgets: [{ id: 'supermercado', limit: 500 }, { id: 'restaurantes', limit: 50 }, { id: 'roupa', limit: 100 }],
+    ftx: [
+      { date: '2026-09-05', amount: -420, cat: 'supermercado' }, { date: '2026-09-06', amount: -60, cat: 'restaurantes' },
+      { date: '2026-09-07', amount: -10, cat: 'roupa' }, { date: '2026-09-08', amount: -999, cat: 'transferencias' },
+      { date: '2026-08-08', amount: -999, cat: 'roupa' },
+    ],
+  };
+  const r = run(state, '2026-09-30', '20:05').filter((x) => x.type === 'orcamento');
+  assert.deepEqual(who(r), ['U-mae', 'U-mae', 'U-pai', 'U-pai']);
+  const titles = [...new Set(r.map((x) => x.title))].sort();
+  assert.deepEqual(titles, ['⚠️ Supermercado: 84% do orçamento', '⛔ Restaurantes e cafés: passou o orçamento']);
+  assert.ok(r.some((x) => x.key.startsWith('bud:2026-09:restaurantes:100')));
+  assert.equal(run(state, '2026-09-30', '19:00').filter((x) => x.type === 'orcamento').length, 0);
+});

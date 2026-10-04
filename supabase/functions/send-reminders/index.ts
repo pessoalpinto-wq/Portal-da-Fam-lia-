@@ -57,7 +57,7 @@ async function familyState(familyId: string) {
       .eq('family_id', familyId).eq('deleted', false)
       .in('coll', ['members', 'events', 'tasks', 'exams', 'trips', 'redemptions', 'classes',
         'docs', 'bills', 'dates', 'health', 'polls', 'votes', 'allowances', 'shopping', 'pantry', 'shopreqs', 'shoptrip',
-        'faccounts', 'fsnaps'])
+        'faccounts', 'fsnaps', 'ftx', 'fbudgets'])
       .order('coll').order('id').range(from, from + 999);
     if (error) throw error;
     data.forEach((r) => { (state[r.coll] ||= []).push(r.data); });

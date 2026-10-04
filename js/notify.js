@@ -19,6 +19,7 @@
     ['money', '💰 Mesada recebida', 'no dia'],
     ['bills', '💶 Contas da casa', '3 dias antes (pais)'],
     ['fecho', '📅 Fecho do mês', 'último dia do mês às 19h (pais)'],
+    ['orcamento', '🎯 Orçamento', '80 % e 100 % de uma categoria, às 20h (pais)'],
     ['shopping', '🛒 "Vou às compras"', 'na hora'],
     ['pantry', '🧺 Validades da despensa', 'na véspera às 19h'],
     ['shopadd', '🛒 Novos produtos na lista', 'na hora · quem está às compras recebe sempre'],
