@@ -16,6 +16,7 @@
     pantry: '🧺 Despensa', challenges: '🤝 Desafios', savings: '🏦 Banco dos Pais', products: '⭐ Os nossos produtos',
     staples: '⭐ Os do costume', shopstats: '🛒 Histórico de compras e preços', groceries: '🧾 Talões e orçamento', shopstores: '🏪 Lojas',
     shopreqs: '🙋 Pedidos para as compras', shoptrip: '📣 Vou às compras', mealhist: '🕘 Semanas de refeições',
+    faccounts: '🏦 Contas e investimentos', debts: '🚗 Dívidas', fsnaps: '📅 Fechos do mês',
   };
 
   const colls = (state) => Object.keys(state || {}).filter((k) => Array.isArray(state[k]));

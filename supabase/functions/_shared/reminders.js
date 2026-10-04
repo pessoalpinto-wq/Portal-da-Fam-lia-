@@ -24,6 +24,7 @@ export const NOTIFY_TYPES = {
   health: 'Consultas e vacinas (na véspera)',
   docs: 'Documentos a expirar',
   bills: 'Contas da casa (pais)',
+  fecho: 'Fecho do mês (último dia às 19h, pais)',
   money: 'Mesada recebida',
   shopping: '"Vou às compras" (na hora)',
   pantry: 'Despensa: validades (na véspera às 19h)',
@@ -158,7 +159,7 @@ const list = (arr, max = 3) => arr.slice(0, max).join(', ') + (arr.length > max 
 export function computeReminders({ state, profiles, now }) {
   const s = {
     members: [], events: [], tasks: [], exams: [], trips: [], redemptions: [], classes: [],
-    docs: [], bills: [], dates: [], health: [], polls: [], votes: [], pantry: [], shopreqs: [], ...state,
+    docs: [], bills: [], dates: [], health: [], polls: [], votes: [], pantry: [], shopreqs: [], faccounts: [], fsnaps: [], ...state,
   };
   const nowAbs = at(now.date, now.minutes);
   const due = (iso, time) => {
@@ -323,6 +324,16 @@ export function computeReminders({ state, profiles, now }) {
         left ? `💶 ${b.title} vence daqui a 3 dias` : `💶 ${b.title} vence hoje`,
         `${money(b.amount)}${b.auto ? ' · débito directo' : ''}`, '#/financas'));
     });
+  }
+
+  // Fecho do mês: no último dia do mês às 19h, para os pais (se há contas e o mês ainda não foi fechado).
+  if (addDays(today, 1).slice(8, 10) === '01' && due(today, 19 * 60)) {
+    const month = today.slice(0, 7);
+    if (s.faccounts.some((a) => !a.archived) && !s.fsnaps.some((x) => x.id === month)) {
+      const nome = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'][Number(month.slice(5)) - 1];
+      parents.forEach((p) => push(p, 'fecho', `fecho:${month}`, `📅 Fecho de ${nome}`,
+        'Hoje é o último dia do mês: ponham o saldo de cada conta para ver a evolução do vosso dinheiro.', '#/financas'));
+    }
   }
 
   // Datas especiais: 7 dias e 1 dia antes, às 20h, para todos.

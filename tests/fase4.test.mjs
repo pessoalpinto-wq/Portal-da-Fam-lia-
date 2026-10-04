@@ -76,3 +76,15 @@ test('mesadas: semanal ao sábado, mensal no dia certo (ou no último dia do mê
   assert.deepEqual(who(n), ['U-f12']);
   assert.equal(n[0].title, '💰 Recebeste a mesada: 5,00 €');
 });
+
+test('fecho do mês: último dia às 19h, só aos pais, e só se o mês ainda não foi fechado', () => {
+  const state = { faccounts: [{ id: 'a', name: 'Conjunta' }], fsnaps: [{ id: '2026-09' }] };
+  const r = run(state, '2026-10-31', '19:05').filter((x) => x.type === 'fecho');
+  assert.deepEqual(who(r), ['U-mae', 'U-pai']);
+  assert.equal(r[0].title, '📅 Fecho de outubro');
+  assert.equal(run(state, '2026-10-30', '19:05').filter((x) => x.type === 'fecho').length, 0); // não é o último dia
+  assert.equal(run(state, '2026-10-31', '18:00').filter((x) => x.type === 'fecho').length, 0);
+  assert.equal(run({ ...state, fsnaps: [{ id: '2026-10' }] }, '2026-10-31', '19:05').filter((x) => x.type === 'fecho').length, 0); // já fechado
+  assert.equal(run({ fsnaps: [] }, '2026-10-31', '19:05').filter((x) => x.type === 'fecho').length, 0); // sem contas
+  assert.equal(run(state, '2027-02-28', '19:10').filter((x) => x.type === 'fecho').length, 2); // fevereiro
+});

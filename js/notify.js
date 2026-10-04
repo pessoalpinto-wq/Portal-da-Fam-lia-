@@ -18,6 +18,7 @@
     ['docs', '🔐 Documentos a expirar', '60, 30 e 7 dias antes'],
     ['money', '💰 Mesada recebida', 'no dia'],
     ['bills', '💶 Contas da casa', '3 dias antes (pais)'],
+    ['fecho', '📅 Fecho do mês', 'último dia do mês às 19h (pais)'],
     ['shopping', '🛒 "Vou às compras"', 'na hora'],
     ['pantry', '🧺 Validades da despensa', 'na véspera às 19h'],
     ['shopadd', '🛒 Novos produtos na lista', 'na hora · quem está às compras recebe sempre'],

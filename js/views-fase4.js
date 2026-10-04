@@ -321,8 +321,8 @@
     const s = S();
     const parent = Store.isParent();
     const list = parent ? kids() : kids().filter((k) => k.id === s.currentUser);
-    const tab = parent ? VS.finTab || 'carteiras' : 'carteiras';
-    const tabs = parent ? `<div class="tabs" role="tablist">${[['carteiras', '👛 Dinheiro das filhas'], ['contas', '🏠 Contas da casa']].map(([id, label]) =>
+    const tab = parent ? VS.finTab || 'patrimonio' : 'carteiras';
+    const tabs = parent ? `<div class="tabs" role="tablist">${[['patrimonio', '📈 Património'], ['contas', '🏠 Contas da casa'], ['carteiras', '👛 Dinheiro das filhas']].map(([id, label]) =>
       `<button role="tab" aria-selected="${tab === id}" class="tab ${tab === id ? 'active' : ''}" data-action="fin-tab" data-id="${id}" style="--c:#16a34a">${label}</button>`).join('')}</div>` : '';
     const how = `<details class="fin-how"><summary>❓ Como funciona</summary><ul class="tips">
       <li><b>👛 Carteira</b> é o dinheiro que ${parent ? 'cada filha' : 'tens e'} pode gastar. A mesada entra aqui sozinha${Store.isRemote ? ', às 9h do dia certo' : ' (com a conta na nuvem)'}.</li>
@@ -333,7 +333,7 @@
       ${parent ? '<li><b>＋ Dar dinheiro</b>: prendas, mesada extra, recompensa por uma nota boa…</li>' : ''}
     </ul></details>`;
     return `<div class="page-head"><h1>Finanças</h1></div>${tabs}
-      ${tab === 'contas' ? billsView() : `${how}
+      ${tab === 'patrimonio' && Views.patrimonioView ? Views.patrimonioView() : tab === 'contas' ? billsView() : `${how}
         ${bankCard()}
         <div class="grid two">${list.map(kidWallet).join('') || empty('Sem carteiras para mostrar.')}</div>`}`;
   }
@@ -559,6 +559,11 @@
       alerts.push([left, `<a href="#/saude">🔐 ${esc(d.type)}${d.memberId ? ` (${esc(member(d.memberId)?.name || '')})` : ''} ${left < 0 ? '<b>expirou</b>' : `expira ${relDay(d.expires)}`}</a>`]);
     });
     if (parent) {
+      // Fecho do mês por fazer (último dia do mês, ou até dia 10 do seguinte).
+      const close = Views.patrimonioPending?.();
+      if (close && (s.faccounts || []).some((a) => !a.archived)) {
+        alerts.push([0, `<a href="#/financas" data-action="goto-patrimonio">📅 Fecho de <b>${esc(Patrimonio.monthName(close))}</b> por fazer</a>`]);
+      }
       s.bills.filter((b) => b.due && !b.archived && daysBetween(t, b.due) <= 7).forEach((b) => {
         alerts.push([daysBetween(t, b.due), `<a href="#/financas">💶 ${esc(b.title)} · ${money(b.amount)} · ${daysBetween(t, b.due) < 0 ? '<b>atrasada</b>' : relDay(b.due)}</a>`]);
       });

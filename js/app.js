@@ -677,7 +677,7 @@
     }),
   };
 
-  modules = [window.Fase4, window.Refeicoes, window.TarefasExtra, window.ComprasExtra].filter(Boolean).map((make) => make({ render, withButton }));
+  modules = [window.Fase4, window.Refeicoes, window.TarefasExtra, window.ComprasExtra, window.FinancasPatrimonio].filter(Boolean).map((make) => make({ render, withButton }));
   modules.forEach((m) => {
     Object.assign(actions, m.actions);
     Object.assign(inlineForms, m.inlineForms || {});

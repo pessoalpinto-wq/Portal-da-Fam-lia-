@@ -68,7 +68,7 @@
       input = `<select id="${id}" name="${f.name}" ${req}>${f.options.map(([ov, ol]) =>
         `<option value="${esc(ov)}" ${String(ov) === String(v) ? 'selected' : ''}>${esc(ol)}</option>`).join('')}</select>`;
     } else {
-      const extra = f.type === 'number' ? `step="${f.step || 1}" min="${f.min ?? ''}"` : '';
+      const extra = `${f.type === 'number' ? `step="${f.step || 1}" min="${f.min ?? ''}"` : ''}${f.inputmode ? ` inputmode="${f.inputmode}"` : ''}`;
       // f.suggest: sugestões ao escrever (ex.: disciplinas já usadas).
       const dl = f.suggest?.length ? `<datalist id="${id}-dl">${f.suggest.map((o) => `<option value="${esc(o)}"></option>`).join('')}</datalist>` : '';
       input = `<input id="${id}" type="${f.type || 'text'}" name="${f.name}" value="${esc(v)}" ${req} ${extra}

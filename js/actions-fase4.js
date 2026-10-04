@@ -628,6 +628,7 @@ window.Fase4 = function ({ render, withButton }) {
     'edit-bill': (el) => editItem('bills', el.dataset.id, { title: 'conta', fields: Forms.bill() }),
     'pay-bill': payBill,
     'fin-tab': (el) => { VS.finTab = el.dataset.id; render(); },
+    'goto-patrimonio': () => { VS.finTab = 'patrimonio'; location.hash = '#/financas'; },
     'edit-bank': bankForm,
     'add-receipt': () => receiptForm(null),
     'edit-receipt': receiptForm,
