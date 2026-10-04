@@ -1099,3 +1099,12 @@ body.shop-mode .view { margin-left: auto; max-width: 720px; padding: 0 16px 2rem
 .bud-sample td { padding: .2rem .3rem; border-bottom: 1px solid var(--border); }
 .bud-sample td.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 @media (max-width: 420px) { .tx-cat span { display: none; } }
+
+/* 📌 Despesas fixas */
+.fix-totals { display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; margin-bottom: .5rem; }
+.fix-totals div { display: grid; }
+.fix-totals b { font-size: 1.35rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.fix-list { list-style: none; margin: 0 0 .5rem; padding: 0; display: grid; gap: .3rem; }
+.fix-list li { display: flex; justify-content: space-between; gap: .5rem; font-size: .92rem; }
+.fix-list span { white-space: nowrap; font-variant-numeric: tabular-nums; text-align: right; }
+.fin-tile small + small { font-size: .75rem; }

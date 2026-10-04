@@ -36,9 +36,10 @@
       { name: 'title', label: 'Conta', required: true, placeholder: 'Ex.: Electricidade, seguro, IUC' },
       { name: 'amount', label: 'Valor (€)', type: 'number', min: 0, step: '0.01', half: true },
       { name: 'due', label: 'Próximo pagamento', type: 'date', required: true, half: true },
-      { name: 'repeat', label: 'Repete-se', type: 'select', half: true, options: [['monthly', 'Todos os meses'], ['bimonthly', 'De 2 em 2 meses'], ['quarterly', 'De 3 em 3 meses'], ['yearly', 'Todos os anos'], ['none', 'Não']] },
+      { name: 'repeat', label: 'Repete-se', type: 'select', half: true, options: [['monthly', 'Todos os meses'], ['bimonthly', 'De 2 em 2 meses'], ['quarterly', 'De 3 em 3 meses (trimestral)'], ['semiannual', 'De 6 em 6 meses (semestral)'], ['yearly', 'Todos os anos'], ['none', 'Não (só uma vez)']] },
       { name: 'category', label: 'Categoria', type: 'select', half: true, options: ['Casa', 'Carro', 'Seguros', 'Escola', 'Saúde', 'Impostos', 'Subscrições', 'Outro'].map((c) => [c, c]) },
       { name: 'auto', label: 'Débito directo?', type: 'select', half: true, options: [['', 'Não'], ['sim', 'Sim']] },
+      { name: 'match', label: 'Como aparece no extrato (opcional)', half: true, placeholder: 'Ex.: edp, fidelidade, meo' },
       { name: 'notes', label: 'Notas', type: 'textarea' },
     ],
     sdate: () => [
@@ -234,8 +235,8 @@
     </section>`;
   }
 
-  const REPEAT_BILL = { monthly: 'mensal', bimonthly: 'de 2 em 2 meses', quarterly: 'trimestral', yearly: 'anual', none: 'só uma vez' };
-  const BILL_MONTHS = { monthly: 1, bimonthly: 2, quarterly: 3, yearly: 12 };
+  const REPEAT_BILL = Fixas.LABEL;
+  const BILL_MONTHS = Fixas.PERIODS;
 
   /** Supermercado: orçamento do mês, talões e últimos meses (só pais). */
   function groceriesCard() {
@@ -301,7 +302,8 @@
     return `<div class="fin-summary">
         <div class="fin-tile"><small>Por pagar até ao fim do mês</small><b>${money(toPay)}</b></div>
         <div class="fin-tile ok"><small>Já pago este mês</small><b>${money(paidMonth)}</b></div>
-        <div class="fin-tile"><small>Custos fixos (média por mês)</small><b>${money(perMonth)}</b></div>
+        <div class="fin-tile"><small>📌 Despesas fixas por mês</small><b>${money(perMonth)}</b></div>
+        <div class="fin-tile"><small>📌 Despesas fixas por ano</small><b>${money(Fixas.summary(s.bills).year)}</b></div>
       </div>
       <div class="grid two wide-left">
         ${card('💶 Contas a pagar', `${groups.map(([title, l]) => `<h3 class="sub">${title} <small class="muted">(${l.length})</small></h3><ul class="list bills">${l.map(row).join('')}</ul>`).join('')

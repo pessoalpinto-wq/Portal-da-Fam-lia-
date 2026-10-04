@@ -237,7 +237,7 @@ window.Fase4 = function ({ render, withButton }) {
     });
   }
 
-  const BILL_MONTHS = { monthly: 1, bimonthly: 2, quarterly: 3, yearly: 12 };
+  const BILL_MONTHS = Fixas.PERIODS;
   function payBill(el) {
     const b = S().bills.find((x) => x.id === el.dataset.id);
     if (!b || !confirm(`Marcar "${b.title}" (${money(b.amount)}) como paga?`)) return;

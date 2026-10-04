@@ -23,6 +23,7 @@ window.FinancasOrcamento = function ({ render }) {
     const m = month();
     const txs = s.ftx;
     const sum = O.monthSummary(txs, m);
+    const split = Fixas.monthSplit(txs, s.bills, m, O.kindOf);
     const rows = O.budgetRows(txs, s.fbudgets, m);
     const monthTx = txs.filter((t) => String(t.date).startsWith(m));
     const filter = VS.budFilter || '';
@@ -53,6 +54,7 @@ window.FinancasOrcamento = function ({ render }) {
       <div class="fin-tile"><small>Saiu (despesas)</small><b>${money(sum.expense)}</b></div>
       <div class="fin-tile ${sum.saved >= 0 ? 'ok' : ''}"><small>Sobrou${sum.rate != null ? ` · ${sum.rate}%` : ''}</small><b>${esc(signedMoney(sum.saved))}</b></div>
       ${sum.moved ? `<div class="fin-tile"><small>Para poupança / entre contas</small><b>${money(sum.moved)}</b></div>` : ''}
+      ${split.fixed ? `<div class="fin-tile"><small>📌 Despesas fixas · variáveis</small><b>${money(split.fixed)}</b><small>variáveis ${money(split.variable)}</small></div>` : ''}
     </div>`;
 
     const unsorted = sum.unsorted ? `<section class="card bud-unsorted"><b>🏷️ ${sum.unsorted} movimento${sum.unsorted === 1 ? '' : 's'} por classificar</b>
@@ -73,7 +75,7 @@ window.FinancasOrcamento = function ({ render }) {
 
     const txRow = (t) => `<li class="tx">
         <button class="tx-main" data-action="bud-tx" data-id="${esc(t.id)}">
-          <span class="tx-desc">${esc(t.desc)}</span>
+          <span class="tx-desc">${Fixas.billFor(t, s.bills) || t.fixed ? '<span title="Despesa fixa">📌 </span>' : ''}${esc(t.desc)}</span>
           <small class="muted">${esc(t.date.slice(8, 10))}/${esc(t.date.slice(5, 7))} · ${esc(accountName(t.account))}${t.note ? ` · ${esc(t.note)}` : ''}</small>
         </button>
         <button class="tx-cat ${t.rule === 'none' && !t.manualCat && O.kindOf(t.cat) === 'expense' ? 'unsorted' : ''}" data-action="bud-cat" data-id="${esc(t.id)}" title="Mudar a categoria">${esc(O.CAT[t.cat]?.emoji || '📦')}<span>${esc(O.CAT[t.cat]?.name.split(' (')[0] || t.cat)}</span></button>
@@ -87,7 +89,18 @@ window.FinancasOrcamento = function ({ render }) {
       ${shown.length ? `<ul class="tx-list">${shown.slice(0, limit).map(txRow).join('')}</ul>
         ${shown.length > limit ? `<button class="btn small ghost" data-action="bud-more">Mostrar mais (${shown.length - limit})</button>` : ''}` : empty('Sem movimentos.')}`);
 
-    return `${nav}${tiles}${unsorted}<div class="grid two">${budgetCard}${txCard}</div>
+    const fx = Fixas.summary(s.bills);
+    const fixedCard = card('📌 Despesas fixas', fx.count ? `<div class="fix-totals">
+        <div><small class="muted">Por mês</small><b>${money(fx.month)}</b></div>
+        <div><small class="muted">Por ano</small><b>${money(fx.year)}</b></div>
+        ${sum.income ? `<div><small class="muted">Do que entrou este mês</small><b>${Math.round((fx.month / sum.income) * 100)}%</b></div>` : ''}</div>
+      ${fx.groups.map((g) => `<h3 class="sub">${esc(g.label)} <small class="muted">· ${money(g.total)}${g.repeat === 'monthly' ? '' : ` (≈ ${money(g.perMonth)}/mês)`}</small></h3>
+        <ul class="fix-list">${g.items.map((b) => `<li><button class="linkish" data-action="edit-bill" data-id="${esc(b.id)}">${esc(b.title)}</button>
+          <span>${money(b.amount)}${g.repeat === 'monthly' ? '' : ` <small class="muted">≈ ${money(Fixas.perMonth(b))}/mês</small>`}</span></li>`).join('')}</ul>`).join('')}
+      <p class="small muted">São as <button class="linkish" data-action="fin-tab" data-id="contas">🏠 Contas da casa</button> que se repetem. Para juntar uma, toquem num movimento e em <b>📌 Despesa fixa</b>.</p>`
+      : `<p class="small">Marquem como fixas as despesas que se repetem (seguros, luz, internet, ginásio…): toquem num movimento e em <b>📌 Despesa fixa</b>. Aqui aparece quanto custam por mês e por ano.</p>`);
+
+    return `${nav}${tiles}${unsorted}<div class="grid two">${budgetCard}${txCard}</div>${fixedCard}
       <p class="small muted">🔒 Só os pais vêem os movimentos. O portal não liga ao banco: os dados vêm dos extratos que importam.</p>`;
   }
 
@@ -148,17 +161,32 @@ window.FinancasOrcamento = function ({ render }) {
       submitLabel: fresh.length ? `Importar ${fresh.length}` : 'Fechar',
       onSubmit: () => {
         if (!fresh.length) return;
+        let paidFixed = [];
         Store.update((s) => {
           s.ftx.push(...fresh);
           // Transferências entre as vossas contas (o mesmo valor a sair de uma e a entrar noutra).
           const ids = new Set(O.findTransfers(s.ftx.filter((t) => t.rule !== 'family')));
           s.ftx.forEach((t) => { if (ids.has(t.id) && !t.manualCat) { t.cat = 'transferencias'; t.rule = 'transfer'; } });
+          // Despesas fixas pagas neste extrato: risca-as nas Contas da casa (e actualiza o valor, se mudou).
+          paidFixed = Fixas.autoPay(s.bills, fresh);
+          paidFixed.forEach((p) => {
+            const b = s.bills.find((x) => x.id === p.billId);
+            if (!b) return;
+            p.old = b.amount;
+            b.history = [...(b.history || []), { date: p.date, amount: p.amount, forDue: p.forDue, tx: p.txId }].slice(-24);
+            b.due = p.nextDue;
+            if (p.changed) b.amount = p.amount;
+          });
         });
         // Abre o mês mais recente do extrato.
         VS.budMonth = dates.at(-1).slice(0, 7) > P.monthOf(today()) ? P.monthOf(today()) : dates.at(-1).slice(0, 7);
         VS.budFilter = '';
         render();
-        toast(`📥 ${fresh.length} movimentos importados.${unsorted ? ` ${unsorted} por classificar.` : ''}`);
+        const names = paidFixed.map((p) => {
+          const b = S().bills.find((x) => x.id === p.billId);
+          return `${b?.title || ''}${p.changed ? ` (agora ${money(p.amount)}, antes ${money(p.old)})` : ''}`;
+        });
+        toast(`📥 ${fresh.length} movimentos importados.${unsorted ? ` ${unsorted} por classificar.` : ''}${names.length ? ` 📌 Pagas: ${names.join(', ')}.` : ''}`);
       },
     });
   }
@@ -211,6 +239,9 @@ window.FinancasOrcamento = function ({ render }) {
       values: t ? { ...t, kind: t.amount > 0 ? 'in' : 'out', amount: String(Math.abs(t.amount)).replace('.', ',') }
         : { date: today(), kind: 'out', account: 'cash', cat: 'outros' },
       submitLabel: 'Guardar',
+      extra: t && t.amount < 0 ? [Fixas.billFor(t, S().bills)
+        ? { label: `📌 Fixa: ${Fixas.billFor(t, S().bills).title}`, onClick: () => { const id = Fixas.billFor(t, S().bills).id; setTimeout(() => editBill(id), 0); } }
+        : { label: '📌 Despesa fixa', onClick: () => { setTimeout(() => fixedForm(t), 0); } }] : [],
       onDelete: t ? () => Store.update((s) => { s.ftx = s.ftx.filter((x) => x.id !== t.id); }) : null,
       deleteConfirm: 'Apagar este movimento? (Se voltarem a importar o extrato, ele volta.)',
       deleteToast: 'Movimento apagado.',
@@ -226,6 +257,36 @@ window.FinancasOrcamento = function ({ render }) {
       },
     });
   }
+
+  /** Criar uma despesa fixa (conta da casa) a partir de um movimento. */
+  function fixedForm(t) {
+    const key = O.merchantKey(t.desc) || O.norm(t.desc).split(' ').slice(0, 2).join(' ');
+    const name = key ? key.replace(/\b\w/g, (c) => c.toUpperCase()) : t.desc;
+    openForm({
+      title: '📌 Despesa fixa',
+      fields: [
+        { name: 'info', type: 'note', html: `<p class="small">A partir de <b>${esc(t.desc)}</b> (${esc(signedMoney(t.amount))}, ${esc(t.date)}). Fica nas <b>🏠 Contas da casa</b>, com aviso 3 dias antes; quando o pagamento aparecer num extrato, fica paga sozinha.</p>` },
+        { name: 'title', label: 'Nome', required: true },
+        { name: 'amount', label: 'Valor (€)', inputmode: 'decimal', required: true, half: true },
+        { name: 'repeat', label: 'Repete-se', type: 'select', half: true, options: [['monthly', 'Todos os meses'], ['bimonthly', 'De 2 em 2 meses'], ['quarterly', 'Trimestral'], ['semiannual', 'Semestral'], ['yearly', 'Anual']] },
+        { name: 'category', label: 'Categoria', type: 'select', half: true, options: ['Casa', 'Carro', 'Seguros', 'Escola', 'Saúde', 'Impostos', 'Subscrições', 'Outro'].map((c) => [c, c]) },
+        { name: 'match', label: 'Como aparece no extrato', half: true },
+      ],
+      values: { title: name, amount: String(Math.abs(t.amount)).replace('.', ','), repeat: t.cat === 'seguros' ? 'yearly' : 'monthly', category: Fixas.BUDGET_TO_BILL[t.cat] || 'Outro', match: key },
+      submitLabel: '📌 Guardar',
+      onSubmit: (d) => {
+        const amount = P.parseAmount(d.amount);
+        if (!amount) { toast('Valor inválido.'); return; }
+        const due = Fixas.addMonths(t.date, Fixas.PERIODS[d.repeat]);
+        Store.update((s) => {
+          s.bills.push({ id: Store.uid(), title: d.title.trim(), amount: Math.abs(amount), due, repeat: d.repeat, category: d.category, auto: 'sim',
+            match: O.norm(d.match), notes: '', history: [{ date: t.date, amount: Math.abs(amount), forDue: t.date, tx: t.id }] });
+        });
+        toast(`📌 ${d.title.trim()} é agora uma despesa fixa (${Fixas.LABEL[d.repeat]}). Próxima: ${due.slice(8, 10)}/${due.slice(5, 7)}.`);
+      },
+    });
+  }
+  const editBill = (id) => { const b = document.createElement('button'); b.dataset.action = 'edit-bill'; b.dataset.id = id; b.hidden = true; document.body.append(b); b.click(); b.remove(); };
 
   function limitsForm() {
     const s = S();
