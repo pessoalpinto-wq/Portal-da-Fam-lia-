@@ -146,8 +146,8 @@ export function occursOn(e, date) {
 }
 
 // Orçamento (mesmos ids que js/orcamento.js): o que não conta como despesa e os nomes curtos.
-const BUDGET_SKIP = new Set(['entradas', 'poupanca', 'transferencias']);
-const BUDGET_NAMES = {
+export const BUDGET_SKIP = new Set(['entradas', 'poupanca', 'transferencias']);
+export const BUDGET_NAMES = {
   supermercado: 'Supermercado', casa: 'Casa', contas: 'Luz, água, gás e telecom', carro: 'Carro e combustível', transportes: 'Transportes',
   saude: 'Saúde', educacao: 'Escola e educação', restaurantes: 'Restaurantes e cafés', lazer: 'Lazer e férias', roupa: 'Roupa e calçado',
   compras: 'Compras', subscricoes: 'Subscrições', seguros: 'Seguros', impostos: 'Impostos e taxas', credito: 'Créditos', filhas: 'Filhas',
