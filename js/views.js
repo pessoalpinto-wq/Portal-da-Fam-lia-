@@ -154,6 +154,7 @@
     `<section class="card ${cls}"><header class="card-head"><h2>${title}</h2>${action}</header>${body}</section>`;
   const addBtn = (action, label = 'Adicionar', extra = '') =>
     `<button class="btn small" data-action="${action}" ${extra}>＋ ${label}</button>`;
+  const voiceTaskBtn = () => '<button class="btn small" data-action="voice-task" title="Dizer a tarefa: quem, o quê e quando">🎤 Ditar</button>';
 
   function progress(done, total) {
     const pct = total ? Math.round((done / total) * 100) : 0;
@@ -242,7 +243,7 @@
 
     return `<div class="page-head"><div><h1>${hello}${me ? `, ${esc(me.name)}` : ''}! 👋</h1>
       <p class="muted">${esc(fmtLongDate(t))}</p></div>
-      <div class="quick">${addBtn('add-event', 'Compromisso')}${addBtn('add-task', 'Tarefa')}${addBtn('add-note', 'Recado')}</div></div>
+      <div class="quick">${addBtn('add-event', 'Compromisso')}${addBtn('add-task', 'Tarefa')}${voiceTaskBtn()}${addBtn('add-note', 'Recado')}</div></div>
       ${Guia.card(s, { parent: Store.isParent(), me: s.currentUser, remote: Store.isRemote, esc, onChange: () => Views.rerender?.(), lastBackup: Views.lastBackup?.() })}
       <nav class="tiles" aria-label="Atalhos">
         <a class="tile" href="#/compras"><b>🛒 ${shopLeft}</b><small>por comprar</small></a>
@@ -415,7 +416,7 @@
       `<li>${avatar(r.memberId, 'sm')} ${STATUS[r.status] || '✔'} ${esc(r.title)} <small class="muted">· ${esc(fmtDate(r.date))}</small></li>`).join('');
 
     const hooks = window.Views.taskHooks || {};
-    return `<div class="page-head"><h1>Tarefas</h1><div class="quick">${addBtn('add-task', 'Tarefa')}</div></div>
+    return `<div class="page-head"><h1>Tarefas</h1><div class="quick">${voiceTaskBtn()}${addBtn('add-task', 'Tarefa')}</div></div>
       ${hooks.tabs?.() || ''}
       ${parent ? approvals() : ''}
       <div class="filters">${filters.map(([v, l]) => `<button class="filter ${f === v ? 'active' : ''}" data-action="task-filter" data-id="${esc(v)}">${esc(l)}</button>`).join('')}</div>
@@ -722,7 +723,7 @@
   window.Views = {
     VS, Forms, SHOP_CATS,
     /** Peças reutilizadas pelas vistas da Fase 4. */
-    h: { card, empty, addBtn, progress, itemRow, taskRow, leaderboard, albumLink },
+    h: { card, empty, addBtn, voiceTaskBtn, progress, itemRow, taskRow, leaderboard, albumLink },
     routes: [
       ['painel', '🏠', 'Painel', painel],
       ['agenda', '📅', 'Agenda', agenda],

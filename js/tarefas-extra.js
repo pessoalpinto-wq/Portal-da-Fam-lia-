@@ -310,13 +310,101 @@ window.TarefasExtra = function ({ render }) {
       ${news.map((b) => `<p><span class="celebrate-badge">${b.emoji}</span> Nova medalha: <b>${esc(b.name)}</b><br><small class="muted">${esc(b.desc)}</small></p>`).join('')}`);
   }
 
+  /* ---------- 🎤 Ditar uma tarefa (js/voz-tarefa.js + microfone de js/voz.js) ---------- */
+  const VOICE_ERR = {
+    'not-allowed': '🎙️ O microfone está bloqueado. Permitam o microfone para este site (cadeado ao lado do endereço) ou usem o 🎤 do teclado.',
+    'service-not-allowed': '🎙️ Este telemóvel não deixa ditar aqui. Toquem na caixa e usem o 🎤 do teclado.',
+    'audio-capture': '🎙️ Não encontrei o microfone.',
+    network: '📡 Para ditar é preciso internet. Podem escrever na caixa.',
+    unsupported: 'Toquem na caixa e usem o 🎤 do teclado para ditar.',
+    start: 'Não consegui ligar o microfone. Toquem na caixa e usem o 🎤 do teclado.',
+  };
+  const heardTask = (said) => VozTarefa.parse(said, { members: S().members, today: today(), me: S().currentUser });
+
+  function voiceTask() {
+    let mic = null;
+    UI.openForm({
+      title: '🎤 Ditar uma tarefa',
+      fields: [
+        { name: 'mic', type: 'note', html: `<div class="voice-mic">
+          ${Voz.supported ? '<button type="button" class="btn primary voice-btn" data-voice="toggle">🎤 Falar</button>' : ''}
+          <span class="voice-state small muted">${Voz.supported ? 'Ex.: "Mariana, arrumar o quarto amanhã, 5 pontos" ou "pôr a mesa todos os dias".' : VOICE_ERR.unsupported}</span></div>` },
+        { name: 'said', label: 'A tarefa', type: 'textarea', rows: 2, placeholder: 'Luísa, tirar o lixo às segundas, 3 pontos' },
+        { name: 'preview', type: 'note', html: '<div class="voice-preview"></div>' },
+      ],
+      submitLabel: 'Continuar →',
+      onSubmit: (d) => {
+        mic?.stop();
+        const t = heardTask(d.said);
+        if (!t.title) { toast('Não percebi a tarefa. Experimentem outra vez.'); return; }
+        const preset = { title: t.title, due: t.due || '', repeat: t.repeat || 'none', category: t.category || 'Casa' };
+        if (t.assignee) preset.assignee = t.assignee;
+        if (t.points != null && Store.isParent()) preset.points = t.points;
+        // Abre o formulário normal já preenchido, para confirmar (depois de este fechar).
+        setTimeout(() => editItem('tasks', null, {
+          title: 'tarefa',
+          fields: Forms.task(),
+          defaults: () => ({
+            assignee: S().currentUser, due: today(), repeat: 'none', points: 2, category: 'Casa', done: false, notes: '', history: [],
+            createdBy: S().currentUser,
+          }),
+          preset,
+        }), 0);
+      },
+    });
+    const dlg = document.querySelector('#dialog');
+    const box = dlg.querySelector('[name=said]');
+    const state = dlg.querySelector('.voice-state');
+    const btn = dlg.querySelector('[data-voice=toggle]');
+    const submit = dlg.querySelector('[type=submit]');
+    const preview = () => {
+      const t = heardTask(box.value);
+      const who = t.assignee && member(t.assignee);
+      const bits = [
+        who ? `${who.emoji || '👤'} ${esc(who.name)}` : '',
+        t.due ? `📅 ${esc(fmtDate(t.due))}` : '',
+        t.repeat ? `🔁 ${REPEAT[t.repeat]}` : '',
+        t.points != null && Store.isParent() ? `⭐ ${t.points}` : '',
+        t.category ? `🏷️ ${esc(t.category)}` : '',
+      ].filter(Boolean);
+      dlg.querySelector('.voice-preview').innerHTML = t.title
+        ? `<p class="voice-task"><b>✅ ${esc(t.title)}</b>${bits.length ? `<br><small class="muted">${bits.join(' · ')}</small>` : ''}</p>` : '';
+      submit.disabled = !t.title;
+    };
+    box.addEventListener('input', preview);
+    const setListening = (on, err) => {
+      if (!btn) return;
+      btn.textContent = on ? '⏹️ Parar' : '🎤 Falar';
+      btn.classList.toggle('listening', on);
+      state.textContent = err ? VOICE_ERR[err] || VOICE_ERR.start : on ? '🎙️ A ouvir…' : 'Podem corrigir o texto na caixa ou falar outra vez.';
+      if (!on) mic = null;
+    };
+    btn?.addEventListener('click', () => {
+      if (mic) { mic.stop(); return; }
+      mic = Voz.listen({
+        onText: (fin, interim) => {
+          if (fin) {
+            const cur = box.value.trim().replace(/[\s,]+$/, '');
+            box.value = cur ? `${cur}, ${fin}` : fin;
+            preview();
+          }
+          if (interim) state.textContent = `🎙️ ${interim}…`;
+        },
+        onState: setListening,
+      });
+    });
+    dlg.addEventListener('close', () => mic?.stop(), { once: true });
+    preview();
+    if (Voz.supported) { box.blur(); btn?.focus(); }
+  }
+
   /* ---------- Ligações ---------- */
   const route = Views.routes.find((r) => r[0] === 'tarefas');
   const listView = route[3];
   route[3] = () => {
     const tab = VS.taskTab || 'lista';
     if (tab === 'lista') return listView();
-    return `<div class="page-head"><h1>Tarefas</h1><div class="quick">${addBtn('add-task', 'Tarefa')}</div></div>
+    return `<div class="page-head"><h1>Tarefas</h1><div class="quick">${Views.h.voiceTaskBtn()}${addBtn('add-task', 'Tarefa')}</div></div>
       ${tabs()}${tab === 'ideias' ? ideias() : conquistas()}`;
   };
   Views.taskHooks = { tabs, side };
@@ -327,6 +415,7 @@ window.TarefasExtra = function ({ render }) {
     'idea-for': (el) => { VS.ideaFor = el.dataset.id; render(); },
     'idea-add': (el) => addIdea(el.dataset.id),
     'idea-plan': planWeek,
+    'voice-task': voiceTask,
     'add-challenge': challengeForm,
     'edit-challenge': challengeForm,
     'challenge-delivered': (el) => Store.update((s) => {

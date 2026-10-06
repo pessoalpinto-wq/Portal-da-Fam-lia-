@@ -1108,3 +1108,4 @@ body.shop-mode .view { margin-left: auto; max-width: 720px; padding: 0 16px 2rem
 .fix-list li { display: flex; justify-content: space-between; gap: .5rem; font-size: .92rem; }
 .fix-list span { white-space: nowrap; font-variant-numeric: tabular-nums; text-align: right; }
 .fin-tile small + small { font-size: .75rem; }
+.voice-task { margin: .25rem 0 0; }
