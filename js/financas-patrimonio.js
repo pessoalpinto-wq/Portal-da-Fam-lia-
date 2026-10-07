@@ -118,10 +118,19 @@ window.FinancasPatrimonio = function ({ render }) {
   document.addEventListener('pointerdown', onChartMove);
   document.addEventListener('pointerleave', hideTip, true);
   // Rodar o telemóvel / mudar o tamanho da janela: redesenha o gráfico à nova largura.
+  // Só quando a LARGURA muda: abrir o teclado (Android) muda a altura e não pode redesenhar a página,
+  // senão a caixa onde se escreve perde o foco, o teclado fecha e volta a abrir sem parar.
   let resizeTimer = null;
+  let lastWidth = window.innerWidth;
   window.addEventListener('resize', () => {
     clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(() => { if (document.querySelector('.pat-chart') && !document.querySelector('#dialog[open]')) render(); }, 250);
+    resizeTimer = setTimeout(() => {
+      const w = window.innerWidth;
+      if (Math.abs(w - lastWidth) < 40) return;
+      lastWidth = w;
+      const typing = document.activeElement?.matches?.('input, textarea, select, [contenteditable]');
+      if (document.querySelector('.pat-chart') && !document.querySelector('dialog[open]') && !typing) render();
+    }, 250);
   });
 
   /* ---------- Vista ---------- */

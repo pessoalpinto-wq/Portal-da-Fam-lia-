@@ -80,6 +80,32 @@
     }
   }
 
+  /**
+   * Se alguém está a escrever numa caixa da página quando ela é redesenhada (ex.: chegou uma alteração de
+   * outro telemóvel), devolve uma função que, depois de redesenhar, põe o texto e o cursor no mesmo sítio —
+   * para o teclado não fechar a meio.
+   */
+  function keepTyping(main) {
+    const el = document.activeElement;
+    if (!el || !main.contains(el) || !el.matches('input:not([type=checkbox]):not([type=radio]):not([type=file]), textarea')) return null;
+    const form = el.form?.dataset.form;
+    const sel = el.id ? `#${CSS.escape(el.id)}`
+      : el.name ? `${form ? `form[data-form="${CSS.escape(form)}"]${el.form.dataset.id ? `[data-id="${CSS.escape(el.form.dataset.id)}"]` : ''} ` : ''}[name="${CSS.escape(el.name)}"]`
+        : null;
+    if (!sel) return null;
+    const { value } = el;
+    let start = null;
+    let end = null;
+    try { start = el.selectionStart; end = el.selectionEnd; } catch { /* tipo sem selecção */ }
+    return () => {
+      const again = main.querySelector(sel);
+      if (!again) return;
+      if (!again.value && value) again.value = value;
+      again.focus({ preventScroll: true });
+      try { if (start != null) again.setSelectionRange(start, end); } catch { /* tipo sem selecção */ }
+    };
+  }
+
   function render() {
     if (document.body.classList.contains('gate')) return;
     const [, , label, view] = currentRoute();
@@ -88,7 +114,9 @@
     // Horário da escola: mantém o deslocamento horizontal entre renders (ou abre no dia de hoje).
     const oldTT = main.querySelector('.timetable');
     if (oldTT) VS.ttScroll = { key: oldTT.dataset.key, left: oldTT.scrollLeft };
+    const typing = keepTyping(main);
     main.innerHTML = view();
+    typing?.();
     document.title = `${label} · Portal da Família`;
     renderNav();
     renderUser();
