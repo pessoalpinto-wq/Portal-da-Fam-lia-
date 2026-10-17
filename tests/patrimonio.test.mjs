@@ -115,3 +115,12 @@ test('mês a mês: juntaram ou não, só com o dinheiro das contas', () => {
   assert.deepEqual(P.yearSaved(rows, 2026), { saved: 300, months: 3, up: 2, down: 1 });
   assert.deepEqual(P.monthly([]), []);
 });
+
+test('cartão de crédito: é um tipo de conta em dívida (conta a menos)', () => {
+  const P = globalThis.Patrimonio;
+  assert.ok(P.KINDS.some(([k, l]) => k === 'cartao' && l.includes('Cartão de crédito')));
+  assert.equal(P.isOwed('cartao'), true);
+  assert.equal(P.isOwed('ordem'), false);
+  const snaps = [{ id: '2026-09', values: { a: 2000, cc: -350 }, debts: {} }, { id: '2026-10', values: { a: 2100, cc: -500 }, debts: {} }];
+  assert.deepEqual(P.monthly(snaps).map((r) => [r.total, r.change]), [[1600, -50], [1650, null]]);
+});

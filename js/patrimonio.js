@@ -9,8 +9,10 @@
 (function (root) {
   const KINDS = [
     ['ordem', '🏦 À ordem'], ['poupanca', '🐷 Poupança'], ['prazo', '🔒 Depósito a prazo'], ['ppr', '🧓 PPR'],
-    ['invest', '📈 Investimentos'], ['certificados', '📜 Certificados de Aforro / Tesouro'], ['dinheiro', '💵 Dinheiro'], ['outro', '📦 Outro'],
+    ['invest', '📈 Investimentos'], ['certificados', '📜 Certificados de Aforro / Tesouro'], ['dinheiro', '💵 Dinheiro'], ['cartao', '💳 Cartão de crédito'], ['outro', '📦 Outro'],
   ];
+  /** Tipos de conta que são dinheiro em dívida: no fecho escreve-se o valor em dívida e conta a menos (fica guardado em negativo). */
+  const isOwed = (kind) => kind === 'cartao';
   const KIND_LABEL = Object.fromEntries(KINDS);
   const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
   const MES3 = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
@@ -245,7 +247,7 @@
   }
 
   root.Patrimonio = {
-    KINDS, KIND_LABEL, addMonths, monthsBetween, lastDay, monthName, monthShort, monthOf, pendingClose,
+    KINDS, KIND_LABEL, isOwed, addMonths, monthsBetween, lastDay, monthName, monthShort, monthOf, pendingClose,
     totals, series, summary, accountRows, byKind, prefill, paymentsMade, estimateBalance, remainingPayments, debtStatus, parseAmount, monthly, yearSaved,
   };
 })(globalThis);

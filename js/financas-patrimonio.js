@@ -257,12 +257,13 @@ window.FinancasPatrimonio = function ({ render }) {
       { name: 'info', type: 'note', html: `<p class="small">Saldo de cada conta no <b>último dia de ${esc(P.monthName(month))}</b>.
         ${f.existing ? 'Este mês já está fechado: podem corrigir os valores.' : f.from ? `Vem preenchido com ${esc(P.monthName(f.from))} — corrijam o que mudou.` : ''}
         Deixem vazio o que não quiserem contar.</p>` },
-      ...accs.map((a) => ({ name: `a_${a.id}`, label: `${a.name}${a.bank ? ` · ${a.bank}` : ''}`, inputmode: 'decimal', half: true, placeholder: '0,00' })),
+      ...accs.map((a) => ({ name: `a_${a.id}`, label: `${P.isOwed(a.kind) ? '💳 ' : ''}${a.name}${a.bank ? ` · ${a.bank}` : ''}${P.isOwed(a.kind) ? ' (em dívida)' : ''}`, inputmode: 'decimal', half: true, placeholder: '0,00' })),
       ...(dts.length ? [{ name: 'dinfo', type: 'note', html: '<h3 class="sub">🚗 Capital em dívida</h3><p class="small muted">Vem no extrato do crédito ("capital em dívida").</p>' }] : []),
       ...dts.map((d) => ({ name: `d_${d.id}`, label: d.name, inputmode: 'decimal', half: true, placeholder: '0,00' })),
     ];
     const values = {};
-    accs.forEach((a) => { if (a.id in f.values) values[`a_${a.id}`] = commaNum(f.values[a.id]); });
+    // Cartão de crédito: escreve-se o valor em dívida (positivo); fica guardado em negativo.
+    accs.forEach((a) => { if (a.id in f.values) values[`a_${a.id}`] = commaNum(P.isOwed(a.kind) ? Math.abs(f.values[a.id]) : f.values[a.id]); });
     dts.forEach((d) => { if (d.id in f.debts) values[`d_${d.id}`] = commaNum(f.debts[d.id]); });
     openForm({
       title: `📅 Fecho de ${P.monthName(month)}`,
@@ -273,7 +274,7 @@ window.FinancasPatrimonio = function ({ render }) {
         const own = s.fsnaps.find((x) => x.id === month);
         const vals = {};
         const dv = {};
-        accs.forEach((a) => { const v = P.parseAmount(data[`a_${a.id}`]); if (v != null) vals[a.id] = v; });
+        accs.forEach((a) => { const v = P.parseAmount(data[`a_${a.id}`]); if (v != null) vals[a.id] = P.isOwed(a.kind) ? -Math.abs(v) : v; });
         dts.forEach((d) => { const v = P.parseAmount(data[`d_${d.id}`]); if (v != null) dv[d.id] = v; });
         // Contas arquivadas que já tinham valor neste fecho: mantém-se.
         Object.entries(own?.values || {}).forEach(([k, v]) => { if (!accs.some((a) => a.id === k)) vals[k] = v; });
@@ -311,6 +312,7 @@ window.FinancasPatrimonio = function ({ render }) {
     { name: 'name', label: 'Nome', required: true, placeholder: 'Ex.: Conta conjunta, Poupança férias, PPR Luís' },
     { name: 'bank', label: 'Banco / entidade', half: true, placeholder: 'Ex.: CGD, Millennium, Revolut' },
     { name: 'kind', label: 'Tipo', type: 'select', half: true, options: P.KINDS },
+    { name: 'kindNote', type: 'note', html: '<p class="small muted">💳 Cartão de crédito: no fecho do mês põem o valor <b>em dívida</b> no cartão (o que vem no extrato para pagar). Conta a menos no total.</p>' },
     { name: 'archived', label: 'Estado', type: 'select', half: true, options: [['', 'Em uso'], ['1', 'Arquivada (fechada)']] },
   ];
   const DEBT_FIELDS = () => [
