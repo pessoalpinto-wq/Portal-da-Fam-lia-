@@ -153,7 +153,7 @@ window.FinancasPatrimonio = function ({ render }) {
       <div class="debt-top">
         <button class="debt-head" data-action="pat-debt-edit" data-id="${esc(d.id)}">
           <b>${esc(d.name)}</b><small class="muted">${esc(['👪 ' + (d.lender || 'Família'), d.start ? `desde ${P.monthName(d.start)}` : ''].filter(Boolean).join(' · '))}</small></button>
-        <button class="btn small primary" data-action="pat-pay-add" data-id="${esc(d.id)}">＋ Pagamento</button>
+        ${d.archived ? '<span class="paid-badge">✅ Paga</span>' : `<button class="btn small primary" data-action="pat-pay-add" data-id="${esc(d.id)}">＋ Pagamento</button>`}
       </div>
       <div class="fam-nums">
         <div><small>Valor original</small><b>${money(d.initial)}</b></div>
@@ -243,8 +243,11 @@ window.FinancasPatrimonio = function ({ render }) {
       : empty('Ainda sem contas.'), { action: addBtn('pat-acc-add', 'Conta') });
 
     const debtList = debts();
-    const debtCardHtml = card('🚗 Dívidas', debtList.length ? `<ul class="pat-debts">${debtList.map(debtCard).join('')}</ul>`
-      : empty('Sem dívidas registadas. Juntem o crédito do carro (valor inicial, prestação e datas) para verem quanto já pagaram e quanto falta.'),
+    const paidOff = s.debts.filter((d) => d.archived);
+    const paidHtml = paidOff.length ? `<details class="pat-paid"><summary class="small">✅ Dívidas pagas (${paidOff.length})</summary>
+        <ul class="pat-debts">${paidOff.map(debtCard).join('')}</ul></details>` : '';
+    const debtCardHtml = card('🚗 Dívidas', (debtList.length ? `<ul class="pat-debts">${debtList.map(debtCard).join('')}</ul>`
+      : empty('Sem dívidas registadas. Juntem o crédito do carro (valor inicial, prestação e datas) para verem quanto já pagaram e quanto falta.')) + paidHtml,
     { action: addBtn('pat-debt-add', 'Dívida') });
 
     // 💰 Mês a mês: juntaram ou não? (só o dinheiro nas contas e investimentos)

@@ -1220,3 +1220,8 @@ body:has(.select-bar) .assist-fab { display: none; }
 .grid > .stack { min-width: 0; }
 .fam-hist .table-wrap { max-width: 100%; }
 .fam-hist td:nth-child(3) { overflow-wrap: anywhere; }
+.pat-paid { margin-top: 1rem; }
+.pat-paid > summary { cursor: pointer; color: var(--muted); }
+.pat-paid .pat-debts { margin-top: .75rem; }
+.paid-badge { font-size: .8rem; font-weight: 700; color: var(--up); white-space: nowrap; }
+.debt.family .pat-meter span { background: var(--chart-debt); }
