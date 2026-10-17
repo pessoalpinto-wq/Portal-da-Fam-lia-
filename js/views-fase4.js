@@ -225,7 +225,9 @@
     const kept = -inMonth.filter((x) => ['poupanca', 'levantamento'].includes(x.kind)).reduce((n, x) => n + x.amount, 0);
     const move = (x) => {
       const [ic, label] = KIND[x.kind] || ['•', ''];
-      return `<li><span>${ic} ${esc(x.note || label)} <small class="muted">· ${esc(fmtDate(x.date))}</small></span>
+      const what = `${ic} ${esc(x.note || label)} <small class="muted">· ${esc(fmtDate(x.date))}</small>`;
+      // Os pais podem corrigir ou apagar um movimento (ex.: registado por engano).
+      return `<li>${parent ? `<button class="move-main" data-action="money-edit" data-id="${esc(x.id)}" title="Corrigir ou apagar">${what}</button>` : `<span>${what}</span>`}
         <b class="${x.amount < 0 ? 'neg' : 'pos'}">${signed(x.amount)}</b></li>`;
     };
     const canGoal = parent || mine;

@@ -53,6 +53,36 @@ window.Fase4 = function ({ render, withButton }) {
     });
   }
 
+
+  /** Corrigir ou apagar um movimento da carteira / mealheiro (só os pais). */
+  function moneyEditForm(el) {
+    if (!Store.isParent()) return;
+    const x = S().money.find((m) => m.id === el.dataset.id);
+    if (!x) return;
+    const who = member(x.memberId)?.name || '';
+    openForm({
+      title: `Movimento · ${who}`,
+      fields: [
+        { name: 'info', type: 'note', html: `<p class="small">${x.amount < 0 ? 'Saída' : 'Entrada'}${x.goalId ? ' (mealheiro / subconta)' : ''} de <b>${esc(money(Math.abs(x.amount)))}</b>. Apagar faz como se nunca tivesse existido.</p>` },
+        { name: 'amount', label: 'Valor (€)', type: 'number', min: 0.01, step: '0.01', required: true, half: true },
+        { name: 'date', label: 'Data', type: 'date', required: true, half: true },
+        { name: 'note', label: 'Nota' },
+      ],
+      values: { amount: Math.abs(x.amount), date: x.date, note: x.note || '' },
+      submitLabel: 'Guardar',
+      onSubmit: (d) => Store.update((s) => {
+        const cur = s.money.find((m) => m.id === x.id);
+        if (!cur) return;
+        const v = round2(Math.abs(d.amount));
+        Object.assign(cur, { amount: cur.amount < 0 ? -v : v, date: d.date, note: d.note });
+      }),
+      onDelete: () => Store.update((s) => { s.money = s.money.filter((m) => m.id !== x.id); }),
+      deleteLabel: 'Apagar movimento',
+      deleteConfirm: `Apagar este movimento de ${money(Math.abs(x.amount))}? O saldo de ${who} muda.`,
+      deleteToast: 'Movimento apagado.',
+    });
+  }
+
   function goalWithdraw(el) {
     const g = S().goals.find((x) => x.id === el.dataset.id);
     if (!g) return;
@@ -683,6 +713,7 @@ window.Fase4 = function ({ render, withButton }) {
     'add-money': moneyForm,
     'goal-withdraw': goalWithdraw,
     'bank-account': bankAccountForm,
+    'money-edit': moneyEditForm,
     'bank-reconcile': reconcileForm,
     'add-goal': (el) => goalForm(el, true),
     'edit-goal': (el) => goalForm(el, false),
