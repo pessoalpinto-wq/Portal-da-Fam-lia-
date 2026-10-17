@@ -1203,3 +1203,20 @@ body:has(.select-bar) .assist-fab { display: none; }
 .goal.vault .pig-info { display: grid; gap: .1rem; flex: 1; min-width: 0; }
 .moves .move-main { font: inherit; color: inherit; background: none; border: 0; padding: 0; text-align: left; cursor: pointer; flex: 1; min-width: 0; }
 .moves .move-main:hover { text-decoration: underline; }
+
+/* ---------- Património: dívida de família (pagamentos livres) ---------- */
+.debt-top { display: flex; justify-content: space-between; align-items: flex-start; gap: .5rem; }
+.fam-nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; margin: .5rem 0 .2rem; }
+.fam-nums small { display: block; color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-spacing: .03em; }
+.fam-nums b { font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+.fam-nums b.up { color: var(--up); }
+.fam-nums b.down { color: var(--down); }
+.fam-hist table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+.fam-hist th, .fam-hist td { padding: .3rem .35rem; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+.fam-hist .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.fam-hist td.act { width: 2rem; padding: 0; }
+.fam-hist .table-wrap { max-height: 360px; overflow: auto; }
+@media (max-width: 480px) { .fam-nums b { font-size: .95rem; } }
+.grid > .stack { min-width: 0; }
+.fam-hist .table-wrap { max-width: 100%; }
+.fam-hist td:nth-child(3) { overflow-wrap: anywhere; }

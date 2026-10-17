@@ -135,8 +135,43 @@ window.FinancasPatrimonio = function ({ render }) {
   });
 
   /* ---------- Vista ---------- */
+  const pctTxt = (n) => `${String(n).replace('.', ',')}%`;
+  const dmy = (iso) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : '');
+
+  // Históricos de pagamentos abertos (continuam abertos quando a página se redesenha).
+  const openHist = new Set();
+  document.addEventListener('toggle', (e) => {
+    const id = e.target?.dataset?.hist;
+    if (id) { if (e.target.open) openHist.add(id); else openHist.delete(id); }
+  }, true);
+
+  /** Dívida de família / amigos: pagamentos livres, registados um a um. */
+  function familyDebtCard(d, st) {
+    const row = (p) => `<tr><td>${esc(dmy(p.date))}</td><td class="num">${money(p.amount)}</td><td>${esc(p.note || '')}</td>
+      <td class="act"><button class="icon-btn" data-action="pat-pay-del" data-id="${esc(d.id)}" data-pay="${esc(p.id)}" aria-label="Apagar pagamento" title="Apagar">✕</button></td></tr>`;
+    return `<li class="debt family">
+      <div class="debt-top">
+        <button class="debt-head" data-action="pat-debt-edit" data-id="${esc(d.id)}">
+          <b>${esc(d.name)}</b><small class="muted">${esc(['👪 ' + (d.lender || 'Família'), d.start ? `desde ${P.monthName(d.start)}` : ''].filter(Boolean).join(' · '))}</small></button>
+        <button class="btn small primary" data-action="pat-pay-add" data-id="${esc(d.id)}">＋ Pagamento</button>
+      </div>
+      <div class="fam-nums">
+        <div><small>Valor original</small><b>${money(d.initial)}</b></div>
+        <div><small>Total pago</small><b class="up">${money(st.paid)}</b></div>
+        <div><small>Falta</small><b class="down">${money(st.balance)}</b></div>
+      </div>
+      <div class="pat-meter" role="progressbar" aria-valuenow="${st.pct}" aria-valuemin="0" aria-valuemax="100" aria-label="${pctTxt(st.pct)} pago"><span style="width:${st.pct}%"></span></div>
+      <p class="small"><b>${pctTxt(st.pct)} pago</b>${st.last ? ` · último pagamento ${esc(dmy(st.last.date))} (${money(st.last.amount)})` : ''}</p>
+      ${st.perMonth && st.balance > 0 ? `<p class="small muted">Ao ritmo de ${money(st.perMonth)}/mês, acaba em ${esc(P.monthName(st.endMonth))} (${st.left} meses).</p>` : ''}
+      ${st.payments.length ? `<details class="fam-hist" data-hist="${esc(d.id)}" ${openHist.has(d.id) ? 'open' : ''}><summary class="small">Histórico de pagamentos (${st.payments.length})</summary>
+        <div class="table-wrap"><table><thead><tr><th>Data</th><th class="num">Valor</th><th>Notas</th><th></th></tr></thead>
+        <tbody>${st.payments.map(row).join('')}</tbody></table></div></details>` : '<p class="small muted">Ainda sem pagamentos registados.</p>'}
+    </li>`;
+  }
+
   function debtCard(d) {
     const st = P.debtStatus(d, S().fsnaps, today());
+    if (st.family) return familyDebtCard(d, st);
     const facts = [];
     if (st.made && st.paid) {
       facts.push(`<li><b>Pago até agora: ${money(st.paid)}</b> <small class="muted">(${st.made} prestaç${st.made === 1 ? 'ão' : 'ões'} de ${money(d.payment)})</small>
@@ -316,10 +351,12 @@ window.FinancasPatrimonio = function ({ render }) {
     { name: 'archived', label: 'Estado', type: 'select', half: true, options: [['', 'Em uso'], ['1', 'Arquivada (fechada)']] },
   ];
   const DEBT_FIELDS = () => [
+    { name: 'kind', label: 'Tipo', type: 'select', options: [['', '🏦 Crédito (banco / financeira, prestação fixa)'], ['familiar', '👪 Empréstimo de família ou amigos (pagamentos livres)']] },
+    { name: 'kindNote', type: 'note', html: '<p class="small muted">👪 Família ou amigos: registam cada pagamento (data, valor e nota) e o portal soma o que já pagaram e o que falta. A prestação e a taxa não são precisas.</p>' },
     { name: 'name', label: 'Nome', required: true, placeholder: 'Ex.: Crédito do carro' },
-    { name: 'lender', label: 'Banco / financeira', half: true },
+    { name: 'lender', label: 'Quem emprestou (banco / pessoa)', half: true },
     { name: 'initial', label: 'Valor emprestado (€)', type: 'number', step: '0.01', min: 0, required: true, half: true },
-    { name: 'start', label: '1.ª prestação (mês)', type: 'month', required: true, half: true },
+    { name: 'start', label: 'Início (mês)', type: 'month', required: true, half: true },
     { name: 'end', label: 'Última prestação (mês)', type: 'month', half: true },
     { name: 'payment', label: 'Prestação mensal (€)', type: 'number', step: '0.01', min: 0, half: true },
     { name: 'rate', label: 'Taxa anual (TAN %, opcional)', type: 'number', step: '0.001', min: 0, half: true },
@@ -336,7 +373,41 @@ window.FinancasPatrimonio = function ({ render }) {
       deleteConfirm: 'Apagar esta conta? Os fechos antigos mantêm o valor dela. Se a conta foi fechada, é melhor "Arquivar".',
     }),
     'pat-debt-add': () => editItem('debts', null, { title: 'dívida', fields: DEBT_FIELDS(), defaults: () => ({ archived: '', start: P.monthOf(today()) }) }),
-    'pat-debt-edit': (el) => editItem('debts', el.dataset.id, { title: 'dívida', fields: DEBT_FIELDS(), deleteConfirm: 'Apagar esta dívida e o seu histórico nos fechos?' }),
+    'pat-debt-edit': (el) => editItem('debts', el.dataset.id, { title: 'dívida', fields: DEBT_FIELDS(), deleteConfirm: 'Apagar esta dívida e o seu histórico (pagamentos e fechos)?' }),
+    'pat-pay-add': (el) => {
+      const d = S().debts.find((x) => x.id === el.dataset.id);
+      if (!d) return;
+      openForm({
+        title: `＋ Pagamento · ${d.name}`,
+        fields: [
+          { name: 'date', label: 'Data', type: 'date', required: true, half: true },
+          { name: 'amount', label: 'Valor (€)', required: true, half: true, inputmode: 'decimal', placeholder: '0,00' },
+          { name: 'note', label: 'Notas', placeholder: 'Ex.: Mensalidade do lar de outubro, MEO' },
+        ],
+        values: { date: today() },
+        submitLabel: 'Registar pagamento',
+        onSubmit: (data) => {
+          const v = P.parseAmount(data.amount);
+          if (!v || v <= 0) { toast('Valor inválido.'); return; }
+          Store.update((st) => {
+            const cur = st.debts.find((x) => x.id === d.id);
+            if (cur) cur.payments = [...(cur.payments || []), { id: Store.uid(), date: data.date, amount: Math.abs(v), note: data.note.trim() }];
+          });
+          const after = P.debtStatus(S().debts.find((x) => x.id === d.id), [], today());
+          toast(`✔ ${money(Math.abs(v))} registado · falta ${money(after.balance)}`);
+        },
+      });
+    },
+    'pat-pay-del': (el) => {
+      const d = S().debts.find((x) => x.id === el.dataset.id);
+      const pay = d?.payments?.find((x) => x.id === el.dataset.pay);
+      if (!pay || !confirm(`Apagar o pagamento de ${money(pay.amount)} de ${dmy(pay.date)}?`)) return;
+      Store.update((st) => {
+        const cur = st.debts.find((x) => x.id === d.id);
+        if (cur) cur.payments = (cur.payments || []).filter((x) => x.id !== pay.id);
+      });
+      toast('Pagamento apagado.');
+    },
   };
 
   Views.patrimonioView = view;

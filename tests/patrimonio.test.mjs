@@ -126,3 +126,22 @@ test('cartão de crédito: é um tipo de conta em dívida (conta a menos)', () =
   const snaps = [{ id: '2026-09', values: { a: 2000, cc: -350 }, debts: {} }, { id: '2026-10', values: { a: 2100, cc: -500 }, debts: {} }];
   assert.deepEqual(P.monthly(snaps).map((r) => [r.total, r.change]), [[1600, -50], [1650, null]]);
 });
+
+test('dívida de família: pagamentos livres, o que falta e o ritmo', () => {
+  const P = globalThis.Patrimonio;
+  const d = { id: 'carro', kind: 'familiar', initial: 20500, start: '2025-11', payments: [
+    { id: 'a', date: '2026-05-11', amount: 290.40 }, { id: 'b', date: '2026-05-27', amount: 93.19 },
+    { id: 'c', date: '2026-09-20', amount: 24.99 }, { id: 'd', date: '2026-10-02', amount: 100 },
+  ] };
+  const st = P.debtStatus(d, [], '2026-09-30');
+  assert.equal(st.family, true);
+  assert.equal(st.paid, 408.58);
+  assert.equal(st.balance, 20091.42);
+  assert.equal(st.made, 4); // inclui o de outubro (futuro em relação a hoje) na lista
+  assert.equal(st.last.date, '2026-09-20');
+  assert.equal(st.pct, 2);
+  assert.equal(st.perMonth, 81.72); // 408,58 € em 5 meses (maio a setembro)
+  assert.equal(P.familyBalance(d, '2026-05'), 20116.41);
+  // O fecho do mês usa sempre o que os pagamentos dizem.
+  assert.equal(P.prefill([], [d], [{ id: '2026-05', values: {}, debts: { carro: 1 } }], '2026-05').debts.carro, 20116.41);
+});

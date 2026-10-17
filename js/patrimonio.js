@@ -130,7 +130,8 @@
     accounts.filter((a) => !a.archived).forEach((a) => { if (a.id in (src.values || {})) values[a.id] = num(src.values[a.id]); });
     const dv = {};
     debts.filter((d) => !d.archived).forEach((d) => {
-      if (d.id in (src.debts || {})) dv[d.id] = num(src.debts[d.id]);
+      if (isFamily(d)) dv[d.id] = familyBalance(d, month); // os pagamentos registados dizem o que falta
+      else if (d.id in (src.debts || {})) dv[d.id] = num(src.debts[d.id]);
       else if (!own) dv[d.id] = estimateBalance(d, month);
     });
     return { values, debts: dv, existing: !!own, from: own ? month : before?.id || null };
@@ -168,11 +169,41 @@
     return x > 0 ? Math.ceil(-Math.log(x) / Math.log(1 + r)) : null; // prestação não chega para os juros
   }
 
+  /* Dívidas de família / amigos ("familiar"): sem prestação fixa; cada pagamento fica registado
+     ({ id, date, amount, note }) e o que falta é o valor emprestado menos o que já foi pago. */
+  const isFamily = (d) => d?.kind === 'familiar';
+  /** Total pago até uma data (AAAA-MM-DD, inclusive; sem data = tudo). */
+  const familyPaid = (d, until) => round2((d.payments || [])
+    .filter((p) => !until || String(p.date) <= until).reduce((n, p) => n + num(p.amount), 0));
+  /** Em dívida no fim de um mês. */
+  const familyBalance = (d, month) => round2(Math.max(0, num(d.initial) - familyPaid(d, lastDay(month))));
+
+  function familyStatus(d, today) {
+    const initial = num(d.initial);
+    const pays = [...(d.payments || [])].sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    const paid = familyPaid(d, today);
+    const balance = round2(Math.max(0, initial - paid));
+    const last = pays.filter((p) => String(p.date) <= today).at(-1) || null;
+    // Ritmo: média por mês desde o primeiro pagamento (ou desde o início), para estimar quando acaba.
+    const from = pays[0] ? monthOf(pays[0].date) : isMonth(d.start) ? d.start : monthOf(today);
+    const months = Math.max(1, monthsBetween(from, monthOf(today)) + 1);
+    const perMonth = paid ? round2(paid / months) : 0;
+    const left = balance <= 0 ? 0 : perMonth > 0 ? Math.ceil(balance / perMonth) : null;
+    return {
+      family: true, balance, estimated: false, asOf: monthOf(today), amortized: round2(Math.min(paid, initial)),
+      pct: initial ? Math.min(100, Math.round((Math.min(paid, initial) / initial) * 1000) / 10) : 0,
+      made: pays.length, paid, interest: null, perMonth, left,
+      endMonth: left ? addMonths(monthOf(today), left) : null, last,
+      payments: [...pays].reverse(), history: [],
+    };
+  }
+
   /**
    * Estado de uma dívida: o capital em dívida vem do último fecho (o valor do banco) ou é estimado.
    * @returns {{ balance, estimated, amortized, pct, paid, interest, made, left, endMonth, history }}
    */
   function debtStatus(d, snaps = [], today) {
+    if (isFamily(d)) return familyStatus(d, today);
     const month = monthOf(today);
     const ser = sorted(snaps);
     const withVal = ser.filter((s) => d.id in (s.debts || {}));
@@ -248,6 +279,6 @@
 
   root.Patrimonio = {
     KINDS, KIND_LABEL, isOwed, addMonths, monthsBetween, lastDay, monthName, monthShort, monthOf, pendingClose,
-    totals, series, summary, accountRows, byKind, prefill, paymentsMade, estimateBalance, remainingPayments, debtStatus, parseAmount, monthly, yearSaved,
+    totals, series, summary, accountRows, byKind, prefill, paymentsMade, estimateBalance, remainingPayments, debtStatus, isFamily, familyPaid, familyBalance, parseAmount, monthly, yearSaved,
   };
 })(globalThis);
