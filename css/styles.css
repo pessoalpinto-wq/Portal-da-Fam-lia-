@@ -1194,3 +1194,10 @@ body:has(.select-bar) .assist-fab { display: none; }
 .pm-row b.up, .pm-year b.up { color: var(--up); }
 .pm-row b.down, .pm-year b.down { color: var(--down); }
 @media (max-width: 480px) { .pm-row { grid-template-columns: 1fr auto; grid-template-areas: "m t" "b b" "v v"; } }
+
+/* ---------- Dinheiro das filhas: cartão do banco e subcontas ---------- */
+.fin-bank { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .6rem; margin: .5rem 0; }
+.goal.vault { display: flex; gap: .75rem; align-items: center; padding: .6rem .75rem; border: 1px solid var(--border); border-radius: 12px; margin-bottom: .5rem; background: var(--surface-2); }
+.vault-ico { font-size: 2rem; line-height: 1; }
+.vault-val { font-size: 1.3rem; font-variant-numeric: tabular-nums; }
+.goal.vault .pig-info { display: grid; gap: .1rem; flex: 1; min-width: 0; }

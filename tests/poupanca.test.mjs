@@ -67,3 +67,22 @@ test('semanas seguidas, arredondamentos e medalhas', () => {
   assert.equal(P.milestone(10, 100), 0);
   assert.equal(P.milestone(100, 100), 100);
 });
+
+test('acertar com a app do banco: cartão e subconta ficam iguais ao Revolut', () => {
+  const P = globalThis.Poupanca;
+  const money = [
+    { memberId: 'mari', date: '2026-10-01', kind: 'mesada', amount: 40 },
+    { memberId: 'mari', date: '2026-10-02', kind: 'poupanca', amount: -15, goalId: 'cofre' }, // para a subconta
+  ];
+  const goals = [{ id: 'cofre', memberId: 'mari', title: 'Subconta', target: 0 }];
+  assert.equal(P.wallet(money, 'mari'), 25);
+  assert.equal(P.goalSaved(money, 'cofre'), 15);
+  // No Revolut: o cartão tem 12,30 € (gastou com o cartão) e a subconta 15,08 € (juros do Revolut).
+  const moves = P.reconcile(money, 'mari', goals, { wallet: 12.3, goals: { cofre: 15.08 } }, '2026-10-17');
+  assert.deepEqual(moves.map((m) => [m.amount, m.goalId || '', !!m.toGoal]), [[-12.7, '', false], [0.08, 'cofre', true]]);
+  const after = [...money, ...moves];
+  assert.equal(P.wallet(after, 'mari'), 12.3);
+  assert.equal(P.goalSaved(after, 'cofre'), 15.08);
+  // Já igual / vazio: nada a fazer.
+  assert.deepEqual(P.reconcile(after, 'mari', goals, { wallet: 12.3, goals: { cofre: null } }, '2026-10-17'), []);
+});

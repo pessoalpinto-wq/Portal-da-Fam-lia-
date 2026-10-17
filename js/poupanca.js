@@ -123,8 +123,33 @@
   /** Marcos de um mealheiro já atingidos (25, 50, 75, 100 %). */
   const milestone = (saved, target) => (num(target) ? [100, 75, 50, 25].find((p) => saved >= (num(target) * p) / 100) || 0 : 0);
 
+  /* ---------- Acertar com a app do banco (ex.: cartão Revolut e subcontas) ---------- */
+  /**
+   * Movimentos de acerto para que o portal fique igual ao banco: a diferença entre o saldo real e o do portal.
+   * @param {Array} money     movimentos
+   * @param {string} memberId de quem
+   * @param {Array} goals     mealheiros / subcontas dessa pessoa
+   * @param {{ wallet?: number|null, goals?: Object<string, number|null> }} real  saldos reais (null = não mexer)
+   * @param {string} date
+   * @returns {Array<{ kind:'acerto', memberId, date, amount, note, goalId?, toGoal? }>}
+   */
+  function reconcile(money, memberId, goals, real, date) {
+    const out = [];
+    if (real.wallet != null && Number.isFinite(real.wallet)) {
+      const diff = round2(real.wallet - wallet(money, memberId));
+      if (Math.abs(diff) >= 0.01) out.push({ kind: 'acerto', memberId, date, amount: diff, note: diff < 0 ? 'Acerto com o banco (gastos com o cartão)' : 'Acerto com o banco' });
+    }
+    (goals || []).forEach((g) => {
+      const v = real.goals?.[g.id];
+      if (v == null || !Number.isFinite(v)) return;
+      const diff = round2(v - goalSaved(money, g.id));
+      if (Math.abs(diff) >= 0.01) out.push({ kind: 'acerto', memberId, date, amount: diff, goalId: g.id, toGoal: true, note: `Acerto: ${g.title}` });
+    });
+    return out;
+  }
+
   root.Poupanca = {
-    wallet, goalSaved, bankOn, interestOf, interestDue, projection, stats, MEDALS, medals, milestone,
+    wallet, goalSaved, reconcile, bankOn, interestOf, interestDue, projection, stats, MEDALS, medals, milestone,
     addMonths, lastDay, round2,
   };
 })(globalThis);

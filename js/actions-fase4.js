@@ -128,6 +128,67 @@ window.Fase4 = function ({ render, withButton }) {
     });
   }
 
+
+  /* ---------- Conta real de uma filha (ex.: cartão Revolut com subcontas) ---------- */
+  function bankAccountForm(el) {
+    if (!Store.isParent()) return;
+    const memberId = el.dataset.id;
+    const id = `conta-${memberId}`;
+    const cur = Views.realAccount(memberId);
+    const hasVault = S().goals.some((g) => g.memberId === memberId);
+    openForm({
+      title: `💳 Conta no banco · ${member(memberId)?.name || ''}`,
+      fields: [
+        { name: 'info', type: 'note', html: '<p class="small">A carteira passa a ser o cartão (é lá que cai a mesada) e os mealheiros as subcontas. Quando quiserem, tocam em <b>🔄 Acertar com a app</b> e põem os saldos que a app do banco mostra.</p>' },
+        { name: 'bank', label: 'Banco', required: true, half: true, placeholder: 'Ex.: Revolut' },
+        { name: 'card', label: 'Nome do cartão', half: true, placeholder: 'Ex.: Cartão' },
+        ...(!cur && !hasVault ? [{ name: 'vault', label: 'Nome da subconta (opcional)', placeholder: 'Ex.: Poupanças, Viagem' }] : []),
+      ],
+      values: cur || { bank: 'Revolut', card: 'Cartão', vault: 'Poupanças' },
+      submitLabel: 'Guardar',
+      onSubmit: (d) => Store.update((s) => {
+        const data = { id, memberId, bank: d.bank.trim(), card: d.card.trim() || 'Cartão' };
+        const i = (s.savings ||= []).findIndex((x) => x.id === id);
+        if (i >= 0) s.savings[i] = data; else s.savings.push(data);
+        if (d.vault?.trim()) s.goals.push({ id: Store.uid(), memberId, title: d.vault.trim(), emoji: '🏦', target: 0 });
+      }),
+      onDelete: cur ? () => Store.update((s) => { s.savings = s.savings.filter((x) => x.id !== id); }) : null,
+      deleteLabel: 'Desligar', deleteConfirm: 'Desligar o cartão desta carteira? Os movimentos ficam.', deleteToast: 'Desligado.',
+    });
+  }
+
+  function reconcileForm(el) {
+    const memberId = el.dataset.id;
+    if (!Store.isParent() && memberId !== S().currentUser) return;
+    const acc = Views.realAccount(memberId) || { bank: 'banco', card: 'Cartão' };
+    const goals = S().goals.filter((g) => g.memberId === memberId);
+    const comma = (n) => String(round2(n)).replace('.', ',');
+    openForm({
+      title: `🔄 Acertar com o ${acc.bank}`,
+      fields: [
+        { name: 'info', type: 'note', html: `<p class="small">Abre a app do ${esc(acc.bank)} e escreve os saldos que lá aparecem. O portal acerta a diferença (assim não é preciso registar cada compra).</p>` },
+        { name: 'wallet', label: `💳 ${acc.card || 'Cartão'} (saldo)`, inputmode: 'decimal', half: true },
+        ...goals.map((g) => ({ name: `g_${g.id}`, label: `${g.emoji || '🏦'} ${g.title}`, inputmode: 'decimal', half: true })),
+      ],
+      values: { wallet: comma(Views.wallet(memberId)), ...Object.fromEntries(goals.map((g) => [`g_${g.id}`, comma(Views.goalSaved(g.id))])) },
+      submitLabel: 'Acertar',
+      onSubmit: (d) => {
+        const read = (v) => Patrimonio.parseAmount(v);
+        const moves = Poupanca.reconcile(S().money, memberId, goals,
+          { wallet: read(d.wallet), goals: Object.fromEntries(goals.map((g) => [g.id, read(d[`g_${g.id}`])])) }, today());
+        if (!moves.length) { toast('✔ Já estava tudo certo.'); return; }
+        // As filhas só podem registar saídas (o servidor não deixa criar dinheiro): a diferença para cima é com os pais.
+        if (!Store.isParent() && moves.some((m) => m.amount > 0)) {
+          toast('Há mais dinheiro no banco do que no portal — pede ao pai ou à mãe para acertar. 🙂');
+          return;
+        }
+        Store.update((s) => moves.forEach((m) => s.money.push({ id: Store.uid(), ...m })));
+        const sum = moves.map((m) => `${m.goalId ? (goals.find((g) => g.id === m.goalId)?.title || '') : acc.card || 'Cartão'} ${m.amount > 0 ? '+' : '−'}${money(Math.abs(m.amount))}`);
+        toast(`🔄 Acertado: ${sum.join(' · ')}`);
+      },
+    });
+  }
+
   /* ---------- Banco dos Pais ---------- */
   function bankForm() {
     if (!Store.isParent()) return;
@@ -621,6 +682,8 @@ window.Fase4 = function ({ render, withButton }) {
   const actions = {
     'add-money': moneyForm,
     'goal-withdraw': goalWithdraw,
+    'bank-account': bankAccountForm,
+    'bank-reconcile': reconcileForm,
     'add-goal': (el) => goalForm(el, true),
     'edit-goal': (el) => goalForm(el, false),
     'edit-allowance': (el) => { if (Store.isParent()) allowanceForm(el); },

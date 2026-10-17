@@ -27,9 +27,9 @@
       { name: 'active', label: 'Activa?', type: 'select', half: true, options: [['sim', 'Sim'], ['nao', 'Não (pausada)']] },
     ],
     goal: () => [
-      { name: 'title', label: 'Objectivo', required: true, placeholder: 'Ex.: Bicicleta, telemóvel, viagem de finalistas' },
+      { name: 'title', label: 'Nome', required: true, placeholder: 'Ex.: Bicicleta, viagem de finalistas, Subconta Revolut' },
       { name: 'emoji', label: 'Emoji', half: true, default: '🐷' },
-      { name: 'target', label: 'Quanto custa? (€)', type: 'number', min: 1, step: '0.01', required: true, half: true },
+      { name: 'target', label: 'Objectivo (€, opcional)', type: 'number', min: 0, step: '0.01', half: true, placeholder: 'vazio = só juntar' },
       ...(Store.isParent() ? [{ name: 'memberId', label: 'De quem', type: 'select', options: memberOptions(false) }] : []),
     ],
     bill: () => [
@@ -84,8 +84,10 @@
   /* ---------- Finanças ---------- */
   const KIND = {
     mesada: ['💰', 'Mesada'], oferta: ['🎁', 'Recebeu'], gasto: ['🛍️', 'Gastou'],
-    poupanca: ['🐷', 'Para o mealheiro'], levantamento: ['↩️', 'Do mealheiro'], juros: ['🏦', 'Juros'],
+    poupanca: ['🐷', 'Para o mealheiro'], levantamento: ['↩️', 'Do mealheiro'], juros: ['🏦', 'Juros'], acerto: ['🔄', 'Acerto com o banco'],
   };
+  /** Conta real de uma filha (ex.: cartão Revolut): { bank, card } guardado em "savings" (só os pais alteram). */
+  const realAccount = (memberId) => (S().savings || []).find((x) => x.id === `conta-${memberId}`) || null;
   const activeAllowance = (a) => a && a.active !== 'nao' && a.active !== false && Number(a.amount) > 0;
 
   /** Próxima data de pagamento da mesada (paga às 9h do dia certo). */
@@ -137,7 +139,28 @@
     </svg>`;
   }
 
+  /** Subconta / mealheiro sem objectivo: só mostra quanto lá está. */
+  function vaultCard(g, k, bal) {
+    const parent = Store.isParent();
+    const sv = goalSaved(g.id);
+    const juros = S().money.filter((x) => x.goalId === g.id && x.kind === 'juros').reduce((n, x) => n + x.amount, 0);
+    const since = S().money.filter((x) => x.goalId === g.id && (x.date || '') >= `${today().slice(0, 7)}-01`)
+      .reduce((n, x) => n + (x.toGoal ? x.amount : -x.amount), 0);
+    return `<div class="goal vault">
+      <span class="vault-ico" aria-hidden="true">${esc(g.emoji || '🏦')}</span>
+      <div class="pig-info">
+        <button class="goal-main" data-action="edit-goal" data-id="${g.id}"><span><b>${esc(g.title)}</b></span></button>
+        <b class="vault-val">${money(sv)}</b>
+        ${since ? `<small class="${since > 0 ? 'pos' : 'neg'}">${signed(since)} este mês</small>` : ''}
+        ${juros ? `<small class="muted">🏦 Já ganhaste ${money(juros)} em juros</small>` : ''}
+        <span class="pig-btns">${bal > 0 ? `<button class="btn small" data-action="add-money" data-id="${k.id}" data-kind="poupanca" data-goal="${g.id}">🪙 Pôr</button>` : ''}
+          ${parent && sv > 0 ? `<button class="linkish" data-action="goal-withdraw" data-id="${g.id}">↩️ tirar</button>` : ''}</span>
+      </div>
+    </div>`;
+  }
+
   function goalCard(g, k, bal) {
+    if (!(Number(g.target) > 0)) return vaultCard(g, k, bal);
     const parent = Store.isParent();
     const sv = goalSaved(g.id);
     const target = Number(g.target) || 0;
@@ -206,25 +229,31 @@
         <b class="${x.amount < 0 ? 'neg' : 'pos'}">${signed(x.amount)}</b></li>`;
     };
     const canGoal = parent || mine;
+    const acc = realAccount(k.id);
+    const lastFix = all.find((x) => x.kind === 'acerto');
 
     return `<section class="card wallet" style="--c:${esc(k.color)}">
       <header class="card-head"><h2>${avatar(k.id)} ${esc(k.name)}</h2>
         <small class="muted">Total: <b>${money(bal + saved)}</b></small></header>
       <div class="fin-totals">
-        <div class="fin-tile"><small>👛 Na carteira</small><b class="${bal < 0 ? 'neg' : ''}">${money(bal)}</b><small>pode gastar</small></div>
-        <div class="fin-tile save"><small>🐷 Nos mealheiros</small><b>${money(saved)}</b><small>guardado</small></div>
+        <div class="fin-tile"><small>${acc ? `💳 ${esc(acc.card || 'Cartão')} ${esc(acc.bank)}` : '👛 Na carteira'}</small><b class="${bal < 0 ? 'neg' : ''}">${money(bal)}</b><small>pode gastar</small></div>
+        <div class="fin-tile save"><small>${acc ? '🏦 Subcontas' : '🐷 Nos mealheiros'}</small><b>${money(saved)}</b><small>guardado</small></div>
       </div>
+      ${acc ? `<p class="small fin-bank">${lastFix ? `🔄 Acertado com o ${esc(acc.bank)} ${esc(relDay(lastFix.date))}` : `Ainda não acertado com o ${esc(acc.bank)}`}
+        ${parent || mine ? `<button class="btn small" data-action="bank-reconcile" data-id="${k.id}">🔄 Acertar com a app</button>` : ''}
+        ${parent ? `<button class="linkish" data-action="bank-account" data-id="${k.id}">alterar</button>` : ''}</p>`
+        : parent ? `<p class="small fin-bank"><button class="linkish" data-action="bank-account" data-id="${k.id}">💳 Tem cartão num banco (ex.: Revolut)? Ligar à carteira</button></p>` : ''}
       <p class="small fin-allow">${allowanceText(a)}
         ${parent ? `<button class="linkish" data-action="edit-allowance" data-id="${k.id}">${a ? 'alterar' : 'definir mesada'}</button>` : ''}</p>
       <div class="fin-actions">
         ${parent ? `<button class="btn small primary" data-action="add-money" data-id="${k.id}" data-kind="oferta">＋ Dar dinheiro</button>` : ''}
         <button class="btn small" data-action="add-money" data-id="${k.id}" data-kind="gasto">🛍️ Gastei</button>
         ${goals.length ? `<button class="btn small" data-action="add-money" data-id="${k.id}" data-kind="poupanca">🐷 Poupar</button>`
-          : canGoal ? `<button class="btn small" data-action="add-goal" data-id="${k.id}">🐷 Criar mealheiro</button>` : ''}
+          : canGoal ? `<button class="btn small" data-action="add-goal" data-id="${k.id}">${acc ? '🏦 Criar subconta' : '🐷 Criar mealheiro'}</button>` : ''}
       </div>
       ${goals.length ? saverStrip(k) : ''}
 
-      <h3 class="sub">🐷 Mealheiros ${goals.length && canGoal ? `<button class="linkish" data-action="add-goal" data-id="${k.id}">＋ novo</button>` : ''}</h3>
+      <h3 class="sub">${acc ? `🏦 Subcontas e mealheiros` : '🐷 Mealheiros'} ${goals.length && canGoal ? `<button class="linkish" data-action="add-goal" data-id="${k.id}">＋ novo</button>` : ''}</h3>
       ${goals.map((g) => goalCard(g, k, bal)).join('') || '<p class="empty small">Poupar para quê? Uma bicicleta, uns auscultadores, a viagem de finalistas… 🚲🎧✈️</p>'}
 
       <h3 class="sub">📒 Movimentos</h3>
@@ -600,9 +629,11 @@
     const me = member(s.currentUser);
     if (me && !PARENT_ROLES.includes(me.role)) {
       const g = s.goals.find((x) => x.memberId === me.id);
-      out += card('💰 A minha carteira', `<p class="big">${money(wallet(me.id))}</p>
-        ${g ? `<p class="small">${esc(g.emoji || '🐷')} ${esc(g.title)}: ${money(goalSaved(g.id))} de ${money(g.target)}</p>
-          <div class="progress"><span style="width:${Math.min(100, Math.round((goalSaved(g.id) / (Number(g.target) || 1)) * 100))}%"></span></div>` : ''}`,
+      const acc = realAccount(me.id);
+      out += card(acc ? `💳 ${esc(acc.card || 'Cartão')} ${esc(acc.bank)}` : '💰 A minha carteira', `<p class="big">${money(wallet(me.id))}</p>
+        ${g ? (Number(g.target) > 0 ? `<p class="small">${esc(g.emoji || '🐷')} ${esc(g.title)}: ${money(goalSaved(g.id))} de ${money(g.target)}</p>
+          <div class="progress"><span style="width:${Math.min(100, Math.round((goalSaved(g.id) / Number(g.target)) * 100))}%"></span></div>`
+          : `<p class="small">${esc(g.emoji || '🏦')} ${esc(g.title)}: <b>${money(goalSaved(g.id))}</b> guardado</p>`) : ''}`,
       { action: '<a href="#/financas" class="link">Ver</a>' });
     }
     return out;
@@ -651,5 +682,5 @@
   insertAfter('votacoes', ['memorias', '📸', 'Memórias', memorias]);
   insertAfter('memorias', ['saude', '🏥', 'Saúde & Docs', saude]);
 
-  Object.assign(Views, { painelExtra, agendaExtra, wallet, goalSaved, kids, bank, photoList });
+  Object.assign(Views, { painelExtra, agendaExtra, wallet, goalSaved, kids, bank, realAccount, photoList });
 })();
