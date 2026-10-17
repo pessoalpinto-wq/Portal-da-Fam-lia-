@@ -211,8 +211,41 @@
     return Number.isFinite(n) ? round2(n) : null;
   }
 
+  /**
+   * Mês a mês: quanto dinheiro havia nas contas no fim de cada mês e se juntaram ou não face ao fecho anterior.
+   * Conta só as contas e investimentos (o dinheiro que têm), não as dívidas.
+   * @returns {Array<{ month, total, change, pct, gap }>} do mais recente para o mais antigo;
+   *   change = diferença para o fecho anterior (null no primeiro); gap = meses sem fecho pelo meio.
+   */
+  function monthly(snaps = []) {
+    let prev = null;
+    const out = sorted(snaps).map((s) => {
+      const total = totals(s).assets;
+      const row = {
+        month: s.id, total,
+        change: prev ? round2(total - prev.total) : null,
+        pct: prev && prev.total ? Math.round(((total - prev.total) / Math.abs(prev.total)) * 1000) / 10 : null,
+        gap: prev ? Math.max(0, monthsBetween(prev.month, s.id) - 1) : 0,
+      };
+      prev = row;
+      return row;
+    });
+    return out.reverse();
+  }
+
+  /** Resumo de um ano (AAAA) a partir de monthly(): quanto juntaram no total e em quantos meses subiu / desceu. */
+  function yearSaved(rows, year) {
+    const inYear = rows.filter((r) => r.month.startsWith(`${year}-`) && r.change != null);
+    return {
+      saved: round2(inYear.reduce((n, r) => n + r.change, 0)),
+      months: inYear.length,
+      up: inYear.filter((r) => r.change > 0).length,
+      down: inYear.filter((r) => r.change < 0).length,
+    };
+  }
+
   root.Patrimonio = {
     KINDS, KIND_LABEL, addMonths, monthsBetween, lastDay, monthName, monthShort, monthOf, pendingClose,
-    totals, series, summary, accountRows, byKind, prefill, paymentsMade, estimateBalance, remainingPayments, debtStatus, parseAmount,
+    totals, series, summary, accountRows, byKind, prefill, paymentsMade, estimateBalance, remainingPayments, debtStatus, parseAmount, monthly, yearSaved,
   };
 })(globalThis);

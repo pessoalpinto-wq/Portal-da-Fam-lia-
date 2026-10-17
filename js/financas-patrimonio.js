@@ -10,6 +10,7 @@ window.FinancasPatrimonio = function ({ render }) {
   const S = () => Store.state;
   const signed = (n) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${money(Math.abs(n))}`;
   const deltaHtml = (n, vs) => (n == null ? '' : `<span class="pat-delta ${n > 0 ? 'up' : n < 0 ? 'down' : ''}">${n > 0 ? '▲' : n < 0 ? '▼' : '='} ${esc(signed(n))}</span>${vs ? ` <small class="muted">${esc(vs)}</small>` : ''}`);
+  const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
   const commaNum = (n) => (n == null ? '' : String(n).replace('.', ','));
   const kindLabel = (k) => P.KIND_LABEL[k] || P.KIND_LABEL.outro;
   const accounts = () => S().faccounts.filter((a) => !a.archived);
@@ -211,7 +212,36 @@ window.FinancasPatrimonio = function ({ render }) {
       : empty('Sem dívidas registadas. Juntem o crédito do carro (valor inicial, prestação e datas) para verem quanto já pagaram e quanto falta.'),
     { action: addBtn('pat-debt-add', 'Dívida') });
 
-    return `${banner}${hero}${stats}
+    // 💰 Mês a mês: juntaram ou não? (só o dinheiro nas contas e investimentos)
+    const months = P.monthly(snaps);
+    let monthCard = '';
+    if (months.length) {
+      const year = months[0].month.slice(0, 4);
+      const ys = P.yearSaved(months, year);
+      const maxAbs = Math.max(1, ...months.map((r) => Math.abs(r.change || 0)));
+      const row = (r) => {
+        const cls = r.change > 0 ? 'up' : r.change < 0 ? 'down' : '';
+        const verdict = r.change == null ? '<span class="muted">Primeiro fecho</span>'
+          : r.change > 0 ? `✅ Juntaram <b class="up">${esc(signed(r.change))}</b>`
+            : r.change < 0 ? `🔻 Não conseguiram juntar: <b class="down">${esc(signed(r.change))}</b>`
+              : '➖ Ficou igual';
+        const prevName = P.monthName(P.addMonths(r.month, -1 - r.gap)).split(' ')[0];
+        return `<li class="pm-row">
+          <button class="pm-month linkish" data-action="pat-close" data-id="${esc(r.month)}" title="Ver / corrigir este fecho">${esc(cap(P.monthName(r.month)))}</button>
+          <span class="pm-total">${money(r.total)}</span>
+          <span class="pm-bar" aria-hidden="true">${r.change ? `<span class="${cls}" style="width:${Math.max(3, Math.round((Math.abs(r.change) / maxAbs) * 100))}%"></span>` : ''}</span>
+          <span class="pm-verdict small">${verdict}${r.pct != null && r.change ? ` <small class="muted">(${r.pct > 0 ? '+' : '−'}${String(Math.abs(r.pct)).replace('.', ',')} %)</small>` : ''}${r.gap ? ` <small class="muted">· desde ${esc(prevName)} (${r.gap === 1 ? 'falta 1 mês' : `faltam ${r.gap} meses`})</small>` : ''}</span>
+        </li>`;
+      };
+      const head = ys.months ? `<p class="pm-year">Em ${year}: ${ys.saved >= 0 ? 'juntaram' : 'perderam'} <b class="${ys.saved > 0 ? 'up' : ys.saved < 0 ? 'down' : ''}">${esc(signed(ys.saved))}</b>
+          <small class="muted">· ${ys.up} ${ys.up === 1 ? 'mês' : 'meses'} a juntar, ${ys.down} a descer</small></p>` : '';
+      monthCard = card('💰 Mês a mês: conseguimos juntar?', `${head}
+        <ul class="pm-list">${months.slice(0, 12).map(row).join('')}</ul>
+        ${months.length > 12 ? `<details><summary class="small">Ver os ${months.length - 12} meses mais antigos</summary><ul class="pm-list">${months.slice(12).map(row).join('')}</ul></details>` : ''}
+        <p class="small muted">Soma do saldo de todas as contas e investimentos no fim de cada mês, comparada com o fecho anterior. As dívidas não entram aqui (estão no património líquido, acima).</p>`);
+    }
+
+    return `${banner}${hero}${stats}${monthCard}
       <div class="grid two wide-left">${evolution}<div class="stack">${accCard}${debtCardHtml}</div></div>
       <p class="small muted">🔒 Só os pais vêem o património. Valores no último dia de cada mês, escritos por vocês — o portal não liga ao banco.</p>`;
   }

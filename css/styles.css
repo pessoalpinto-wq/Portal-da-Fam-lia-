@@ -1173,3 +1173,24 @@ body:has(.select-bar) .assist-fab { display: none; }
 @keyframes assist-dot { 0%, 80%, 100% { opacity: .3; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
 @media (prefers-reduced-motion: reduce) { .assist-typing span { animation: none; } }
 @media (max-width: 480px) { .assist-head { flex-wrap: wrap; } .assist-head h2 { flex: 1; } .assist-usage { order: 5; flex-basis: 100%; text-align: left; } }
+
+/* ---------- Património: mês a mês ---------- */
+.pat-hero + .card, .pat-stats + .card { margin-top: 1rem; }
+.pm-year { margin: 0 0 .6rem; font-size: 1.05rem; }
+.pm-year b { font-size: 1.2rem; font-variant-numeric: tabular-nums; }
+.pm-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .1rem; }
+.pm-row {
+  display: grid; grid-template-columns: minmax(7.5rem, 10rem) 7rem minmax(3rem, 1fr); grid-template-areas: "m t b" "v v v";
+  align-items: center; gap: .1rem .75rem; padding: .5rem 0; border-bottom: 1px solid var(--border);
+}
+.pm-row:last-child { border-bottom: 0; }
+.pm-month { grid-area: m; text-align: left; font-weight: 600; }
+.pm-total { grid-area: t; text-align: right; font-variant-numeric: tabular-nums; }
+.pm-bar { grid-area: b; height: .55rem; background: var(--surface-2); border-radius: 99px; overflow: hidden; }
+.pm-bar > span { display: block; height: 100%; border-radius: 99px; }
+.pm-bar > .up { background: var(--up); }
+.pm-bar > .down { background: var(--down); }
+.pm-verdict { grid-area: v; }
+.pm-row b.up, .pm-year b.up { color: var(--up); }
+.pm-row b.down, .pm-year b.down { color: var(--down); }
+@media (max-width: 480px) { .pm-row { grid-template-columns: 1fr auto; grid-template-areas: "m t" "b b" "v v"; } }

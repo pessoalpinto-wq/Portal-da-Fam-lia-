@@ -99,3 +99,19 @@ test('valores escritos à portuguesa', () => {
   assert.equal(P.parseAmount(''), null);
   assert.equal(P.parseAmount('abc'), null);
 });
+
+test('mês a mês: juntaram ou não, só com o dinheiro das contas', () => {
+  const P = globalThis.Patrimonio;
+  const snaps = [
+    { id: '2026-07', values: { a: 5000, b: 1000 }, debts: { carro: 9000 } },
+    { id: '2026-08', values: { a: 5200, b: 1150 }, debts: { carro: 8800 } }, // +350
+    { id: '2026-09', values: { a: 4900, b: 1150 }, debts: { carro: 8600 } }, // −300
+    { id: '2026-11', values: { a: 5000, b: 1300 }, debts: { carro: 8200 } }, // +250 (falta outubro)
+  ];
+  const rows = P.monthly(snaps);
+  assert.deepEqual(rows.map((r) => [r.month, r.total, r.change, r.gap]),
+    [['2026-11', 6300, 250, 1], ['2026-09', 6050, -300, 0], ['2026-08', 6350, 350, 0], ['2026-07', 6000, null, 0]]);
+  assert.equal(rows[2].pct, 5.8);
+  assert.deepEqual(P.yearSaved(rows, 2026), { saved: 300, months: 3, up: 2, down: 1 });
+  assert.deepEqual(P.monthly([]), []);
+});
