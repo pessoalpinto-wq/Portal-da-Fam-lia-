@@ -1225,3 +1225,29 @@ body:has(.select-bar) .assist-fab { display: none; }
 .pat-paid .pat-debts { margin-top: .75rem; }
 .paid-badge { font-size: .8rem; font-weight: 700; color: var(--up); white-space: nowrap; }
 .debt.family .pat-meter span { background: var(--chart-debt); }
+
+/* ---------- Finanças: trabalhos extra ---------- */
+.job-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .5rem; margin-bottom: 1rem; }
+.job-year { display: flex; align-items: center; gap: .5rem; font-size: 1.2rem; }
+.job-tiles { margin-bottom: .75rem; }
+.job-tax { margin: 0 0 1rem; }
+.jobs { list-style: none; margin: 0 0 .5rem; padding: 0; display: grid; gap: .1rem; }
+.job { display: grid; grid-template-columns: 1fr auto; gap: .2rem .75rem; align-items: center; padding: .5rem 0; border-bottom: 1px solid var(--border); }
+.job:last-child { border-bottom: 0; }
+.job-main { display: grid; gap: .1rem; text-align: left; background: none; border: 0; padding: 0; color: inherit; font: inherit; cursor: pointer; min-width: 0; }
+.job-main:hover .job-title b { text-decoration: underline; }
+.job-val { display: grid; justify-items: end; font-variant-numeric: tabular-nums; }
+.job-acts { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
+.job-stale { color: var(--warn); font-weight: 600; margin-right: .25rem; }
+.job-done > summary { cursor: pointer; }
+.job-bars { display: grid; grid-template-columns: repeat(12, 1fr); gap: .25rem; align-items: end; height: 150px; margin-bottom: .5rem; }
+.jb { display: grid; grid-template-rows: auto 1fr auto; height: 100%; align-items: end; justify-items: center; min-width: 0; }
+.jb-bar { width: 100%; max-width: 28px; background: var(--ok); border-radius: 4px 4px 0 0; min-height: 0; align-self: end; }
+.jb-v { font-size: .6rem; color: var(--muted); white-space: nowrap; writing-mode: vertical-rl; transform: rotate(180deg); align-self: end; margin-bottom: 2px; }
+.jb-m { font-size: .68rem; color: var(--muted); }
+.job-split { list-style: none; margin: 0; padding: 0; display: grid; gap: .4rem; font-size: .9rem; }
+.job-split li { display: grid; grid-template-columns: minmax(6rem, 10rem) 1fr auto; gap: .5rem; align-items: center; }
+.job-split li > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.js-bar { height: .55rem; background: var(--surface-2); border-radius: 99px; overflow: hidden; }
+.js-bar > span { display: block; height: 100%; background: var(--ok); border-radius: 99px; }
+.job-split b { font-variant-numeric: tabular-nums; }
