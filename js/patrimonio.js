@@ -9,7 +9,7 @@
 (function (root) {
   const KINDS = [
     ['ordem', '🏦 À ordem'], ['poupanca', '🐷 Poupança'], ['prazo', '🔒 Depósito a prazo'], ['ppr', '🧓 PPR'],
-    ['invest', '📈 Investimentos'], ['certificados', '📜 Certificados de Aforro / Tesouro'], ['dinheiro', '💵 Dinheiro'], ['cartao', '💳 Cartão de crédito'], ['outro', '📦 Outro'],
+    ['invest', '📈 Investimentos'], ['certificados', '📜 Certificados de Aforro / Tesouro'], ['dinheiro', '💵 Dinheiro'], ['refeicao', '🍽️ Cartão refeição'], ['cartao', '💳 Cartão de crédito'], ['outro', '📦 Outro'],
   ];
   /** Tipos de conta que são dinheiro em dívida: no fecho escreve-se o valor em dívida e conta a menos (fica guardado em negativo). */
   const isOwed = (kind) => kind === 'cartao';

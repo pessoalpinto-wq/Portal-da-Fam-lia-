@@ -121,6 +121,8 @@ test('cartão de crédito: é um tipo de conta em dívida (conta a menos)', () =
   assert.ok(P.KINDS.some(([k, l]) => k === 'cartao' && l.includes('Cartão de crédito')));
   assert.equal(P.isOwed('cartao'), true);
   assert.equal(P.isOwed('ordem'), false);
+  assert.ok(P.KINDS.some(([k, l]) => k === 'refeicao' && l.includes('Cartão refeição')));
+  assert.equal(P.isOwed('refeicao'), false); // o saldo do cartão refeição é dinheiro que têm
   const snaps = [{ id: '2026-09', values: { a: 2000, cc: -350 }, debts: {} }, { id: '2026-10', values: { a: 2100, cc: -500 }, debts: {} }];
   assert.deepEqual(P.monthly(snaps).map((r) => [r.total, r.change]), [[1600, -50], [1650, null]]);
 });
