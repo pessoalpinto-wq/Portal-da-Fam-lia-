@@ -26,7 +26,9 @@ window.FinancasTrabalhos = function ({ render }) {
         <span class="job-title">${esc(kindLabel(j.kind).split(' ')[0])} <b>${esc(j.title || kindLabel(j.kind).replace(/^\S+ /, ''))}</b></span>
         <small class="muted">${esc([j.client, when, j.kind === 'formacao' && j.hours ? `${j.hours} h` : ''].filter(Boolean).join(' · '))}</small></button>
       <span class="job-val"><b>${money(a.base)}</b>${a.vat || a.withheld ? `<small class="muted">${[a.vat ? `+IVA ${money(a.vat)}` : '', a.withheld ? `ret. ${money(a.withheld)}` : ''].filter(Boolean).join(' · ')}</small>` : ''}</span>
-      ${actions ? `<span class="job-acts">${actions}</span>` : ''}
+      <span class="job-acts">${actions}<span class="job-tools">
+        <button class="btn small ghost" data-action="job-edit" data-id="${esc(j.id)}" aria-label="Editar">✎ Editar</button>
+        <button class="btn small ghost danger-text" data-action="job-del" data-id="${esc(j.id)}" aria-label="Apagar">🗑️ Apagar</button></span></span>
     </li>`;
   }
   const btn = (action, id, label, cls = '') => `<button class="btn small ${cls}" data-action="${action}" data-id="${esc(id)}">${label}</button>`;
@@ -165,6 +167,12 @@ window.FinancasTrabalhos = function ({ render }) {
     'job-year': (el) => { if (el.dataset.id) { VS.jobYear = el.dataset.id; render(); } },
     'job-add': (el) => jobForm(null, el.dataset.id),
     'job-edit': (el) => { const j = job(el.dataset.id); if (j) jobForm(j); },
+    'job-del': (el) => {
+      const j = job(el.dataset.id);
+      if (!j || !confirm(`Apagar "${j.title || kindLabel(j.kind)}" (${j.client || ''}, ${money(T.amounts(j).base)})?`)) return;
+      Store.update((s) => { s.jobs = s.jobs.filter((x) => x.id !== j.id); });
+      toast('Apagado.');
+    },
     'job-won': (el) => { setStatus(el.dataset.id, 'adjudicado'); toast('✅ Adjudicado! Passou para "Em curso".'); },
     'job-lost': (el) => { setStatus(el.dataset.id, 'recusado'); toast('Fica registado como não adjudicado.'); },
     'job-billed': (el) => { setStatus(el.dataset.id, 'faturado'); toast('🧾 Faturado: fica à espera do pagamento.'); },
