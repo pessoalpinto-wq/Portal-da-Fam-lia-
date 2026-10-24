@@ -150,8 +150,13 @@ window.FinancasOrcamento = function ({ render }) {
     let note = '';
     if (chosen) note = '';
     else if (isCard && kindOfAcc(account) !== 'cartao') {
-      const card = accs.find((a) => a.kind === 'cartao');
-      if (card) { account = card.id; note = `💳 Este é o extrato do <b>cartão de crédito</b>: vai para «${esc(card.name)}».`; }
+      // Com vários cartões (ex.: Santander e Wizink), escolhe o do mesmo banco da conta escolhida; senão, só se houver um.
+      const cards = accs.filter((a) => a.kind === 'cartao');
+      const bankOf = (a) => Orcamento.norm(a?.bank || a?.name || '').split(' ')[0];
+      const sel = accs.find((a) => a.id === account);
+      const card = cards.length === 1 ? cards[0] : cards.find((a) => bankOf(a) && bankOf(a) === bankOf(sel));
+      if (card) { account = card.id; note = `💳 Este é o extrato do <b>cartão de crédito</b>: vai para «${esc(card.name)}${card.bank ? ` · ${esc(card.bank)}` : ''}». Se não for este cartão, mudem a conta abaixo.`; }
+      else if (cards.length > 1) note = '💳 Este é o extrato de um <b>cartão de crédito</b>: escolham abaixo qual dos cartões.';
       else note = '💳 Parece o extrato de um <b>cartão de crédito</b>. Juntem o cartão em 📈 Património (tipo «Cartão de crédito») para ficar separado da conta à ordem.';
     } else if (!isCard && kindOfAcc(account) === 'cartao') {
       note = '⚠️ Escolheram um cartão de crédito, mas este extrato parece ser de uma conta à ordem. Confirmem a conta abaixo.';
