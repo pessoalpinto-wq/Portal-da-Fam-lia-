@@ -207,6 +207,8 @@
         kind: 'bill', id: b.id, title: `💶 ${b.title}`, members: [],
       }));
     }
+    // Eventos do Google Calendar (js/agenda-externa.js), só leitura.
+    out.push(...(window.UI?.extItems?.(date) || []));
     return out.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
   }
 

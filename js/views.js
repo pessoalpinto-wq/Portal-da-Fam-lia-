@@ -114,7 +114,7 @@
   /* ---------- Pedaços reutilizáveis ---------- */
   const OPEN_ACTION = {
     event: 'edit-event', exam: 'edit-exam', task: 'edit-task', trip: 'goto-trip', bday: 'edit-member',
-    sdate: 'edit-date', health: 'edit-health', doc: 'edit-doc', bill: 'edit-bill',
+    sdate: 'edit-date', health: 'edit-health', doc: 'edit-doc', bill: 'edit-bill', ext: 'ext-event',
   };
 
   function itemRow(it, date) {
@@ -307,6 +307,7 @@
           ${dayClasses.length ? `<h3 class="sub">Escola</h3>${dayClasses.map(({ mm, cl }) =>
             `<div class="school-row">${avatar(mm.id)}<div><b>${esc(mm.name)}</b> ${esc(cl[0].start)}–${esc(cl[cl.length - 1].end)}</div></div>`).join('')}` : ''}
           <div class="legend">${S().members.map((mm) => UI.chip(mm.id)).join('')}</div>
+          ${Views.extAgendaNote ? Views.extAgendaNote() : ''}
         </section>
       </div>
       ${Views.agendaExtra ? Views.agendaExtra() : ''}`;
@@ -700,6 +701,7 @@
         ${accountCard}
         ${Store.isRemote ? card('🔔 Lembretes no telemóvel', '<div id="notify-panel"><p class="muted small">A carregar…</p></div>') : ''}
         ${Store.isRemote ? card('📅 Calendário no telemóvel', '<div id="calendar-panel"><p class="muted small">A carregar…</p></div>') : ''}
+        ${Store.isRemote ? card('📥 Google Calendar no portal', '<div id="ext-cal-panel"><p class="muted small">A carregar…</p></div>') : ''}
         ${card('👪 A família', `<ul class="list">${s.members.map((m) => `<li class="member-row">${avatar(m.id)}
           <div><b>${esc(m.name)}</b><br><small class="muted">${m.birthday ? `🎂 ${esc(fmtDate(m.birthday))}` : 'Sem data de nascimento'} · ⭐ ${m.points}</small></div>
           ${parent ? `<button class="btn small ghost" data-action="edit-member" data-id="${m.id}">Editar</button>` : ''}</li>`).join('')}</ul>
