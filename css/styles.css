@@ -1253,3 +1253,12 @@ body:has(.select-bar) .assist-fab { display: none; }
 .job-split b { font-variant-numeric: tabular-nums; }
 .job-tools { margin-left: auto; display: flex; gap: .25rem; }
 .danger-text { color: var(--danger); }
+
+/* ---------- Viagens: documentos ---------- */
+.tripdocs { list-style: none; margin: 0 0 .5rem; padding: 0; display: grid; gap: .35rem; }
+.tripdocs li { display: flex; align-items: center; gap: .25rem; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); }
+.tripdoc-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: .6rem; padding: .5rem .6rem; background: none; border: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.tripdoc-main:hover b { text-decoration: underline; }
+.tripdoc-ico { font-size: 1.4rem; line-height: 1; }
+.tripdoc-txt { display: grid; min-width: 0; }
+.tripdoc-txt b, .tripdoc-txt small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
