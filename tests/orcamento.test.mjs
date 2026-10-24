@@ -235,3 +235,19 @@ test('cartão refeição: compras em supermercado ou restaurantes, carregamentos
   // Uma regra da família continua a mandar.
   assert.equal(O.prepareImport([], mv.slice(4), 'ref', [{ match: 'loja desconhecida', cat: 'restaurantes' }], { meal: true }).fresh[0].cat, 'restaurantes');
 });
+
+test('trabalhos extra: entrada separada do ordenado; a regra não apanha pagamentos à mesma pessoa', () => {
+  assert.equal(O.kindOf('extras'), 'income');
+  const rules = [{ match: O.merchantKey('Trf. MB WAY de Joana Exemplo Silva'), cat: 'extras' }];
+  assert.equal(rules[0].match, 'joana exemplo');
+  assert.equal(O.categorize('Trf. MB WAY de Joana Exemplo Silva', 75, rules).cat, 'extras');
+  assert.equal(O.categorize('Trf. MB WAY para Joana Exemplo Silva', -20, rules).cat, 'outros');
+  const s = O.monthSummary([
+    { date: '2026-10-01', amount: 1500, cat: 'entradas' },
+    { date: '2026-10-14', amount: 75, cat: 'extras' },
+    { date: '2026-10-15', amount: -40, cat: 'supermercado' },
+  ], '2026-10');
+  assert.equal(s.income, 1575);
+  assert.equal(s.byCat.extras, 75);
+  assert.equal(s.expense, 40);
+});

@@ -28,7 +28,8 @@
     ['animais', '🐾', 'Animais', 'expense'],
     ['levantamentos', '💶', 'Levantamentos (dinheiro)', 'expense'],
     ['outros', '📦', 'Outras despesas', 'expense'],
-    ['entradas', '💼', 'Entradas (ordenados, reembolsos…)', 'income'],
+    ['entradas', '💼', 'Entradas (ordenado, reembolsos…)', 'income'],
+    ['extras', '🧰', 'Trabalhos extra (formações, projetos…)', 'income'],
     ['poupanca', '🐷', 'Para poupança / investimentos', 'move'],
     ['transferencias', '🔁', 'Transferências entre as vossas contas', 'move'],
   ];
@@ -101,7 +102,9 @@
     const hit = (r) => r.match && (r.whole ? d.includes(` ${r.match} `) : d.includes(` ${r.match}`));
     // "Fracas" (ex.: reembolso) só valem se nenhuma outra apanhar: "REEMBOLSO 12 LIDL" é supermercado.
     const pick = (rules) => rules.filter(hit).sort((a, b) => (a.weak ? 1 : 0) - (b.weak ? 1 : 0) || b.match.length - a.match.length)[0];
-    const fam = familyRules.map((r) => ({ match: norm(r.match), cat: r.cat })).filter((r) => matchesRule(desc, r.match))
+    // Uma regra de entrada (ex.: «andreia filipa» → Trabalhos extra) não apanha um pagamento à mesma pessoa.
+    const fam = familyRules.map((r) => ({ match: norm(r.match), cat: r.cat }))
+      .filter((r) => matchesRule(desc, r.match) && !(kindOf(r.cat) === 'income' && Number(amount) < 0))
       .sort((a, b) => b.match.length - a.match.length)[0];
     if (fam && CAT[fam.cat]) return { cat: fam.cat, rule: 'family' };
     const def = pick(DEFAULT_RULES);

@@ -19,7 +19,7 @@ window.FinancasTrabalhos = function ({ render }) {
   /* ---------- Vista ---------- */
   function row(j, actions = '') {
     const a = T.amounts(j);
-    const when = j.status === 'pago' ? `pago a ${dmy(j.paidDate)}` : j.status === 'orcamento' ? `orçamento de ${dmy(j.quoteDate)}`
+    const when = j.status === 'pago' ? `pago a ${dmy(j.paidDate)}${j.tx ? ' 🏦' : ''}` : j.status === 'orcamento' ? `orçamento de ${dmy(j.quoteDate)}`
       : j.workDate ? dmy(j.workDate) : j.quoteDate ? `orçamento de ${dmy(j.quoteDate)}` : '';
     return `<li class="job">
       <button class="job-main" data-action="job-edit" data-id="${esc(j.id)}">
@@ -88,11 +88,17 @@ window.FinancasTrabalhos = function ({ render }) {
         ${paid.length ? `<ul class="jobs">${paid.map((j) => row(j)).join('')}</ul>` : '<p class="empty small">Ainda nada pago este ano.</p>'}</details>
       ${lost.length ? `<details class="job-done"><summary class="sub">❌ Não adjudicados em ${esc(year)} (${lost.length})</summary><ul class="jobs">${lost.map((j) => row(j)).join('')}</ul></details>` : ''}`);
 
+    // Entradas do extrato na categoria Trabalhos extra que ainda não estão ligadas a um trabalho.
+    const loose = s.ftx.filter((x) => x.cat === 'extras' && x.amount > 0 && !x.jobId && String(x.date).startsWith(year));
+    const looseNote = loose.length ? `<section class="card job-loose"><b>🏦 ${loose.length} entrada${loose.length === 1 ? '' : 's'} do banco em Trabalhos extra sem trabalho ligado</b>
+        <span class="small muted">${money(loose.reduce((n, x) => n + x.amount, 0))} em ${esc(year)}. Toquem em cada uma e escolham o trabalho (ou registem um novo).</span>
+        <button class="btn small" data-action="job-loose" data-id="${esc(loose.map((x) => x.date).sort().at(-1).slice(0, 7))}">Ver entradas</button></section>` : '';
     const intro = !s.jobs.length ? `<section class="card"><p><b>🧰 Trabalhos por fora</b>: ARDA, auditorias técnicas, projectos SPDA, formações…</p>
       <ul class="tips small"><li><b>＋ Orçamento</b> quando envias uma proposta. Depois marcas ✅ adjudicado ou ❌ não.</li>
       <li>Quando recebes, <b>💶 Recebi</b>: conta como ganho no ano em que foi pago.</li>
+      <li>Ou, depois de importar o extrato, toca na entrada (ex.: MB WAY de quem te pagou) em 🎯 Orçamento → <b>🧰 Trabalho extra</b>.</li>
       <li>Em <b>⚙️</b> pões o IVA e a retenção na fonte que costumas usar (ex.: isento art. 53.º, retenção 25 %).</li></ul></section>` : '';
-    return `${head}${intro}${tiles}<div class="grid two wide-left">${lists}${stats ? `<div class="stack">${stats}</div>` : ''}</div>
+    return `${head}${intro}${looseNote}${tiles}<div class="grid two wide-left">${lists}${stats ? `<div class="stack">${stats}</div>` : ''}</div>
       <p class="small muted">🔒 Só os pais vêem esta parte. Valores sem IVA; o ganho de cada ano é o que foi pago nesse ano.</p>`;
   }
 
@@ -137,7 +143,7 @@ window.FinancasTrabalhos = function ({ render }) {
         });
         toast(j ? '✔ Guardado' : data.status === 'orcamento' ? '📝 Orçamento registado' : '🧰 Trabalho registado');
       },
-      ...(j ? { onDelete: () => Store.update((s) => { s.jobs = s.jobs.filter((x) => x.id !== j.id); }), deleteConfirm: 'Apagar este trabalho?', deleteToast: 'Apagado.' } : {}),
+      ...(j ? { onDelete: () => Store.update((s) => removeJob(s, j.id)), deleteConfirm: 'Apagar este trabalho?', deleteToast: 'Apagado.' } : {}),
     });
   }
   const P = () => Patrimonio; // parseAmount ("1.234,56")
@@ -161,6 +167,12 @@ window.FinancasTrabalhos = function ({ render }) {
     });
   }
 
+  /** Apaga o trabalho; as entradas do extrato ligadas a ele ficam em Trabalhos extra, sem a ligação. */
+  function removeJob(s, id) {
+    s.jobs = s.jobs.filter((x) => x.id !== id);
+    s.ftx.forEach((x) => { if (x.jobId === id) delete x.jobId; });
+  }
+
   const setStatus = (id, status, extra = {}) => Store.update((s) => { const cur = s.jobs.find((x) => x.id === id); if (cur) Object.assign(cur, { status, ...extra }); });
 
   const actions = {
@@ -170,13 +182,14 @@ window.FinancasTrabalhos = function ({ render }) {
     'job-del': (el) => {
       const j = job(el.dataset.id);
       if (!j || !confirm(`Apagar "${j.title || kindLabel(j.kind)}" (${j.client || ''}, ${money(T.amounts(j).base)})?`)) return;
-      Store.update((s) => { s.jobs = s.jobs.filter((x) => x.id !== j.id); });
+      Store.update((s) => removeJob(s, j.id));
       toast('Apagado.');
     },
     'job-won': (el) => { setStatus(el.dataset.id, 'adjudicado'); toast('✅ Adjudicado! Passou para "Em curso".'); },
     'job-lost': (el) => { setStatus(el.dataset.id, 'recusado'); toast('Fica registado como não adjudicado.'); },
     'job-billed': (el) => { setStatus(el.dataset.id, 'faturado'); toast('🧾 Faturado: fica à espera do pagamento.'); },
     'job-paid': (el) => { const j = job(el.dataset.id); if (j) paidForm(j); },
+    'job-loose': (el) => { Object.assign(VS, { finTab: 'orcamento', budMonth: el.dataset.id, budFilter: 'extras', budAcc: '', budSearch: '' }); render(); },
     'job-cfg': () => {
       const c = cfg();
       openForm({

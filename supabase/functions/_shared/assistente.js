@@ -255,12 +255,14 @@ const PERIODS = { monthly: 1, bimonthly: 2, quarterly: 3, semiannual: 6, yearly:
 function monthSpend(s, m) {
   const by = {};
   let income = 0;
+  let extras = 0;
   s.ftx.filter((t) => String(t.date).startsWith(m)).forEach((t) => {
     if (t.cat === 'entradas') { income += Number(t.amount) || 0; return; }
+    if (t.cat === 'extras') { income += Number(t.amount) || 0; extras += Number(t.amount) || 0; return; }
     if (BUDGET_SKIP.has(t.cat)) return;
     by[t.cat || 'outros'] = (by[t.cat || 'outros'] || 0) - (Number(t.amount) || 0);
   });
-  return { by, income, total: Object.values(by).reduce((n, v) => n + v, 0) };
+  return { by, income, extras, total: Object.values(by).reduce((n, v) => n + v, 0) };
 }
 function verFinancas(s, { mes }, today) {
   const m = /^\d{4}-\d{2}$/.test(String(mes || '')) ? mes : today.slice(0, 7);
@@ -275,7 +277,7 @@ function verFinancas(s, { mes }, today) {
   const sum = (o) => Object.values(o || {}).reduce((n, v) => n + (Number(v) || 0), 0);
   const lines = [
     `Mês ${m}${s.ftx.length ? '' : ' — ainda não há movimentos importados'}:`,
-    `Entradas: ${money(cur.income)} · Gastos: ${money(cur.total)} (mês anterior: ${money(prev.total)})`,
+    `Entradas: ${money(cur.income)}${cur.extras ? ` (das quais trabalhos extra: ${money(cur.extras)})` : ''} · Gastos: ${money(cur.total)} (mês anterior: ${money(prev.total)})`,
     ...cats.map(([c, v]) => `- ${BUDGET_NAMES[c] || c}: ${money(v)}${limit[c] ? ` de ${money(limit[c])} orçamentados (${Math.round((v / limit[c]) * 100)}%)` : ''}${prev.by[c] ? ` · mês anterior ${money(prev.by[c])}` : ''}`),
     `Despesas fixas: ${fixed.length} · ${money(perMonth)}/mês · ${money(perMonth * 12)}/ano`,
     ...fixed.slice(0, 30).map((b) => `- ${b.title}: ${money(b.amount)} ${({ monthly: 'mensal', bimonthly: 'de 2 em 2 meses', quarterly: 'trimestral', semiannual: 'semestral', yearly: 'anual' })[b.repeat]}${b.due ? ` · próximo ${b.due}` : ''}`),

@@ -71,7 +71,8 @@ window.FinancasOrcamento = function ({ render }) {
         <span class="bud-accv"><b>${money(a.out)}</b>${a.in ? `<small class="muted">entrou ${money(a.in)}</small>` : ''}</span></li>`).join('')}</ul>
       <p class="small muted">Despesas de ${esc(P.monthName(m))} em cada conta. Os pagamentos do cartão e as transferências entre contas não contam (senão contavam duas vezes).</p>`) : '';
     const tiles = `${acc ? `<p class="small bud-accnote">A mostrar só <b>${esc(accountName(acc))}</b>. <button class="linkish" data-action="bud-acc" data-id="">Ver todas as contas</button></p>` : ''}<div class="fin-summary pat-stats">
-      <div class="fin-tile"><small>Entrou</small><b>${money(sum.income)}</b></div>
+      <div class="fin-tile"><small>Entrou</small><b>${money(sum.income)}</b>${sum.byCat.extras ? `<small>ordenado e outras ${money(sum.income - sum.byCat.extras)}</small>` : ''}</div>
+      ${sum.byCat.extras ? `<button class="fin-tile bud-extras" data-action="bud-filter" data-id="extras"><small>🧰 Trabalhos extra</small><b>${money(sum.byCat.extras)}</b><small>${Math.round((sum.byCat.extras / sum.income) * 100)}% do que entrou</small></button>` : ''}
       <div class="fin-tile"><small>Saiu (despesas)</small><b>${money(sum.expense)}</b></div>
       <div class="fin-tile ${sum.saved >= 0 ? 'ok' : ''}"><small>Sobrou${sum.rate != null ? ` · ${sum.rate}%` : ''}</small><b>${esc(signedMoney(sum.saved))}</b></div>
       ${sum.moved ? `<div class="fin-tile"><small>Para poupança / entre contas</small><b>${money(sum.moved)}</b></div>` : ''}
@@ -97,7 +98,7 @@ window.FinancasOrcamento = function ({ render }) {
     const txRow = (t) => `<li class="tx">
         <button class="tx-main" data-action="bud-tx" data-id="${esc(t.id)}">
           <span class="tx-desc">${Fixas.billFor(t, s.bills) || t.fixed ? '<span title="Despesa fixa">📌 </span>' : ''}${esc(t.desc)}</span>
-          <small class="muted">${esc(t.date.slice(8, 10))}/${esc(t.date.slice(5, 7))} · ${esc(accountName(t.account))}${t.debtId ? ` · 🚗 abate: ${esc(S().debts.find((x) => x.id === t.debtId)?.name || 'dívida')}` : ''}${t.note ? ` · ${esc(t.note)}` : ''}</small>
+          <small class="muted">${esc(t.date.slice(8, 10))}/${esc(t.date.slice(5, 7))} · ${esc(accountName(t.account))}${t.debtId ? ` · 🚗 abate: ${esc(S().debts.find((x) => x.id === t.debtId)?.name || 'dívida')}` : ''}${t.jobId ? ` · 🧰 ${esc(jobName(S().jobs.find((x) => x.id === t.jobId)))}` : ''}${t.note ? ` · ${esc(t.note)}` : ''}</small>
         </button>
         <button class="tx-cat ${t.rule === 'none' && !t.manualCat && O.kindOf(t.cat) === 'expense' ? 'unsorted' : ''}" data-action="bud-cat" data-id="${esc(t.id)}" title="Mudar a categoria">${esc(O.CAT[t.cat]?.emoji || '📦')}<span>${esc(O.CAT[t.cat]?.name.split(' (')[0] || t.cat)}</span></button>
         <b class="tx-amt ${t.amount > 0 ? 'in' : ''}">${esc(signedMoney(t.amount))}</b>
@@ -247,6 +248,8 @@ window.FinancasOrcamento = function ({ render }) {
     if (!t) return;
     const key = O.merchantKey(t.desc);
     const same = key ? S().ftx.filter((x) => x.id !== t.id && !x.manualCat && O.matchesRule(x.desc, key)).length : 0;
+    // Regra de entrada (ex.: Trabalhos extra): não muda os pagamentos à mesma pessoa.
+    const fits = (x, cat) => !(O.kindOf(cat) === 'income' && x.amount < 0);
     openForm({
       title: '🏷️ Categoria',
       fields: [
@@ -264,7 +267,7 @@ window.FinancasOrcamento = function ({ render }) {
             const rid = `r-${O.hash(key)}`;
             const r = s.frules.find((y) => y.id === rid);
             if (r) r.cat = d.cat; else s.frules.push({ id: rid, match: key, cat: d.cat });
-            s.ftx.forEach((y) => { if (!y.manualCat && O.matchesRule(y.desc, key)) { y.cat = d.cat; y.rule = 'family'; } });
+            s.ftx.forEach((y) => { if (!y.manualCat && O.matchesRule(y.desc, key) && fits(y, d.cat)) { y.cat = d.cat; y.rule = 'family'; } });
           }
         });
         toast(`🏷️ ${catLabel(d.cat)}${key && d.always ? ` · regra para «${key}» guardada` : ''}`);
@@ -293,8 +296,13 @@ window.FinancasOrcamento = function ({ render }) {
         ? { label: `📌 Fixa: ${Fixas.billFor(t, S().bills).title}`, onClick: () => { const id = Fixas.billFor(t, S().bills).id; setTimeout(() => editBill(id), 0); } }
         : { label: '📌 Despesa fixa', onClick: () => { setTimeout(() => fixedForm(t), 0); } },
       ...(t.debtId ? [{ label: `🚗 Abate: ${S().debts.find((x) => x.id === t.debtId)?.name || 'dívida'}`, onClick: () => { setTimeout(() => debtLinkForm(t), 0); } }]
-        : familyDebts().length ? [{ label: '🚗 Abater numa dívida', onClick: () => { setTimeout(() => debtLinkForm(t), 0); } }] : [])] : [],
-      onDelete: t ? () => Store.update((s) => { s.ftx = s.ftx.filter((x) => x.id !== t.id); }) : null,
+        : familyDebts().length ? [{ label: '🚗 Abater numa dívida', onClick: () => { setTimeout(() => debtLinkForm(t), 0); } }] : [])]
+        : t && t.amount > 0 ? [{ label: t.jobId ? `🧰 ${jobName(S().jobs.find((x) => x.id === t.jobId))}` : '🧰 Trabalho extra', onClick: () => { setTimeout(() => jobLinkForm(t), 0); } }] : [],
+      onDelete: t ? () => Store.update((s) => {
+        s.ftx = s.ftx.filter((x) => x.id !== t.id);
+        // O trabalho pago por esta entrada fica pago, só perde a ligação ao extrato.
+        s.jobs.forEach((j) => { if (j.tx === t.id) { delete j.tx; delete j.fromTx; } });
+      }) : null,
       deleteConfirm: 'Apagar este movimento? (Se voltarem a importar o extrato, ele volta.)',
       deleteToast: 'Movimento apagado.',
       onSubmit: (d) => {
@@ -401,6 +409,108 @@ window.FinancasOrcamento = function ({ render }) {
     return n;
   }
   Views.unlinkDebtTx = unlinkTx;
+
+  /* ---------- Entrada de um trabalho extra (formação, projeto…): separada do ordenado e ligada ao trabalho ---------- */
+  const jobName = (j) => (j ? j.title || Trabalhos.KIND[j.kind]?.replace(/^\S+ /, '') || 'trabalho' : 'trabalho');
+  const jobsCfg = () => (S().savings || []).find((x) => x.id === 'trabalhos-cfg') || {};
+  /** "Trf. MB WAY de Andreia Filipa Nunes" → "Andreia Filipa Nunes" (para sugerir o cliente). */
+  const payerOf = (desc) => {
+    const m = String(desc).match(/\b(?:de|from)\s+(.+)$/i);
+    return (m ? m[1] : '').replace(/\s+/g, ' ').trim().replace(/\b(\p{L})(\p{L}*)/gu, (_, a, b) => a.toUpperCase() + b.toLowerCase()).slice(0, 60);
+  };
+
+  function jobLinkForm(t) {
+    const linked = t.jobId && S().jobs.find((x) => x.id === t.jobId);
+    if (linked) {
+      const a = Trabalhos.amounts(linked);
+      openForm({
+        title: `🧰 ${jobName(linked)}`,
+        fields: [{ name: 'info', type: 'note', html: `<p><b>${esc(t.desc)}</b> (${esc(signedMoney(t.amount))}, ${esc(t.date)}) é o pagamento de
+          <b>${esc(jobName(linked))}</b>${linked.client ? ` · ${esc(linked.client)}` : ''} (${money(a.base)} sem IVA).</p>
+          <p class="small muted">Conta como ganho de ${esc(String(linked.paidDate || t.date).slice(0, 4))} em 💶 Finanças → 🧰 Trabalhos extra.</p>` }],
+        submitLabel: 'Fechar',
+        onSubmit: () => {},
+        extra: [{ label: 'Desligar do trabalho', onClick: () => { Store.update((s) => unlinkJob(s, t.id)); toast('Já não está ligado ao trabalho (continua em Trabalhos extra).'); } }],
+      });
+      return;
+    }
+    const amt = t.amount;
+    // Trabalhos à espera de pagamento; os de valor igual ao que entrou primeiro.
+    const open = S().jobs.filter((j) => ['faturado', 'adjudicado', 'orcamento'].includes(j.status))
+      .map((j) => ({ j, diff: Math.abs(Trabalhos.amounts(j).received - amt) }))
+      .sort((x, y) => (x.diff < 0.01 ? 0 : 1) - (y.diff < 0.01 ? 0 : 1) || ({ faturado: 0, adjudicado: 1, orcamento: 2 }[x.j.status] - { faturado: 0, adjudicado: 1, orcamento: 2 }[y.j.status]));
+    const key = O.merchantKey(t.desc);
+    const same = key ? S().ftx.filter((x) => x.id !== t.id && x.amount > 0 && !x.manualCat && O.matchesRule(x.desc, key)).length : 0;
+    const c = jobsCfg();
+    openForm({
+      title: '🧰 Trabalho extra',
+      fields: [
+        { name: 'info', type: 'note', html: `<p><b>${esc(t.desc)}</b><br><span class="small muted">${esc(t.date)} · ${esc(signedMoney(amt))}</span></p>
+          <p class="small">Passa para a categoria 🧰 <b>Trabalhos extra</b> (fica separado do ordenado) e o trabalho fica <b>pago</b> com esta data e valor.</p>` },
+        { name: 'job', label: 'Que trabalho é?', type: 'select', options: [
+          ...open.map(({ j, diff }) => [j.id, `${diff < 0.01 ? '✔ ' : ''}${Trabalhos.KIND[j.kind]?.split(' ')[0] || '🧰'} ${jobName(j)}${j.client ? ` · ${j.client}` : ''} · ${money(Trabalhos.amounts(j).received)} (${Trabalhos.STATUS_LABEL[j.status].replace(/^\S+ /, '').toLowerCase()})`]),
+          ['_new', '＋ Registar um trabalho novo'], ['_none', 'Só mudar a categoria (sem trabalho)']] },
+        { name: 'newinfo', type: 'note', html: '<p class="small muted" data-newjob>Trabalho novo:</p>' },
+        { name: 'kind', label: 'Tipo', type: 'select', half: true, options: Trabalhos.KINDS },
+        { name: 'client', label: 'Cliente / entidade', half: true, suggest: [...new Set(S().jobs.map((x) => x.client).filter(Boolean))] },
+        { name: 'title', label: 'Descrição', placeholder: 'Ex.: Formação RTIEBT, ARDA moradia' },
+        ...(key ? [{ name: 'always', label: `As próximas entradas de «${key}» também são trabalhos extra?`, type: 'select',
+          options: [['', 'Não, só esta'], ['1', `Sim, sempre${same === 1 ? ' (e a outra já importada)' : same ? ` (e as outras ${same} já importadas)` : ''}`]] }] : []),
+      ],
+      values: { job: open.length && open[0].diff < 0.01 ? open[0].j.id : '_new', kind: 'formacao', client: payerOf(t.desc), title: '', always: '' },
+      submitLabel: '🧰 Guardar',
+      onSubmit: (d) => {
+        let name = '';
+        Store.update((s) => {
+          const x = s.ftx.find((y) => y.id === t.id);
+          if (!x) return;
+          Object.assign(x, { cat: 'extras', manualCat: true });
+          let j = null;
+          if (d.job === '_new') {
+            // O que entrou já vem com IVA e sem a retenção: o valor do trabalho (sem IVA) sai das percentagens do ⚙️.
+            const vat = Number(c.vat) || 0;
+            const withholding = Number(c.withholding) || 0;
+            const base = Math.round((amt / (1 + (vat - withholding) / 100)) * 100) / 100;
+            j = { id: Store.uid(), kind: d.kind, status: 'pago', title: d.title.trim(), client: d.client.trim(), value: base, hours: 0,
+              quoteDate: '', workDate: t.date, paidDate: t.date, paidValue: amt, vat, withholding, notes: '', tx: t.id, fromTx: true };
+            s.jobs.push(j);
+          } else if (d.job !== '_none') {
+            j = s.jobs.find((y) => y.id === d.job);
+            if (j) Object.assign(j, { status: 'pago', paidDate: t.date, paidValue: Math.abs(Trabalhos.amounts(j).received - amt) < 0.01 ? '' : amt, tx: t.id });
+          }
+          if (j) { x.jobId = j.id; name = jobName(j); }
+          if (key && d.always) {
+            const rid = `r-${O.hash(key)}`;
+            const r = s.frules.find((y) => y.id === rid);
+            if (r) r.cat = 'extras'; else s.frules.push({ id: rid, match: key, cat: 'extras' });
+            s.ftx.forEach((y) => { if (y.amount > 0 && !y.manualCat && O.matchesRule(y.desc, key)) { y.cat = 'extras'; y.rule = 'family'; } });
+          }
+        });
+        toast(`🧰 ${money(amt)} em Trabalhos extra${name ? ` · ${name} pago` : ''}${key && d.always ? ` · regra para «${key}» guardada` : ''}`);
+      },
+    });
+    // Os campos do trabalho novo só aparecem quando se escolhe "＋ Registar um trabalho novo".
+    const dlg = document.getElementById('dialog');
+    const pickJob = dlg?.querySelector('[name=job]');
+    const toggle = () => {
+      const isNew = pickJob.value === '_new';
+      [dlg.querySelector('[data-newjob]')?.closest('.field'), ...['kind', 'client', 'title'].map((n) => dlg.querySelector(`[name=${n}]`)?.closest('.field'))]
+        .forEach((el) => { if (el) el.hidden = !isNew; });
+    };
+    if (pickJob) { pickJob.addEventListener('change', toggle); toggle(); }
+  }
+  /** Desliga a entrada do trabalho: o trabalho criado a partir dela sai; um que já existia volta a "faturado". */
+  function unlinkJob(s, txId) {
+    const x = s.ftx.find((y) => y.id === txId);
+    if (!x?.jobId) return;
+    const j = s.jobs.find((y) => y.id === x.jobId);
+    if (j && j.tx === x.id) {
+      if (j.fromTx) s.jobs = s.jobs.filter((y) => y.id !== j.id);
+      else { Object.assign(j, { status: 'faturado', paidDate: '', paidValue: '' }); delete j.tx; }
+    }
+    delete x.jobId;
+  }
+  Views.unlinkJobTx = unlinkJob;
 
   /** Criar uma despesa fixa (conta da casa) a partir de um movimento. */
   function fixedForm(t) {

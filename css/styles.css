@@ -1273,3 +1273,11 @@ body:has(.select-bar) .assist-fab { display: none; }
 .bud-acclist .linkish { text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bud-accv { display: grid; justify-items: end; font-variant-numeric: tabular-nums; }
 @media (max-width: 480px) { .bud-acclist li { grid-template-columns: 1fr auto; } .bud-acclist .js-bar { grid-column: 1 / -1; grid-row: 2; } }
+
+/* Trabalhos extra: entradas do extrato separadas do ordenado */
+button.fin-tile.bud-extras { font: inherit; color: inherit; text-align: left; cursor: pointer; }
+button.fin-tile.bud-extras b { color: var(--ok); }
+button.fin-tile.bud-extras:hover { border-color: var(--ok); }
+.job-loose { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .8rem; border-left: 4px solid var(--ok); }
+.job-loose .small { flex: 1 1 14rem; }
+.field[hidden] { display: none !important; }
