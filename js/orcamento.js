@@ -84,7 +84,7 @@
     ['subsidio', 'entradas'], ['abono', 'entradas'], ['pensao', 'entradas'], ['juros credores', 'entradas'],
     // Cartão de crédito pago pela conta à ordem: sai de uma conta e entra na outra (não é despesa nem entrada).
     ['pagamento de conta cartao', 'transferencias'], ['pagamento cta cartao', 'transferencias'], ['pag cartao credito', 'transferencias'],
-    ['pagamento cartao credito', 'transferencias'], ['liquidacao cartao', 'transferencias'],
+    ['pagamento cartao credito', 'transferencias'], ['liquidacao cartao', 'transferencias'], ['wizink', 'transferencias'],
     // Comissões do cartão e a bonificação que as devolve; reembolsos abatem nas despesas (não são rendimento).
     ['bonif comiss', 'impostos'], ['comiss disponibilizacao', 'impostos'], ['reembolso', 'outros'], ['portagens', 'carro'],
     ['ppr', 'poupanca'], ['certificados de aforro', 'poupanca'], ['aforro', 'poupanca'], ['igcp', 'poupanca'], ['corretora', 'poupanca'],

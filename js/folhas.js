@@ -372,6 +372,11 @@
   async function readTable(buf, { DOMParserImpl } = {}) {
     const b = new Uint8Array(buf);
     if (b[0] === 0x50 && b[1] === 0x4b) return parseXLSX(b, DOMParserImpl);
+    // PDF ("%PDF"): extratos em PDF (ex.: cartão Wizink), lidos com o pdf.js (js/extrato-pdf.js).
+    if (b[0] === 0x25 && b[1] === 0x50 && b[2] === 0x44 && b[3] === 0x46) {
+      if (!root.ExtratoPDF) throw new Error('Este portal ainda não lê PDF.');
+      return root.ExtratoPDF.read(b);
+    }
     if (b[0] === 0xd0 && b[1] === 0xcf) {
       try {
         return parseXLS(b);

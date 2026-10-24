@@ -112,9 +112,9 @@ window.FinancasOrcamento = function ({ render }) {
       title: '📥 Importar extrato',
       fields: [
         { name: 'account', label: 'De que conta é o extrato?', type: 'select', options: accs.map((a) => [a.id, `${a.name}${a.bank ? ` · ${a.bank}` : ''}`]) },
-        { name: 'filebox', type: 'note', html: `<label class="field"><span>Ficheiro do banco (Excel .xls/.xlsx ou CSV)</span>
-          <input type="file" name="file" accept=".csv,.txt,.xlsx,.xls,.htm,.html,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" required></label>
-          <p class="small muted">No homebanking: movimentos da conta → Exportar / Descarregar (Excel ou CSV). Os movimentos que já tiverem importado não se repetem.</p>` },
+        { name: 'filebox', type: 'note', html: `<label class="field"><span>Ficheiro do banco (Excel .xls/.xlsx, CSV ou PDF)</span>
+          <input type="file" name="file" accept=".csv,.txt,.xlsx,.xls,.htm,.html,.pdf,application/pdf,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" required></label>
+          <p class="small muted">No homebanking: movimentos da conta → Exportar / Descarregar (Excel, CSV ou o extrato em PDF). Os movimentos que já tiverem importado não se repetem.</p>` },
       ],
       values: { account: VS.budAccount || accs[0].id },
       submitLabel: 'Ler o ficheiro',
@@ -154,7 +154,10 @@ window.FinancasOrcamento = function ({ render }) {
       const cards = accs.filter((a) => a.kind === 'cartao');
       const bankOf = (a) => Orcamento.norm(a?.bank || a?.name || '').split(' ')[0];
       const sel = accs.find((a) => a.id === account);
-      const card = cards.length === 1 ? cards[0] : cards.find((a) => bankOf(a) && bankOf(a) === bankOf(sel));
+      // 1.º o banco que vem no próprio extrato (ex.: "Wizink"); 2.º o banco da conta escolhida; 3.º o único cartão.
+      const topTxt = ` ${Orcamento.norm(rows.slice(0, 15).map((r) => r.join(' ')).join(' '))} `;
+      const card = cards.find((a) => a.bank && topTxt.includes(` ${Orcamento.norm(a.bank)}`))
+        || (cards.length === 1 ? cards[0] : cards.find((a) => bankOf(a) && bankOf(a) === bankOf(sel)));
       if (card) { account = card.id; note = `💳 Este é o extrato do <b>cartão de crédito</b>: vai para «${esc(card.name)}${card.bank ? ` · ${esc(card.bank)}` : ''}». Se não for este cartão, mudem a conta abaixo.`; }
       else if (cards.length > 1) note = '💳 Este é o extrato de um <b>cartão de crédito</b>: escolham abaixo qual dos cartões.';
       else note = '💳 Parece o extrato de um <b>cartão de crédito</b>. Juntem o cartão em 📈 Património (tipo «Cartão de crédito») para ficar separado da conta à ordem.';
