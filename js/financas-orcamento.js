@@ -112,7 +112,7 @@ window.FinancasOrcamento = function ({ render }) {
       title: '📥 Importar extrato',
       fields: [
         { name: 'account', label: 'De que conta é o extrato?', type: 'select', options: accs.map((a) => [a.id, `${a.name}${a.bank ? ` · ${a.bank}` : ''}`]) },
-        { name: 'filebox', type: 'note', html: `<label class="field"><span>Ficheiro do banco (Excel .xlsx ou CSV)</span>
+        { name: 'filebox', type: 'note', html: `<label class="field"><span>Ficheiro do banco (Excel .xls/.xlsx ou CSV)</span>
           <input type="file" name="file" accept=".csv,.txt,.xlsx,.xls,.htm,.html,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" required></label>
           <p class="small muted">No homebanking: movimentos da conta → Exportar / Descarregar (Excel ou CSV). Os movimentos que já tiverem importado não se repetem.</p>` },
       ],
@@ -127,7 +127,7 @@ window.FinancasOrcamento = function ({ render }) {
     });
   }
 
-  async function readFile(file, account) {
+  async function readFile(file, account, chosen = false) {
     let rows;
     try {
       rows = await Folhas.readTable(await file.arrayBuffer());
@@ -143,7 +143,21 @@ window.FinancasOrcamento = function ({ render }) {
     const mv = O.toMovements(rows, header);
     if (!mv.length) { toast('O ficheiro não tem movimentos.'); return; }
     const rules = S().frules;
-    const { fresh, dup } = O.prepareImport(S().ftx, mv, account, rules);
+    // Extrato do cartão de crédito escolhido na conta errada (ou ao contrário): sugere a conta certa.
+    const accs = S().faccounts.filter((a) => !a.archived);
+    const isCard = O.looksLikeCard(rows, mv);
+    const kindOfAcc = (id) => accs.find((a) => a.id === id)?.kind;
+    let note = '';
+    if (chosen) note = '';
+    else if (isCard && kindOfAcc(account) !== 'cartao') {
+      const card = accs.find((a) => a.kind === 'cartao');
+      if (card) { account = card.id; note = `💳 Este é o extrato do <b>cartão de crédito</b>: vai para «${esc(card.name)}».`; }
+      else note = '💳 Parece o extrato de um <b>cartão de crédito</b>. Juntem o cartão em 📈 Património (tipo «Cartão de crédito») para ficar separado da conta à ordem.';
+    } else if (!isCard && kindOfAcc(account) === 'cartao') {
+      note = '⚠️ Escolheram um cartão de crédito, mas este extrato parece ser de uma conta à ordem. Confirmem a conta abaixo.';
+    }
+    const { fresh, dup } = O.prepareImport(S().ftx, mv, account, rules, { card: kindOfAcc(account) === 'cartao' });
+    const cardPays = fresh.filter((t) => t.cat === 'transferencias').length;
     const dates = mv.map((x) => x.date).sort();
     const counts = {};
     fresh.forEach((t) => { counts[t.cat] = (counts[t.cat] || 0) + 1; });
@@ -152,14 +166,18 @@ window.FinancasOrcamento = function ({ render }) {
     const fmt = (iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
     openForm({
       title: `📥 ${accountName(account)}`,
-      fields: [{ name: 'info', type: 'note', html: `<p><b>${mv.length} movimentos</b> de ${esc(fmt(dates[0]))} a ${esc(fmt(dates.at(-1)))}.</p>
+      fields: [{ name: 'info', type: 'note', html: `${note ? `<p class="small bud-note">${note}</p>` : ''}<p><b>${mv.length} movimentos</b> de ${esc(fmt(dates[0]))} a ${esc(fmt(dates.at(-1)))}.</p>
         ${dup ? `<p class="small">🔁 ${dup} já estavam importados — não se repetem.</p>` : ''}
+        ${cardPays ? `<p class="small">🔁 ${cardPays} pagamento${cardPays === 1 ? '' : 's'} do cartão de crédito: contam como transferência entre as vossas contas (não são despesa nem entrada).</p>` : ''}
         ${fresh.length ? `<p>Entram <b>${fresh.length}</b>:</p><ul class="small bud-preview">${top.map(([c, n]) => `<li>${esc(catLabel(c))} · ${n}</li>`).join('')}</ul>
           ${unsorted ? `<p class="small muted">🏷️ ${unsorted} ficam por classificar (lojas que o portal ainda não conhece).</p>` : ''}
           <div class="table-wrap"><table class="bud-sample"><tbody>${fresh.slice(0, 6).map((t) => `<tr><td>${esc(fmt(t.date).slice(0, 5))}</td><td>${esc(t.desc)}</td><td class="num">${esc(signedMoney(t.amount))}</td></tr>`).join('')}</tbody></table></div>`
-          : '<p>Não há movimentos novos.</p>'}` }],
+          : '<p>Não há movimentos novos.</p>'}` },
+      { name: 'account', label: 'Conta', type: 'select', options: accs.map((a) => [a.id, `${a.kind === 'cartao' ? '💳 ' : ''}${a.name}${a.bank ? ` · ${a.bank}` : ''}`]) }],
+      values: { account },
       submitLabel: fresh.length ? `Importar ${fresh.length}` : 'Fechar',
-      onSubmit: () => {
+      onSubmit: (d) => {
+        if (d.account && d.account !== account) { VS.budAccount = d.account; setTimeout(() => readFile(file, d.account, true), 0); return; }
         if (!fresh.length) return;
         let paidFixed = [];
         Store.update((s) => {

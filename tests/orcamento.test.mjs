@@ -189,3 +189,35 @@ test('orçamento: % gasto, nível (80 % aviso, 100 % passou) e média dos 3 mese
   assert.deepEqual(rows.slice(0, 3).map((r) => r.cat).sort(), ['restaurantes', 'roupa', 'supermercado']); // com orçamento primeiro
   assert.deepEqual(O.budgetAlerts(txs, budgets, '2026-09').map((a) => [a.cat, a.level]), [['supermercado', 80], ['restaurantes', 100]]);
 });
+
+test('Santander: conta à ordem paga o cartão de crédito (transferência), comissões e reembolsos', () => {
+  const O = globalThis.Orcamento;
+  const c = (d, a) => O.categorize(d, a).cat;
+  assert.equal(c('Pagamento de conta cartão', -350), 'transferencias');
+  assert.equal(c('PAGAMENTO CTA_CARTÃO APP/NETBANCO', 350), 'transferencias');
+  assert.equal(c('COMISSAO DISPONIBILIZACAO CARTAO CRÉDITO', -2.5), 'impostos');
+  assert.equal(c('BONIF. COMISS DISPONIBILIZACAO CARTAO', 2.5), 'impostos');
+  assert.equal(c('COMISSãO LIMITE CORTESIA', -1), 'impostos');
+  assert.equal(c('REEMBOLSO 123 LIDL', 4.2), 'supermercado'); // reembolso de uma loja conhecida: categoria da loja
+  assert.equal(c('REEMBOLSO 123 COMPRAS', 10), 'outros'); // abate nas despesas, não é rendimento
+  assert.equal(c('REEMBOLSO 123 PORTAGENS', 1.2), 'carro');
+  assert.equal(O.merchantKey('COMPRA TPA*1234 MERCADO TESTE TROFA'), 'mercado teste');
+  assert.equal(O.merchantKey('COMPRA MBW*1234 LOJA DO ZE'), 'loja ze');
+});
+
+test('detectar o extrato de um cartão de crédito', () => {
+  const O = globalThis.Orcamento;
+  const card = [['Consulta de movimentos'], ['Nº Cartão XXXXXXXXXXXX0000'], ['Data Operação', 'Descrição', '', 'Montante (EUR)']];
+  assert.equal(O.looksLikeCard(card, []), true);
+  const buys = Array.from({ length: 8 }, (_, i) => ({ desc: `COMPRA TPA*0000 LOJA ${i}`, amount: -5 }));
+  assert.equal(O.looksLikeCard([['Data', 'Descrição', 'Valor']], buys), true);
+  const ordem = [['Saldos e movimentos'], ['Data Operação', 'Data valor', 'Descrição', 'Montante( EUR )', 'Saldo Contabilístico( EUR )']];
+  assert.equal(O.looksLikeCard(ordem, [{ desc: 'Trf. MB WAY para X', amount: -5 }, { desc: 'Pagamento de conta cartão', amount: -300 }]), false);
+});
+
+test('cartão de crédito: valores positivos de lojas são devoluções, não entradas', () => {
+  const O = globalThis.Orcamento;
+  const mv = [{ date: '2026-09-01', desc: 'LOJA ONLINE X REFUND', amount: 25 }, { date: '2026-09-02', desc: 'PULLANDBEAR.COM DEVOLUCAO', amount: 19.99 }];
+  assert.deepEqual(O.prepareImport([], mv, 'cc', [], { card: true }).fresh.map((t) => t.cat), ['outros', 'roupa']);
+  assert.equal(O.prepareImport([], mv, 'ord', []).fresh[0].cat, 'entradas'); // na conta à ordem continua a ser entrada
+});

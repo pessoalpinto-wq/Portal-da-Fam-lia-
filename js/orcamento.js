@@ -68,6 +68,7 @@
     ['booking', 'lazer'], ['airbnb', 'lazer'], ['ryanair', 'lazer'], ['easyjet', 'lazer'], ['tap air', 'lazer'], ['hotel', 'lazer'], ['cinema', 'lazer'],
     ['nos cinemas', 'lazer'], ['cinemas nos', 'lazer'], ['ticketline', 'lazer'], ['bol pt', 'lazer'], ['fnac', 'compras'], ['worten', 'compras'],
     ['zara', 'roupa'], ['primark', 'roupa'], ['h m ', 'roupa'], ['bershka', 'roupa'], ['pull bear', 'roupa'], ['stradivarius', 'roupa'], ['mango', 'roupa'],
+    ['pullandbear', 'roupa'], ['adidas', 'roupa'], ['asics', 'roupa'], ['nike', 'roupa'], ['hm ', 'roupa'], ['women secret', 'roupa'],
     ['decathlon', 'roupa'], ['sport zone', 'roupa'], ['jd sports', 'roupa'], ['parfois', 'roupa'], ['shein', 'roupa'], ['lefties', 'roupa'], ['springfield', 'roupa'],
     ['ikea', 'casa'], ['leroy merlin', 'casa'], ['aki ', 'casa'], ['bricomarche', 'casa'], ['maxmat', 'casa'], ['condominio', 'casa'], ['renda', 'casa'],
     ['amazon', 'compras'], ['aliexpress', 'compras'], ['temu', 'compras'], ['ctt', 'compras'], ['radio popular', 'compras'], ['mediamarkt', 'compras'],
@@ -81,9 +82,14 @@
     ['levantamento', 'levantamentos'], ['lev atm', 'levantamentos'], ['multibanco lev', 'levantamentos'], ['cash withdrawal', 'levantamentos'],
     ['vencimento', 'entradas'], ['ordenado', 'entradas'], ['salario', 'entradas'], ['remuneracao', 'entradas'], ['reembolso irs', 'entradas'],
     ['subsidio', 'entradas'], ['abono', 'entradas'], ['pensao', 'entradas'], ['juros credores', 'entradas'],
+    // Cartão de crédito pago pela conta à ordem: sai de uma conta e entra na outra (não é despesa nem entrada).
+    ['pagamento de conta cartao', 'transferencias'], ['pagamento cta cartao', 'transferencias'], ['pag cartao credito', 'transferencias'],
+    ['pagamento cartao credito', 'transferencias'], ['liquidacao cartao', 'transferencias'],
+    // Comissões do cartão e a bonificação que as devolve; reembolsos abatem nas despesas (não são rendimento).
+    ['bonif comiss', 'impostos'], ['comiss disponibilizacao', 'impostos'], ['reembolso', 'outros'], ['portagens', 'carro'],
     ['ppr', 'poupanca'], ['certificados de aforro', 'poupanca'], ['aforro', 'poupanca'], ['igcp', 'poupanca'], ['corretora', 'poupanca'],
     ['trading 212', 'poupanca'], ['degiro', 'poupanca'], ['xtb', 'poupanca'], ['plano poupanca', 'poupanca'], ['deposito a prazo', 'poupanca'],
-  ].map(([match, cat]) => ({ match: norm(match), whole: /\s$/.test(match), cat })); // "bp " = palavra inteira (não apanha "BPI")
+  ].map(([match, cat]) => ({ match: norm(match), whole: /\s$/.test(match), cat, weak: match === 'reembolso' })); // "bp " = palavra inteira (não apanha "BPI")
 
   /**
    * Categoria de um movimento. As regras da família (frules) ganham às pré-definidas; entre regras, ganha a mais comprida.
@@ -93,7 +99,8 @@
     const d = ` ${norm(desc)} `;
     // A regra tem de começar no início de uma palavra ("seguro" apanha "SEGUROS", "renda" não apanha "PRENDAS").
     const hit = (r) => r.match && (r.whole ? d.includes(` ${r.match} `) : d.includes(` ${r.match}`));
-    const pick = (rules) => rules.filter(hit).sort((a, b) => b.match.length - a.match.length)[0];
+    // "Fracas" (ex.: reembolso) só valem se nenhuma outra apanhar: "REEMBOLSO 12 LIDL" é supermercado.
+    const pick = (rules) => rules.filter(hit).sort((a, b) => (a.weak ? 1 : 0) - (b.weak ? 1 : 0) || b.match.length - a.match.length)[0];
     const fam = familyRules.map((r) => ({ match: norm(r.match), cat: r.cat })).filter((r) => matchesRule(desc, r.match))
       .sort((a, b) => b.match.length - a.match.length)[0];
     if (fam && CAT[fam.cat]) return { cat: fam.cat, rule: 'family' };
@@ -108,7 +115,8 @@
   // Palavras que não identificam a loja (ignoradas no nome da loja e ao comparar com as regras da família).
   const SKIP = new Set(['compra', 'compras', 'pagamento', 'pag', 'pagto', 'trf', 'transf', 'transferencia', 'mb', 'mbway', 'way', 'cartao', 'cart',
       'dd', 'debito', 'direto', 'directo', 'c', 'cc', 'pos', 'tpa', 'visa', 'mastercard', 'contactless', 'apple', 'pay', 'google', 'de', 'do', 'da', 'em',
-      'para', 'a', 'o', 'e', 'lda', 'sa', 'unipessoal', 'pt', 'lisboa', 'porto', 'serv', 'servico', 'servicos', 'com', 'www']);
+      'para', 'a', 'o', 'e', 'lda', 'sa', 'unipessoal', 'pt', 'lisboa', 'porto', 'serv', 'servico', 'servicos', 'com', 'www',
+      'mbw', 'estrang', 'imed', 'crt', 'reembolso']);
   const keyWords = (desc) => norm(desc).split(' ').filter((w) => w.length >= 2 && !/\d/.test(w) && !SKIP.has(w));
 
   /** "COMPRA 4521 CONTINENTE MATOSINHOS 12/09" → "continente matosinhos" (para criar uma regra). */
@@ -239,7 +247,7 @@
    * tem o mesmo id), separa os novos dos que já existiam e classifica os novos.
    * Dois movimentos iguais no mesmo dia (dois cafés de 0,80 €) contam como dois.
    */
-  function prepareImport(existing = [], movements = [], account, familyRules = []) {
+  function prepareImport(existing = [], movements = [], account, familyRules = [], { card = false } = {}) {
     const seen = new Map();
     const have = new Set(existing.map((t) => t.id));
     const fresh = [];
@@ -251,6 +259,8 @@
       const id = `tx-${hash(k)}-${n}`;
       if (have.has(id)) { dup++; return; }
       const c = categorize(m.desc, m.amount, familyRules);
+      // Num cartão de crédito, um valor positivo de uma loja desconhecida é uma devolução (abate nas despesas).
+      if (card && c.rule === 'none' && m.amount > 0) c.cat = 'outros';
       fresh.push({ id, account, date: m.date, desc: m.desc, amount: m.amount, cat: c.cat, rule: c.rule, src: 'import' });
     });
     return { fresh, dup };
@@ -270,6 +280,17 @@
       if (match) { out.add(t.id); out.add(match.id); }
     });
     return [...out];
+  }
+
+  /**
+   * É o extrato de um cartão de crédito? (cabeçalho "Nº Cartão" / "cartão de crédito", ou a maioria
+   * dos movimentos são compras com o cartão: "COMPRA TPA*1234 …").
+   */
+  function looksLikeCard(rows = [], movements = []) {
+    const top = rows.slice(0, 12).map((r) => norm(r.join(' '))).join(' ');
+    if (/\bn o? ?cartao\b|\bcartao (de )?credito\b|movimentos cartao|extrato cartao/.test(top)) return true;
+    const buys = movements.filter((m) => /^compra [a-z]{2,8} ?\d{4}\b/.test(norm(m.desc))).length;
+    return movements.length >= 5 && buys / movements.length >= 0.4;
   }
 
   /* ---------- O mês ---------- */
@@ -326,6 +347,7 @@
   }
 
   root.Orcamento = {
+    looksLikeCard,
     CATS, CAT, kindOf, DEFAULT_RULES, norm, categorize, merchantKey, matchesRule, parseMoney, parseDate, mapHeader, findHeader, toMovements,
     hash, prepareImport, findTransfers, monthSummary, budgetRows, budgetAlerts, addMonths,
   };
