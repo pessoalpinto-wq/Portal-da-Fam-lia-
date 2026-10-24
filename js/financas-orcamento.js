@@ -76,7 +76,7 @@ window.FinancasOrcamento = function ({ render }) {
     const txRow = (t) => `<li class="tx">
         <button class="tx-main" data-action="bud-tx" data-id="${esc(t.id)}">
           <span class="tx-desc">${Fixas.billFor(t, s.bills) || t.fixed ? '<span title="Despesa fixa">📌 </span>' : ''}${esc(t.desc)}</span>
-          <small class="muted">${esc(t.date.slice(8, 10))}/${esc(t.date.slice(5, 7))} · ${esc(accountName(t.account))}${t.note ? ` · ${esc(t.note)}` : ''}</small>
+          <small class="muted">${esc(t.date.slice(8, 10))}/${esc(t.date.slice(5, 7))} · ${esc(accountName(t.account))}${t.debtId ? ` · 🚗 abate: ${esc(S().debts.find((x) => x.id === t.debtId)?.name || 'dívida')}` : ''}${t.note ? ` · ${esc(t.note)}` : ''}</small>
         </button>
         <button class="tx-cat ${t.rule === 'none' && !t.manualCat && O.kindOf(t.cat) === 'expense' ? 'unsorted' : ''}" data-action="bud-cat" data-id="${esc(t.id)}" title="Mudar a categoria">${esc(O.CAT[t.cat]?.emoji || '📦')}<span>${esc(O.CAT[t.cat]?.name.split(' (')[0] || t.cat)}</span></button>
         <b class="tx-amt ${t.amount > 0 ? 'in' : ''}">${esc(signedMoney(t.amount))}</b>
@@ -185,11 +185,14 @@ window.FinancasOrcamento = function ({ render }) {
         if (d.account && d.account !== account) { VS.budAccount = d.account; setTimeout(() => readFile(file, d.account, true), 0); return; }
         if (!fresh.length) return;
         let paidFixed = [];
+        let debtLinked = 0;
         Store.update((s) => {
           s.ftx.push(...fresh);
           // Transferências entre as vossas contas (o mesmo valor a sair de uma e a entrar noutra).
           const ids = new Set(O.findTransfers(s.ftx.filter((t) => t.rule !== 'family')));
           s.ftx.forEach((t) => { if (ids.has(t.id) && !t.manualCat) { t.cat = 'transferencias'; t.rule = 'transfer'; } });
+          // Pagamentos que abatem numa dívida de família (regras criadas em "🚗 Abater numa dívida").
+          debtLinked = autoLinkDebts(s, fresh);
           // Despesas fixas pagas neste extrato: risca-as nas Contas da casa (e actualiza o valor, se mudou).
           paidFixed = Fixas.autoPay(s.bills, fresh);
           paidFixed.forEach((p) => {
@@ -209,7 +212,7 @@ window.FinancasOrcamento = function ({ render }) {
           const b = S().bills.find((x) => x.id === p.billId);
           return `${b?.title || ''}${p.changed ? ` (agora ${money(p.amount)}, antes ${money(p.old)})` : ''}`;
         });
-        toast(`📥 ${fresh.length} movimentos importados.${unsorted ? ` ${unsorted} por classificar.` : ''}${names.length ? ` 📌 Pagas: ${names.join(', ')}.` : ''}`);
+        toast(`📥 ${fresh.length} movimentos importados.${unsorted ? ` ${unsorted} por classificar.` : ''}${names.length ? ` 📌 Pagas: ${names.join(', ')}.` : ''}${debtLinked ? ` 🚗 ${debtLinked} abatido${debtLinked === 1 ? '' : 's'} na dívida.` : ''}`);
       },
     });
   }
@@ -264,7 +267,9 @@ window.FinancasOrcamento = function ({ render }) {
       submitLabel: 'Guardar',
       extra: t && t.amount < 0 ? [Fixas.billFor(t, S().bills)
         ? { label: `📌 Fixa: ${Fixas.billFor(t, S().bills).title}`, onClick: () => { const id = Fixas.billFor(t, S().bills).id; setTimeout(() => editBill(id), 0); } }
-        : { label: '📌 Despesa fixa', onClick: () => { setTimeout(() => fixedForm(t), 0); } }] : [],
+        : { label: '📌 Despesa fixa', onClick: () => { setTimeout(() => fixedForm(t), 0); } },
+      ...(t.debtId ? [{ label: `🚗 Abate: ${S().debts.find((x) => x.id === t.debtId)?.name || 'dívida'}`, onClick: () => { setTimeout(() => debtLinkForm(t), 0); } }]
+        : familyDebts().length ? [{ label: '🚗 Abater numa dívida', onClick: () => { setTimeout(() => debtLinkForm(t), 0); } }] : [])] : [],
       onDelete: t ? () => Store.update((s) => { s.ftx = s.ftx.filter((x) => x.id !== t.id); }) : null,
       deleteConfirm: 'Apagar este movimento? (Se voltarem a importar o extrato, ele volta.)',
       deleteToast: 'Movimento apagado.',
@@ -280,6 +285,98 @@ window.FinancasOrcamento = function ({ render }) {
       },
     });
   }
+
+  /* ---------- Movimento que abate numa dívida de família (ex.: pagar o lar da mãe abate o empréstimo do carro) ---------- */
+  const familyDebts = () => S().debts.filter((d) => !d.archived && d.kind === 'familiar');
+
+  function debtLinkForm(t) {
+    const debt = t.debtId && S().debts.find((x) => x.id === t.debtId);
+    const key = O.merchantKey(t.desc) || O.norm(t.desc).split(' ').slice(0, 3).join(' ');
+    const rule = S().frules.find((r) => r.debtId && O.matchesRule(t.desc, r.match));
+    if (debt) {
+      openForm({
+        title: `🚗 ${debt.name}`,
+        fields: [{ name: 'info', type: 'note', html: `<p><b>${esc(t.desc)}</b> (${esc(signedMoney(t.amount))}, ${esc(t.date)}) conta como pagamento de <b>${esc(debt.name)}</b>.</p>
+          ${rule ? `<p class="small muted">Regra: os movimentos «${esc(rule.match)}» abatem sozinhos nesta dívida.</p>` : ''}` }],
+        submitLabel: 'Fechar',
+        onSubmit: () => {},
+        extra: [{ label: 'Deixar de abater', onClick: () => { Store.update((s) => unlinkTx(s, t.id)); toast('Já não abate na dívida.'); } },
+          ...(rule ? [{ label: 'Apagar a regra automática', onClick: () => { Store.update((s) => { s.frules = s.frules.filter((r) => r.id !== rule.id); }); toast('Regra apagada (os pagamentos já registados ficam).'); } }] : [])],
+      });
+      return;
+    }
+    const debts = familyDebts();
+    const same = key ? S().ftx.filter((x) => x.id !== t.id && x.amount < 0 && !x.debtId && O.matchesRule(x.desc, key)).length : 0;
+    openForm({
+      title: '🚗 Abater numa dívida',
+      fields: [
+        { name: 'info', type: 'note', html: `<p><b>${esc(t.desc)}</b><br><span class="small muted">${esc(t.date)} · ${esc(signedMoney(t.amount))}</span></p>
+          <p class="small">Fica registado como pagamento na dívida (com esta data, valor e descrição) e passa para a categoria 🏦 Créditos.</p>` },
+        { name: 'debt', label: 'Dívida', type: 'select', options: debts.map((d) => [d.id, `${d.name}${d.lender ? ` · ${d.lender}` : ''}`]) },
+        { name: 'note', label: 'Nota do pagamento', placeholder: t.desc },
+        ...(key ? [{ name: 'always', label: `Os próximos «${key}» também abatem sozinhos?`, type: 'select',
+          options: [['', 'Não, só este'], ['1', `Sim, sempre${same === 1 ? ' (e o outro já importado)' : same ? ` (e os outros ${same} já importados)` : ''}`]] }] : []),
+      ],
+      values: { debt: debts[0]?.id, note: '', always: '' },
+      submitLabel: '🚗 Abater',
+      onSubmit: (d) => {
+        const debtName = S().debts.find((x) => x.id === d.debt)?.name || '';
+        let n = 0;
+        Store.update((s) => {
+          n += linkTx(s, t.id, d.debt, d.note.trim()) ? 1 : 0;
+          if (key && d.always) {
+            const rid = `r-debt-${O.hash(key)}`;
+            const r = s.frules.find((y) => y.id === rid);
+            if (r) Object.assign(r, { match: key, cat: 'credito', debtId: d.debt }); else s.frules.push({ id: rid, match: key, cat: 'credito', debtId: d.debt });
+            s.ftx.filter((x) => x.amount < 0 && !x.debtId && O.matchesRule(x.desc, key)).forEach((x) => { if (linkTx(s, x.id, d.debt)) n++; });
+          }
+        });
+        const st = P.debtStatus(S().debts.find((x) => x.id === d.debt), [], today());
+        toast(`🚗 ${n === 1 ? `${money(Math.abs(t.amount))} abatido` : `${n} pagamentos abatidos`} em ${debtName} · falta ${money(st.balance)}`);
+      },
+    });
+  }
+
+  /** Liga um movimento a uma dívida (cria o pagamento uma só vez). Devolve true se ligou. */
+  function linkTx(s, txId, debtId, note = '') {
+    const x = s.ftx.find((y) => y.id === txId);
+    const debt = s.debts.find((y) => y.id === debtId);
+    if (!x || !debt || x.amount >= 0 || x.debtId) return false;
+    const pays = debt.payments || [];
+    const amt = Math.abs(x.amount);
+    // Já registado à mão (ex.: copiado de outro programa)? Mesmo valor até 12 dias de diferença: junta, não repete.
+    const twin = pays.find((p) => !p.tx && Math.abs(Number(p.amount) - amt) < 0.005 && Math.abs(Date.parse(p.date) - Date.parse(x.date)) <= 12 * 86400000);
+    if (twin) twin.tx = x.id;
+    else if (!pays.some((p) => p.tx === x.id)) debt.payments = [...pays, { id: `pay-${x.id}`, date: x.date, amount: amt, note: note || x.desc, tx: x.id }];
+    Object.assign(x, { debtId, cat: 'credito', manualCat: true });
+    return true;
+  }
+  function unlinkTx(s, txId) {
+    const x = s.ftx.find((y) => y.id === txId);
+    if (!x?.debtId) return;
+    const debt = s.debts.find((y) => y.id === x.debtId);
+    if (debt) {
+      debt.payments = (debt.payments || []).flatMap((p) => {
+        if (p.tx !== x.id) return [p];
+        if (String(p.id).startsWith('pay-')) return []; // criado a partir do movimento: sai
+        const { tx, ...manual } = p; // registado à mão: fica, sem a ligação
+        return [manual];
+      });
+    }
+    delete x.debtId;
+    Object.assign(x, { cat: O.categorize(x.desc, x.amount, s.frules.filter((r) => !r.debtId)).cat, manualCat: false });
+  }
+  /** Depois de importar: os movimentos com uma regra de dívida abatem sozinhos. Devolve quantos. */
+  function autoLinkDebts(s, fresh) {
+    const rules = s.frules.filter((r) => r.debtId && s.debts.some((d) => d.id === r.debtId && !d.archived));
+    let n = 0;
+    fresh.forEach((t) => {
+      const r = t.amount < 0 && rules.find((y) => O.matchesRule(t.desc, y.match));
+      if (r && linkTx(s, t.id, r.debtId)) n++;
+    });
+    return n;
+  }
+  Views.unlinkDebtTx = unlinkTx;
 
   /** Criar uma despesa fixa (conta da casa) a partir de um movimento. */
   function fixedForm(t) {

@@ -147,7 +147,7 @@ window.FinancasPatrimonio = function ({ render }) {
 
   /** Dívida de família / amigos: pagamentos livres, registados um a um. */
   function familyDebtCard(d, st) {
-    const row = (p) => `<tr><td>${esc(dmy(p.date))}</td><td class="num">${money(p.amount)}</td><td>${esc(p.note || '')}</td>
+    const row = (p) => `<tr><td>${esc(dmy(p.date))}</td><td class="num">${money(p.amount)}</td><td>${p.tx ? '<span title="Veio do extrato do banco">🏦</span> ' : ''}${esc(p.note || '')}</td>
       <td class="act"><button class="icon-btn" data-action="pat-pay-del" data-id="${esc(d.id)}" data-pay="${esc(p.id)}" aria-label="Apagar pagamento" title="Apagar">✕</button></td></tr>`;
     return `<li class="debt family">
       <div class="debt-top">
@@ -406,6 +406,8 @@ window.FinancasPatrimonio = function ({ render }) {
       const pay = d?.payments?.find((x) => x.id === el.dataset.pay);
       if (!pay || !confirm(`Apagar o pagamento de ${money(pay.amount)} de ${dmy(pay.date)}?`)) return;
       Store.update((st) => {
+        // Pagamento que veio de um movimento do banco: o movimento deixa de abater (e volta à sua categoria).
+        if (pay.tx && Views.unlinkDebtTx && st.ftx.some((x) => x.id === pay.tx && x.debtId)) { Views.unlinkDebtTx(st, pay.tx); return; }
         const cur = st.debts.find((x) => x.id === d.id);
         if (cur) cur.payments = (cur.payments || []).filter((x) => x.id !== pay.id);
       });
