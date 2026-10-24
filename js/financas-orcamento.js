@@ -43,7 +43,18 @@ window.FinancasOrcamento = function ({ render }) {
     const monthTx = txs.filter((t) => String(t.date).startsWith(m)); // (já filtrado pela conta escolhida)
     const filter = VS.budFilter || '';
     const q = O.norm(VS.budSearch || '');
-    const shown = monthTx.filter((t) => (!filter || (filter === '_unsorted' ? t.rule === 'none' && !t.manualCat && O.kindOf(t.cat) === 'expense' : t.cat === filter))
+    const isFixed = (t) => !!(t.fixed || Fixas.billFor(t, s.bills));
+    // Filtros dos quadrados do topo (para ver os movimentos que somados dão cada valor).
+    const GROUPS = {
+      _in: ['⬇️ Tudo o que entrou', (t) => O.kindOf(t.cat) === 'income'],
+      _out: ['⬆️ Despesas', (t) => O.kindOf(t.cat) === 'expense'],
+      _net: ['＝ Entradas e despesas', (t) => O.kindOf(t.cat) !== 'move'],
+      _move: ['🔁 Poupança / entre contas', (t) => O.kindOf(t.cat) === 'move'],
+      _fixed: ['📌 Despesas fixas', (t) => O.kindOf(t.cat) === 'expense' && isFixed(t)],
+      _var: ['Despesas variáveis', (t) => O.kindOf(t.cat) === 'expense' && !isFixed(t)],
+      _unsorted: ['🏷️ Por classificar', (t) => t.rule === 'none' && !t.manualCat && O.kindOf(t.cat) === 'expense'],
+    };
+    const shown = monthTx.filter((t) => (!filter || (GROUPS[filter] ? GROUPS[filter][1](t) : t.cat === filter))
       && (!q || O.norm(t.desc).includes(q)))
       .sort((a, b) => b.date.localeCompare(a.date) || Math.abs(b.amount) - Math.abs(a.amount));
     const limit = VS.budShow || PAGE;
@@ -81,15 +92,16 @@ window.FinancasOrcamento = function ({ render }) {
         <span class="js-bar"><span style="width:${Math.round((a.out / maxOut) * 100)}%"></span></span>
         <span class="bud-accv"><b>${money(a.out)}</b>${a.in ? `<small class="muted">entrou ${money(a.in)}</small>` : ''}</span></li>`).join('')}</ul>
       <p class="small muted">Despesas de ${esc(P.monthName(m))} em cada conta. Os pagamentos do cartão e as transferências entre contas não contam (senão contavam duas vezes).</p>`) : '';
+    const tile = (id, html, cls = '') => `<button class="fin-tile bud-tile ${cls} ${filter === id ? 'active' : ''}" data-action="bud-filter" data-id="${id}" aria-pressed="${filter === id}" title="Ver os movimentos">${html}</button>`;
     const tiles = `${acc ? `<p class="small bud-accnote">A mostrar só <b>${esc(accountName(acc))}</b>. <button class="linkish" data-action="bud-acc" data-id="">Ver todas as contas</button></p>` : ''}<div class="fin-summary pat-stats">
-      <div class="fin-tile"><small>Entrou</small><b>${money(sum.income)}</b>${sum.byCat.entradas && sum.income !== sum.byCat.entradas ? `<small>outras entradas ${money(sum.byCat.entradas)}</small>` : ''}</div>
-      ${sum.income ? `<button class="fin-tile bud-extras" data-action="bud-filter" data-id="ordenado"><small>💶 Ordenados</small><b>${money(sum.byCat.ordenado || 0)}</b>
+      ${tile('_in', `<small>Entrou</small><b>${money(sum.income)}</b>${sum.byCat.entradas && sum.income !== sum.byCat.entradas ? `<small>outras entradas ${money(sum.byCat.entradas)}</small>` : ''}`)}
+      ${sum.income ? `<button class="fin-tile bud-extras ${filter === 'ordenado' ? 'active' : ''}" data-action="bud-filter" data-id="ordenado" aria-pressed="${filter === 'ordenado'}"><small>💶 Ordenados</small><b>${money(sum.byCat.ordenado || 0)}</b>
         <small>${sum.byCat.ordenado ? `${Math.round((sum.byCat.ordenado / sum.income) * 100)}% do que entrou` : 'toquem no ordenado → 💶 Ordenado'}</small></button>` : ''}
-      ${sum.byCat.extras ? `<button class="fin-tile bud-extras" data-action="bud-filter" data-id="extras"><small>🧰 Trabalhos extra</small><b>${money(sum.byCat.extras)}</b><small>${Math.round((sum.byCat.extras / sum.income) * 100)}% do que entrou</small></button>` : ''}
-      <div class="fin-tile"><small>Saiu (despesas)</small><b>${money(sum.expense)}</b></div>
-      <div class="fin-tile ${sum.saved >= 0 ? 'ok' : ''}"><small>Sobrou${sum.rate != null ? ` · ${sum.rate}%` : ''}</small><b>${esc(signedMoney(sum.saved))}</b></div>
-      ${sum.moved ? `<div class="fin-tile"><small>Para poupança / entre contas</small><b>${money(sum.moved)}</b></div>` : ''}
-      ${split.fixed ? `<div class="fin-tile"><small>📌 Despesas fixas · variáveis</small><b>${money(split.fixed)}</b><small>variáveis ${money(split.variable)}</small></div>` : ''}
+      ${sum.byCat.extras ? `<button class="fin-tile bud-extras ${filter === 'extras' ? 'active' : ''}" data-action="bud-filter" data-id="extras" aria-pressed="${filter === 'extras'}"><small>🧰 Trabalhos extra</small><b>${money(sum.byCat.extras)}</b><small>${Math.round((sum.byCat.extras / sum.income) * 100)}% do que entrou</small></button>` : ''}
+      ${tile('_out', `<small>Saiu (despesas)</small><b>${money(sum.expense)}</b>`)}
+      ${tile('_net', `<small>Sobrou${sum.rate != null ? ` · ${sum.rate}%` : ''}</small><b>${esc(signedMoney(sum.saved))}</b>`, sum.saved >= 0 ? 'ok' : '')}
+      ${sum.moved ? tile('_move', `<small>Para poupança / entre contas</small><b>${money(sum.moved)}</b>`) : ''}
+      ${split.fixed ? tile('_fixed', `<small>📌 Despesas fixas · variáveis</small><b>${money(split.fixed)}</b><small>variáveis ${money(split.variable)}</small>`) : ''}
     </div>`;
 
     const unsorted = sum.unsorted ? `<section class="card bud-unsorted"><b>🏷️ ${sum.unsorted} movimento${sum.unsorted === 1 ? '' : 's'} por classificar</b>
@@ -118,9 +130,20 @@ window.FinancasOrcamento = function ({ render }) {
       </li>`;
     const filterBar = `<div class="bud-filters">
         <input type="search" id="bud-search" placeholder="Procurar (ex.: Continente)" value="${esc(VS.budSearch || '')}" aria-label="Procurar movimentos">
-        ${filter ? `<button class="filter active" data-action="bud-filter" data-id="">${esc(filter === '_unsorted' ? '🏷️ Por classificar' : catLabel(filter))} ✕</button>` : ''}
+        ${filter ? `<button class="filter active" data-action="bud-filter" data-id="">${esc(GROUPS[filter] ? GROUPS[filter][0] : catLabel(filter))} ✕</button>` : ''}
       </div>`;
-    const txCard = card(`📋 Movimentos <small class="muted">(${shown.length})</small>`, `${filterBar}
+    // Com um filtro: a soma dos movimentos (é o valor do quadrado) e, por categoria, de onde vem.
+    const total = Math.round(shown.reduce((n, t) => n + t.amount, 0) * 100) / 100;
+    const byCat = {};
+    shown.forEach((t) => { byCat[t.cat] = (byCat[t.cat] || 0) + t.amount; });
+    const parts = Object.entries(byCat).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]));
+    // Só saídas (despesas, poupança): mostra o valor positivo, como no quadrado.
+    const outOnly = shown.length && shown.every((t) => O.kindOf(t.cat) !== 'income');
+    const fmtSum = (v) => (outOnly ? money(Math.round(-v * 100) / 100) : signedMoney(Math.round(v * 100) / 100));
+    const sumBar = filter || q ? `<div class="bud-sum"><span>Soma de ${shown.length} movimento${shown.length === 1 ? '' : 's'}: <b>${esc(fmtSum(total))}</b></span>
+        ${parts.length > 1 ? `<ul class="bud-parts">${parts.map(([c, v]) => `<li><button class="linkish" data-action="bud-filter" data-id="${esc(c)}">${esc(O.CAT[c]?.emoji || '📦')} ${esc(O.CAT[c]?.name.split(' (')[0] || c)}</button> <b>${esc(fmtSum(v))}</b></li>`).join('')}</ul>` : ''}
+      </div>` : '';
+    const txCard = card(`📋 Movimentos <small class="muted">(${shown.length})</small>`, `${filterBar}${sumBar}
       ${shown.length ? `<ul class="tx-list">${shown.slice(0, limit).map(txRow).join('')}</ul>
         ${shown.length > limit ? `<button class="btn small ghost" data-action="bud-more">Mostrar mais (${shown.length - limit})</button>` : ''}` : empty('Sem movimentos.')}`);
 
@@ -606,7 +629,14 @@ window.FinancasOrcamento = function ({ render }) {
       render();
     },
     'bud-acc': (el) => { VS.budAcc = el.dataset.id || ''; VS.budShow = PAGE; render(); },
-    'bud-filter': (el) => { VS.budFilter = VS.budFilter === el.dataset.id ? '' : el.dataset.id; VS.budShow = PAGE; render(); },
+    'bud-filter': (el) => {
+      VS.budFilter = VS.budFilter === el.dataset.id ? '' : el.dataset.id;
+      VS.budShow = PAGE;
+      const fromTop = !!el.closest('.fin-summary, .bud-unsorted, .bud-sum');
+      render();
+      // Num quadrado do topo: desce até aos movimentos (no telemóvel ficam lá em baixo).
+      if (fromTop && VS.budFilter) document.querySelector('.bud-filters')?.closest('.card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    },
     'bud-more': () => { VS.budShow = (VS.budShow || PAGE) + PAGE; render(); },
     'bud-import': importForm,
     'bud-add': () => txForm(null),
