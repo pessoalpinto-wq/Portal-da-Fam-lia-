@@ -372,7 +372,13 @@
   async function readTable(buf, { DOMParserImpl } = {}) {
     const b = new Uint8Array(buf);
     if (b[0] === 0x50 && b[1] === 0x4b) return parseXLSX(b, DOMParserImpl);
-    if (b[0] === 0xd0 && b[1] === 0xcf) return parseXLS(b);
+    if (b[0] === 0xd0 && b[1] === 0xcf) {
+      try {
+        return parseXLS(b);
+      } catch (e) {
+        throw new Error('Não consegui ler este Excel (.xls): pode estar incompleto ou protegido. Experimentem descarregá-lo outra vez, ou exportar em CSV / Excel (.xlsx).');
+      }
+    }
     // Texto: UTF-8, ou Windows-1252 (muitos bancos portugueses) se houver caracteres inválidos.
     let text = new TextDecoder('utf-8').decode(b);
     if (text.includes('�')) text = new TextDecoder('windows-1252').decode(b);

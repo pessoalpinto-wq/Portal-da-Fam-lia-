@@ -42,3 +42,8 @@ test('readTable reconhece o .xls binário e a importação lê-o', async () => {
 test('não é .xls válido: erro claro', () => {
   assert.throws(() => F.parseXLS(new Uint8Array(600)), /não é um Excel válido/);
 });
+
+test('.xls incompleto: mensagem clara (não um erro técnico)', async () => {
+  const bad = new Uint8Array(600); bad.set([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]);
+  await assert.rejects(F.readTable(bad.buffer), /Não consegui ler este Excel \(\.xls\)/);
+});
