@@ -21,11 +21,15 @@ window.FinancasOrcamento = function ({ render }) {
   function view() {
     const s = S();
     const m = month();
-    const txs = s.ftx;
+    // Filtro por conta (ex.: só o cartão de crédito Santander): totais, categorias e movimentos dessa conta.
+    const accIds = new Set(s.ftx.map((t) => t.account));
+    const acc = VS.budAcc && accIds.has(VS.budAcc) ? VS.budAcc : '';
+    const txs = acc ? s.ftx.filter((t) => t.account === acc) : s.ftx;
     const sum = O.monthSummary(txs, m);
     const split = Fixas.monthSplit(txs, s.bills, m, O.kindOf);
-    const rows = O.budgetRows(txs, s.fbudgets, m);
-    const monthTx = txs.filter((t) => String(t.date).startsWith(m));
+    // Os orçamentos são da família toda: com uma conta escolhida, mostra só quanto se gastou nela.
+    const rows = O.budgetRows(txs, acc ? [] : s.fbudgets, m);
+    const monthTx = txs.filter((t) => String(t.date).startsWith(m)); // (já filtrado pela conta escolhida)
     const filter = VS.budFilter || '';
     const q = O.norm(VS.budSearch || '');
     const shown = monthTx.filter((t) => (!filter || (filter === '_unsorted' ? t.rule === 'none' && !t.manualCat && O.kindOf(t.cat) === 'expense' : t.cat === filter))
@@ -49,7 +53,24 @@ window.FinancasOrcamento = function ({ render }) {
         <p class="small muted">Podem importar o mesmo período duas vezes: os movimentos repetidos não entram. ${s.faccounts.length ? '' : 'Antes, juntem as contas em <b>📈 Património</b>.'}</p>`)}`;
     }
 
-    const tiles = `<div class="fin-summary pat-stats">
+    // Por conta, no mês: despesas e entradas (sem transferências entre contas nem poupança).
+    const perAcc = [...accIds].map((id) => {
+      const list = s.ftx.filter((t) => t.account === id && String(t.date).startsWith(m));
+      const ms = O.monthSummary(list, m);
+      return { id, name: accountName(id), kind: s.faccounts.find((a) => a.id === id)?.kind, out: ms.expense, in: ms.income, n: list.length };
+    }).filter((a) => a.n).sort((a, b) => b.out - a.out);
+    const accIcon = (k) => ({ cartao: '💳', refeicao: '🍽️', poupanca: '🐷', invest: '📈', dinheiro: '💵' }[k] || '🏦');
+    const accBar = perAcc.length > 1 || acc ? `<div class="bud-accs" role="tablist" aria-label="Conta">
+        <button class="filter ${acc ? '' : 'active'}" data-action="bud-acc" data-id="" role="tab" aria-selected="${!acc}">Todas as contas</button>
+        ${perAcc.map((a) => `<button class="filter ${acc === a.id ? 'active' : ''}" data-action="bud-acc" data-id="${esc(a.id)}" role="tab" aria-selected="${acc === a.id}">
+          ${accIcon(a.kind)} ${esc(a.name)} <small>${money(a.out)}</small></button>`).join('')}</div>` : '';
+    const maxOut = Math.max(1, ...perAcc.map((a) => a.out));
+    const accCard = perAcc.length > 1 && !acc ? card('💳 Por conta', `<ul class="bud-acclist">${perAcc.map((a) => `<li>
+        <button class="linkish" data-action="bud-acc" data-id="${esc(a.id)}">${accIcon(a.kind)} ${esc(a.name)}</button>
+        <span class="js-bar"><span style="width:${Math.round((a.out / maxOut) * 100)}%"></span></span>
+        <span class="bud-accv"><b>${money(a.out)}</b>${a.in ? `<small class="muted">entrou ${money(a.in)}</small>` : ''}</span></li>`).join('')}</ul>
+      <p class="small muted">Despesas de ${esc(P.monthName(m))} em cada conta. Os pagamentos do cartão e as transferências entre contas não contam (senão contavam duas vezes).</p>`) : '';
+    const tiles = `${acc ? `<p class="small bud-accnote">A mostrar só <b>${esc(accountName(acc))}</b>. <button class="linkish" data-action="bud-acc" data-id="">Ver todas as contas</button></p>` : ''}<div class="fin-summary pat-stats">
       <div class="fin-tile"><small>Entrou</small><b>${money(sum.income)}</b></div>
       <div class="fin-tile"><small>Saiu (despesas)</small><b>${money(sum.expense)}</b></div>
       <div class="fin-tile ${sum.saved >= 0 ? 'ok' : ''}"><small>Sobrou${sum.rate != null ? ` · ${sum.rate}%` : ''}</small><b>${esc(signedMoney(sum.saved))}</b></div>
@@ -100,7 +121,7 @@ window.FinancasOrcamento = function ({ render }) {
       <p class="small muted">São as <button class="linkish" data-action="fin-tab" data-id="contas">🏠 Contas da casa</button> que se repetem. Para juntar uma, toquem num movimento e em <b>📌 Despesa fixa</b>.</p>`
       : `<p class="small">Marquem como fixas as despesas que se repetem (seguros, luz, internet, ginásio…): toquem num movimento e em <b>📌 Despesa fixa</b>. Aqui aparece quanto custam por mês e por ano.</p>`);
 
-    return `${nav}${tiles}${unsorted}<div class="grid two">${budgetCard}${txCard}</div>${fixedCard}
+    return `${nav}${accBar}${tiles}${unsorted}<div class="grid two">${budgetCard}${txCard}</div>${accCard}${fixedCard}
       <p class="small muted">🔒 Só os pais vêem os movimentos. O portal não liga ao banco: os dados vêm dos extratos que importam.</p>`;
   }
 
@@ -461,6 +482,7 @@ window.FinancasOrcamento = function ({ render }) {
       VS.budShow = PAGE;
       render();
     },
+    'bud-acc': (el) => { VS.budAcc = el.dataset.id || ''; VS.budShow = PAGE; render(); },
     'bud-filter': (el) => { VS.budFilter = VS.budFilter === el.dataset.id ? '' : el.dataset.id; VS.budShow = PAGE; render(); },
     'bud-more': () => { VS.budShow = (VS.budShow || PAGE) + PAGE; render(); },
     'bud-import': importForm,

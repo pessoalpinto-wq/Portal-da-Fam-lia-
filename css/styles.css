@@ -1262,3 +1262,14 @@ body:has(.select-bar) .assist-fab { display: none; }
 .tripdoc-ico { font-size: 1.4rem; line-height: 1; }
 .tripdoc-txt { display: grid; min-width: 0; }
 .tripdoc-txt b, .tripdoc-txt small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- Orçamento: por conta ---------- */
+.bud-accs { display: flex; gap: .4rem; overflow-x: auto; padding-bottom: .3rem; margin-bottom: .75rem; scrollbar-width: thin; }
+.bud-accs .filter { white-space: nowrap; flex: none; }
+.bud-accs .filter small { opacity: .8; font-variant-numeric: tabular-nums; margin-left: .2rem; }
+.bud-accnote { margin: 0 0 .5rem; }
+.bud-acclist { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
+.bud-acclist li { display: grid; grid-template-columns: minmax(8rem, 14rem) 1fr auto; gap: .6rem; align-items: center; }
+.bud-acclist .linkish { text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bud-accv { display: grid; justify-items: end; font-variant-numeric: tabular-nums; }
+@media (max-width: 480px) { .bud-acclist li { grid-template-columns: 1fr auto; } .bud-acclist .js-bar { grid-column: 1 / -1; grid-row: 2; } }
