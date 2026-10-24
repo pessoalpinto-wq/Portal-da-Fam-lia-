@@ -522,7 +522,15 @@
     'add-trip': edit('trips', 'trip', 'viagem', () => ({
       members: S().members.map((m) => m.id), budget: 0, lodging: '', notes: '', packing: [], expenses: [], start: today(), end: '',
     })),
-    'edit-trip': edit('trips', 'trip', 'viagem', () => ({ packing: [], expenses: [] })),
+    'edit-trip': (el) => {
+      const trip = S().trips.find((x) => x.id === el.dataset.id);
+      const n = (trip?.docs || []).length;
+      editItem('trips', el.dataset.id, {
+        title: 'viagem', fields: Forms.trip(), defaults: () => ({ packing: [], expenses: [] }),
+        deleteConfirm: n ? `Apagar esta viagem e ${n === 1 ? 'o seu documento' : `os seus ${n} documentos`} (bilhetes, reservas…)? As fotos das Memórias ficam.` : undefined,
+        onDeleted: (t) => Views.tripDocsCleanup?.(t),
+      });
+    },
     'goto-trip': (el) => {
       location.hash = '#/viagens';
       setTimeout(() => document.getElementById(`trip-${el.dataset.id}`)?.scrollIntoView({ behavior: 'smooth' }), 50);

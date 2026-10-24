@@ -136,7 +136,19 @@ window.ViagemDocs = function ({ render }) {
     toast('Documento apagado.');
   }
 
+  /** Viagem apagada: apaga também os ficheiros dela, para não ocupar espaço no armazenamento. */
+  async function cleanup(t) {
+    const paths = (t?.docs || []).map((d) => d.path).filter(Boolean);
+    const ctx = Cloud.ctx?.();
+    if (!paths.length || !ctx) return;
+    const { data, error } = await ctx.client.storage.from(BUCKET).remove(paths);
+    const gone = data?.length ?? 0;
+    if (error || gone < paths.length) toast(`⚠️ ${paths.length - gone} documento${paths.length - gone === 1 ? '' : 's'} da viagem não ${paths.length - gone === 1 ? 'foi apagado' : 'foram apagados'} (só quem os juntou ou os pais podem apagar).`);
+    else toast(`🗑️ Viagem apagada, com ${gone === 1 ? 'o documento' : `os ${gone} documentos`}.`);
+  }
+
   Views.tripDocs = section;
+  Views.tripDocsCleanup = cleanup;
   return {
     actions: {
       'tripdoc-add': (el) => pick(el.dataset.id),
