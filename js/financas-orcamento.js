@@ -17,6 +17,16 @@ window.FinancasOrcamento = function ({ render }) {
   const month = () => VS.budMonth || P.monthOf(today());
   const catOptions = (kinds = ['expense', 'income', 'move']) => O.CATS.filter((c) => kinds.includes(c[3])).map(([id, e, n]) => [id, `${e} ${n}`]);
 
+  /** Movimentos importados antes de haver a categoria Ordenado (vencimentos em "Entradas"): passam para Ordenado, uma vez. */
+  let migrated = false;
+  function migrateSalaries(s) {
+    if (migrated) return;
+    const ids = s.ftx.filter((t) => t.cat === 'entradas' && !t.manualCat && t.rule === 'default' && O.categorize(t.desc, t.amount, s.frules).cat === 'ordenado').map((t) => t.id);
+    if (!ids.length) { if (s.ftx.length) migrated = true; return; }
+    migrated = true;
+    setTimeout(() => Store.update((st) => { st.ftx.forEach((t) => { if (ids.includes(t.id) && t.cat === 'entradas') t.cat = 'ordenado'; }); }), 0);
+  }
+
   /* ---------- Vista ---------- */
   function view() {
     const s = S();
@@ -25,6 +35,7 @@ window.FinancasOrcamento = function ({ render }) {
     const accIds = new Set(s.ftx.map((t) => t.account));
     const acc = VS.budAcc && accIds.has(VS.budAcc) ? VS.budAcc : '';
     const txs = acc ? s.ftx.filter((t) => t.account === acc) : s.ftx;
+    migrateSalaries(s);
     const sum = O.monthSummary(txs, m);
     const split = Fixas.monthSplit(txs, s.bills, m, O.kindOf);
     // Os orçamentos são da família toda: com uma conta escolhida, mostra só quanto se gastou nela.
@@ -71,7 +82,9 @@ window.FinancasOrcamento = function ({ render }) {
         <span class="bud-accv"><b>${money(a.out)}</b>${a.in ? `<small class="muted">entrou ${money(a.in)}</small>` : ''}</span></li>`).join('')}</ul>
       <p class="small muted">Despesas de ${esc(P.monthName(m))} em cada conta. Os pagamentos do cartão e as transferências entre contas não contam (senão contavam duas vezes).</p>`) : '';
     const tiles = `${acc ? `<p class="small bud-accnote">A mostrar só <b>${esc(accountName(acc))}</b>. <button class="linkish" data-action="bud-acc" data-id="">Ver todas as contas</button></p>` : ''}<div class="fin-summary pat-stats">
-      <div class="fin-tile"><small>Entrou</small><b>${money(sum.income)}</b>${sum.byCat.extras ? `<small>ordenado e outras ${money(sum.income - sum.byCat.extras)}</small>` : ''}</div>
+      <div class="fin-tile"><small>Entrou</small><b>${money(sum.income)}</b>${sum.byCat.entradas && sum.income !== sum.byCat.entradas ? `<small>outras entradas ${money(sum.byCat.entradas)}</small>` : ''}</div>
+      ${sum.income ? `<button class="fin-tile bud-extras" data-action="bud-filter" data-id="ordenado"><small>💶 Ordenados</small><b>${money(sum.byCat.ordenado || 0)}</b>
+        <small>${sum.byCat.ordenado ? `${Math.round((sum.byCat.ordenado / sum.income) * 100)}% do que entrou` : 'toquem no ordenado → 💶 Ordenado'}</small></button>` : ''}
       ${sum.byCat.extras ? `<button class="fin-tile bud-extras" data-action="bud-filter" data-id="extras"><small>🧰 Trabalhos extra</small><b>${money(sum.byCat.extras)}</b><small>${Math.round((sum.byCat.extras / sum.income) * 100)}% do que entrou</small></button>` : ''}
       <div class="fin-tile"><small>Saiu (despesas)</small><b>${money(sum.expense)}</b></div>
       <div class="fin-tile ${sum.saved >= 0 ? 'ok' : ''}"><small>Sobrou${sum.rate != null ? ` · ${sum.rate}%` : ''}</small><b>${esc(signedMoney(sum.saved))}</b></div>

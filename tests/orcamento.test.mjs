@@ -102,7 +102,9 @@ test('categorias: lojas portuguesas, palavra inteira/início de palavra, regras 
   assert.equal(c('FIDELIDADE SEGUROS'), 'seguros');
   assert.equal(c('PRENDAS LOJA DO BAIRRO'), 'outros'); // "renda" não apanha "PRENDAS"
   assert.equal(c('TRF BPI JOAO'), 'outros'); // "bp " não apanha "BPI"
-  assert.equal(c('TRF VENCIMENTO EMPRESA XPTO', 1850), 'entradas');
+  assert.equal(c('TRF VENCIMENTO EMPRESA XPTO', 1850), 'ordenado');
+  assert.equal(c('SUBSIDIO DE NATAL EMPRESA XPTO', 1850), 'ordenado');
+  assert.equal(c('SUBSIDIO DOENCA', 300), 'entradas');
   assert.equal(c('MB WAY RECEBIDO', 20), 'entradas');
   assert.equal(O.categorize('XYZ', -5).rule, 'none');
   assert.equal(c('COMPRA 1234 CONTINENTE', -10, [{ match: 'continente', cat: 'casa' }]), 'casa');

@@ -257,7 +257,7 @@ function monthSpend(s, m) {
   let income = 0;
   let extras = 0;
   s.ftx.filter((t) => String(t.date).startsWith(m)).forEach((t) => {
-    if (t.cat === 'entradas') { income += Number(t.amount) || 0; return; }
+    if (t.cat === 'entradas' || t.cat === 'ordenado') { income += Number(t.amount) || 0; return; }
     if (t.cat === 'extras') { income += Number(t.amount) || 0; extras += Number(t.amount) || 0; return; }
     if (BUDGET_SKIP.has(t.cat)) return;
     by[t.cat || 'outros'] = (by[t.cat || 'outros'] || 0) - (Number(t.amount) || 0);
