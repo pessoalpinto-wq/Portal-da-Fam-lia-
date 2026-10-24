@@ -121,7 +121,8 @@
     const files = await unzip(buf, (n) => /^xl\/(sharedStrings\.xml|workbook\.xml|styles\.xml|worksheets\/sheet\d+\.xml|_rels\/workbook\.xml\.rels)$/.test(n));
     const dec = new TextDecoder();
     const xml = (n) => (files[n] ? new DOMParserImpl().parseFromString(dec.decode(files[n]), 'application/xml') : null);
-    const tag = (el, name) => [...el.getElementsByTagName(name)];
+    // Pelo nome local: alguns bancos escrevem as etiquetas com prefixo (<x:row>, <x:c>…).
+    const tag = (el, name) => [...(el.getElementsByTagNameNS ? el.getElementsByTagNameNS('*', name) : el.getElementsByTagName(name))];
     const strings = [];
     const ss = xml('xl/sharedStrings.xml');
     if (ss) tag(ss, 'si').forEach((si) => strings.push(tag(si, 't').map((t) => t.textContent).join('')));

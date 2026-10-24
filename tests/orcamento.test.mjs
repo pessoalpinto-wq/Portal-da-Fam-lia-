@@ -221,3 +221,17 @@ test('cartão de crédito: valores positivos de lojas são devoluções, não en
   assert.deepEqual(O.prepareImport([], mv, 'cc', [], { card: true }).fresh.map((t) => t.cat), ['outros', 'roupa']);
   assert.equal(O.prepareImport([], mv, 'ord', []).fresh[0].cat, 'entradas'); // na conta à ordem continua a ser entrada
 });
+
+test('cartão refeição: compras em supermercado ou restaurantes, carregamentos são entradas', () => {
+  const O = globalThis.Orcamento;
+  const mv = [
+    { date: '2026-09-01', desc: 'CARREGAMENTO DE SALDO', amount: 160 },
+    { date: '2026-09-02', desc: 'COMPRA MERCADONA,TROFA,PRT', amount: -30 },
+    { date: '2026-09-03', desc: 'COMPRA PASTELARIA DO PARQUE,PORTO,PRT', amount: -4.5 },
+    { date: '2026-09-04', desc: 'COMPRA GALP LOJA,MAIA,PRT', amount: -8 },
+    { date: '2026-09-05', desc: 'COMPRA LOJA DESCONHECIDA,MAIA,PRT', amount: -6 },
+  ];
+  assert.deepEqual(O.prepareImport([], mv, 'ref', [], { meal: true }).fresh.map((t) => t.cat), ['entradas', 'supermercado', 'restaurantes', 'supermercado', 'supermercado']);
+  // Uma regra da família continua a mandar.
+  assert.equal(O.prepareImport([], mv.slice(4), 'ref', [{ match: 'loja desconhecida', cat: 'restaurantes' }], { meal: true }).fresh[0].cat, 'restaurantes');
+});

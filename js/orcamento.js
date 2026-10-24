@@ -247,7 +247,7 @@
    * tem o mesmo id), separa os novos dos que já existiam e classifica os novos.
    * Dois movimentos iguais no mesmo dia (dois cafés de 0,80 €) contam como dois.
    */
-  function prepareImport(existing = [], movements = [], account, familyRules = [], { card = false } = {}) {
+  function prepareImport(existing = [], movements = [], account, familyRules = [], { card = false, meal = false } = {}) {
     const seen = new Map();
     const have = new Set(existing.map((t) => t.id));
     const fresh = [];
@@ -261,6 +261,12 @@
       const c = categorize(m.desc, m.amount, familyRules);
       // Num cartão de crédito, um valor positivo de uma loja desconhecida é uma devolução (abate nas despesas).
       if (card && c.rule === 'none' && m.amount > 0) c.cat = 'outros';
+      // Cartão refeição: só compra comida → restaurantes e cafés, ou supermercado; carregamentos = entradas.
+      if (meal && c.rule !== 'family') {
+        if (m.amount > 0) c.cat = 'entradas';
+        else if (c.cat !== 'restaurantes') c.cat = 'supermercado';
+        c.rule = 'default';
+      }
       fresh.push({ id, account, date: m.date, desc: m.desc, amount: m.amount, cat: c.cat, rule: c.rule, src: 'import' });
     });
     return { fresh, dup };

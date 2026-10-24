@@ -164,7 +164,7 @@ window.FinancasOrcamento = function ({ render }) {
     } else if (!isCard && kindOfAcc(account) === 'cartao') {
       note = '⚠️ Escolheram um cartão de crédito, mas este extrato parece ser de uma conta à ordem. Confirmem a conta abaixo.';
     }
-    const { fresh, dup } = O.prepareImport(S().ftx, mv, account, rules, { card: kindOfAcc(account) === 'cartao' });
+    const { fresh, dup } = O.prepareImport(S().ftx, mv, account, rules, { card: kindOfAcc(account) === 'cartao', meal: kindOfAcc(account) === 'refeicao' });
     const cardPays = fresh.filter((t) => t.cat === 'transferencias').length;
     const dates = mv.map((x) => x.date).sort();
     const counts = {};
