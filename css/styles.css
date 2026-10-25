@@ -1058,6 +1058,8 @@ body.shop-mode .view { margin-left: auto; max-width: 720px; padding: 0 16px 2rem
 .luz-bar.partial { fill-opacity: .4; }
 .k.credit { height: 10px; width: 10px; border-radius: 3px; background: var(--chart-credit); }
 .luz-credit { font-size: .72rem; color: var(--muted); }
+.luz-import-list { margin: 0 0 .6rem; padding-left: 1.1rem; display: grid; gap: .2rem; }
+.luz-import-list small { display: block; overflow-wrap: anywhere; }
 .luz-prev { stroke: var(--chart-debt); stroke-width: 3; stroke-linecap: round; }
 .luz-metric { margin: 0; }
 .luz-delta { color: var(--muted); }

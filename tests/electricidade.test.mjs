@@ -205,3 +205,31 @@ test('Repsol: período com "~", horários do quadro de leituras (somam o total),
   assert.equal(f.power, 13.8);
   assert.equal(f.estimated, false);
 });
+
+test('várias faturas de uma vez: guarda as completas, substitui as mesmas datas, separa as que faltam', () => {
+  const existing = [{ id: 'old', kind: 'luz', from: '2026-08-15', to: '2026-09-14', kwh: 1, total: 1, notes: 'minha nota' }];
+  const plan = E.planImport(existing, [
+    { file: 'a.pdf', found: E.parseInvoice(BI) }, // 15/08 a 14/09: já existe → substitui
+    { file: 'b.pdf', found: E.parseInvoice(SIMPLES) }, // nova
+    { file: 'b2.pdf', found: E.parseInvoice(SIMPLES) }, // o mesmo PDF duas vezes
+    { file: 'c.pdf', found: { from: '2026-10-01', to: '2026-10-31', kwh: null, total: 40 } },
+    { file: 'd.pdf', error: 'PDF estragado.' },
+  ]);
+  assert.equal(plan.save.length, 2);
+  assert.deepEqual(plan.replaced.map((x) => x.file), ['a.pdf']);
+  assert.equal(plan.save.find((x) => x.replaceId)?.replaceId, 'old');
+  assert.deepEqual(plan.imported.map((x) => x.file), ['b.pdf']);
+  assert.deepEqual(plan.repeated.map((x) => x.file), ['b2.pdf']);
+  assert.deepEqual(plan.review.map((x) => [x.file, x.why]), [['c.pdf', 'faltam os kWh']]);
+  assert.deepEqual(plan.errors.map((x) => [x.file, x.why]), [['d.pdf', 'PDF estragado.']]);
+  // Ao substituir não se apagam as notas que já lá estavam.
+  assert.equal('notes' in plan.save[0].data, false);
+  assert.equal(plan.save[1].data.kind, 'luz');
+  assert.equal(plan.save[1].data.kwh, 212);
+});
+
+test('fatura incompleta: o que falta para a guardar sozinha', () => {
+  assert.deepEqual(E.missingOf({ from: '2026-09-01', to: '2026-09-30', kwh: 200, total: 30 }), []);
+  assert.deepEqual(E.missingOf({ kwh: 0, total: 0 }), ['o período']);
+  assert.deepEqual(E.missingOf({ from: '2026-09-30', to: '2026-09-01', kwh: 1, total: 30, credit: 40 }), ['datas certas', 'um desconto que bata certo']);
+});
