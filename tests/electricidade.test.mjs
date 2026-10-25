@@ -233,3 +233,32 @@ test('fatura incompleta: o que falta para a guardar sozinha', () => {
   assert.deepEqual(E.missingOf({ kwh: 0, total: 0 }), ['o período']);
   assert.deepEqual(E.missingOf({ from: '2026-09-30', to: '2026-09-01', kwh: 1, total: 30, credit: 40 }), ['datas certas', 'um desconto que bata certo']);
 });
+
+test('por ano: faturas repartidas pelos dias de cada ano, horários e comparação só entre anos completos', () => {
+  const bills = [
+    // 2025 inteiro numa fatura, com horários
+    { id: 'a', from: '2025-01-01', to: '2025-12-31', kwh: 3650, total: 730, periods: { vazio: 1460, fora: 2190 } },
+    // 2026 inteiro, e uma fatura que passa para 2027 (1 dia em 2026, 9 em 2027)
+    { id: 'b', from: '2026-01-01', to: '2026-12-31', kwh: 3285, total: 657, credit: 30 },
+    { id: 'c', from: '2026-12-31', to: '2027-01-09', kwh: 100, total: 20 },
+  ];
+  const ys = E.byYear(bills);
+  assert.deepEqual(ys.map((y) => y.year), ['2027', '2026', '2025']);
+  const [y27, y26, y25] = ys;
+  assert.equal(y27.days, 9);
+  assert.equal(y27.kwh, 90);
+  assert.equal(y27.partial, true);
+  assert.equal(y27.prevKwh, null);
+  assert.equal(y26.kwh, 3295);
+  assert.equal(y26.credit, 30);
+  assert.equal(y26.prevKwh, 3650);
+  assert.equal(y26.periodsKwh, 0);
+  assert.equal(y25.perKwh, 0.2);
+  assert.deepEqual(y25.periods, { vazio: 1460, fora: 2190 });
+  assert.equal(y25.periodsKwh, 3650);
+});
+
+test('preço médio de cada fatura', () => {
+  assert.equal(E.perKwhOf({ kwh: 300, total: 52.5 }), 0.175);
+  assert.equal(E.perKwhOf({ kwh: 0, total: 10 }), null);
+});

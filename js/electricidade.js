@@ -193,6 +193,48 @@
     return out;
   }
 
+  /**
+   * Por ano civil, com as faturas repartidas pelos dias (uma fatura de 15/12 a 14/01 conta 17 dias num ano e 14 no seguinte).
+   * periods: kWh por horário, só das faturas que os trazem (periodsKwh = o total dessas faturas, para as percentagens).
+   * @returns {[{ year, kwh, total, credit, days, partial, perKwh, periods, periodsKwh, prevKwh, prevTotal }]} do mais recente para o mais antigo
+   */
+  function byYear(bills = []) {
+    const out = {};
+    bills.filter((b) => b.from && b.to && daysOf(b.from, b.to)).forEach((b) => {
+      const days = daysOf(b.from, b.to);
+      const per = Object.entries(b.periods || {}).filter(([, v]) => v != null && Number.isFinite(Number(v)));
+      for (let d = dayNum(b.from); d <= dayNum(b.to); d++) {
+        const y = fromDay(d).slice(0, 4);
+        const o = (out[y] ||= { year: y, kwh: 0, total: 0, credit: 0, days: 0, periods: {}, periodsKwh: 0 });
+        o.kwh += (Number(b.kwh) || 0) / days;
+        o.total += (Number(b.total) || 0) / days;
+        o.credit += (Number(b.credit) || 0) / days;
+        o.days += 1;
+        if (per.length) {
+          o.periodsKwh += (Number(b.kwh) || 0) / days;
+          per.forEach(([k, v]) => { o.periods[k] = (o.periods[k] || 0) + Number(v) / days; });
+        }
+      }
+    });
+    const years = Object.values(out).sort((a, b) => b.year.localeCompare(a.year));
+    years.forEach((o) => {
+      const len = Number(o.year) % 4 === 0 && (Number(o.year) % 100 !== 0 || Number(o.year) % 400 === 0) ? 366 : 365;
+      o.partial = o.days < len;
+      o.perKwh = o.kwh ? Math.round((o.total / o.kwh) * 1000) / 1000 : null;
+      o.kwh = r1(o.kwh); o.total = r2(o.total); o.credit = r2(o.credit); o.periodsKwh = r1(o.periodsKwh);
+      Object.keys(o.periods).forEach((k) => { o.periods[k] = r1(o.periods[k]); });
+    });
+    years.forEach((o) => {
+      const prev = out[String(Number(o.year) - 1)];
+      o.prevKwh = prev && !prev.partial && !o.partial ? prev.kwh : null;
+      o.prevTotal = prev && !prev.partial && !o.partial ? prev.total : null;
+    });
+    return years;
+  }
+
+  /** Preço médio de uma fatura: custo da luz (com IVA e taxas, potência incluída) a dividir pelos kWh. */
+  const perKwhOf = (b) => (Number(b.kwh) > 0 && b.total != null ? Math.round((Number(b.total) / Number(b.kwh)) * 1000) / 1000 : null);
+
   const daysInMonth = (m) => { const [y, mo] = m.split('-').map(Number); return new Date(Date.UTC(y, mo, 0)).getUTCDate(); };
 
   /**
@@ -292,5 +334,5 @@
     return out;
   }
 
-  root.Electricidade = { num, parseInvoice, findPeriod, daysOf, byMonth, series, summary, sameBill, addMonths, missingOf, planImport };
+  root.Electricidade = { num, parseInvoice, findPeriod, daysOf, byMonth, series, summary, sameBill, addMonths, missingOf, planImport, byYear, perKwhOf };
 })(globalThis);

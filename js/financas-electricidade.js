@@ -159,15 +159,29 @@ window.FinancasElectricidade = function ({ render }) {
       const per = PERIODS.filter(([k]) => b.periods?.[k] != null && k !== 'simples').map(([k, n]) => `${n.toLowerCase()} ${b.periods[k].toLocaleString('pt-PT')}`).join(' · ');
       return `<li class="tx"><button class="tx-main" data-action="luz-edit" data-id="${esc(b.id)}">
           <span class="tx-desc">${esc(dmy(b.from))} a ${esc(dmy(b.to))}${b.estimated ? ' <small class="muted">· estimada</small>' : ''}</span>
-          <small class="muted">${esc([b.supplier, `${E.daysOf(b.from, b.to)} dias`, per ? `${per} kWh` : '', b.power ? `${comma(b.power)} kVA` : ''].filter(Boolean).join(' · '))}</small>
+          <small class="muted">${esc([b.supplier, `${E.daysOf(b.from, b.to)} dias`, per ? `${per} kWh` : '', b.power ? `${comma(b.power)} kVA` : '', E.perKwhOf(b) != null ? `${comma(E.perKwhOf(b).toFixed(3))} €/kWh` : ''].filter(Boolean).join(' · '))}</small>
           ${b.credit ? `<small class="luz-credit">💳 desconto de saldo ${money(b.credit)} · pago ${money(Math.round((b.total - b.credit) * 100) / 100)}</small>` : ''}</button>
         <span class="luz-val"><b>${esc(kwhTxt(b.kwh))}</b><small class="muted">${money(b.total)}</small></span></li>`;
     };
     const listCard = card(`🧾 Faturas <small class="muted">(${list.length})</small>`, `<ul class="tx-list">${list.slice(0, VS.luzShow || 12).map(row).join('')}</ul>
       ${list.length > (VS.luzShow || 12) ? `<button class="btn small ghost" data-action="luz-more">Mostrar mais (${list.length - (VS.luzShow || 12)})</button>` : ''}`);
+    const years = E.byYear(list);
+    const perTxt = (y) => {
+      if (!y.periodsKwh) return '—';
+      const parts = PERIODS.filter(([k]) => y.periods[k] != null && k !== 'simples').map(([k, n]) => `${n.toLowerCase()} ${Math.round((y.periods[k] / y.periodsKwh) * 100)}%`);
+      const cover = y.periodsKwh < y.kwh * 0.95 ? ` <small class="muted">(de ${esc(kwhTxt(y.periodsKwh))})</small>` : '';
+      return parts.length ? `${parts.map(esc).join('<br>')}${cover ? `<br>${cover}` : ''}` : 'simples';
+    };
+    const yearCard = card('📅 Por ano', `<div class="table-wrap"><table class="luz-years">
+      <thead><tr><th>Ano</th><th>kWh</th><th>Por dia</th><th>Custo</th><th>€/kWh</th><th>Horários</th><th>Ano anterior</th></tr></thead>
+      <tbody>${years.map((y) => `<tr><td>${esc(y.year)}${y.partial ? ` <small class="muted">(${y.days} dias)</small>` : ''}</td>
+        <td>${esc(y.kwh.toLocaleString('pt-PT'))}</td><td>${esc(kwhTxt(y.kwh / y.days))}</td><td>${money(y.total)}${y.credit ? `<br><small class="muted">pago ${money(Math.round((y.total - y.credit) * 100) / 100)}</small>` : ''}</td>
+        <td>${y.perKwh != null ? esc(comma(y.perKwh.toFixed(3))) : '—'}</td><td>${perTxt(y)}</td>
+        <td>${y.prevKwh != null ? deltaHtml(pct(y.kwh, y.prevKwh), 'kWh') : '—'}</td></tr>`).join('')}</tbody></table></div>
+      <p class="small muted">Valores com IVA e taxas (o total da fatura, mais o desconto de saldo quando o houve). O €/kWh é o custo total a dividir pelos kWh, por isso inclui a potência. Anos com só parte dos dias não se comparam com o anterior: aí vejam o consumo por dia.</p>`);
     const gaps = missing(list);
     const gapNote = gaps.length ? `<section class="card bud-unsorted"><b>🧩 Faltam faturas</b><span class="small muted">Entre ${gaps.map((g) => `${esc(dmy(g.from))} e ${esc(dmy(g.to))}`).join('; ')}. Juntem-nas para os meses ficarem certos.</span></section>` : '';
-    return `${head}${tiles}${gapNote}<div class="grid two">${chartCard}${listCard}</div>
+    return `${head}${tiles}${gapNote}<div class="grid two">${chartCard}${listCard}</div>${yearCard}
       <p class="small muted">🔒 Só os pais vêem. O PDF é lido neste aparelho e não é guardado: ficam só os números.</p>`;
   }
 
