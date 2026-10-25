@@ -123,7 +123,7 @@ test('não guardar duas vezes a mesma fatura', () => {
 
 // Endesa (texto como o pdf.js o tira de uma fatura real; dados pessoais trocados): leituras do contador acumuladas
 // ("Cheia: 7.233 kWh") que não são consumo, energia em duas linhas sem horário, total antes do texto.
-const ENDESA = `Nº Documento: 26080310156268999 Luz Data de Emissão: 27 ago 2026
+const ENDESA = `Nº Documento: 12345678901234567 Luz Data de Emissão: 27 ago 2026
 TOTAL A DEBITAR 29,20 €
 Débito a partir de 11 Setembro 2026
 CONSUMOS
@@ -150,7 +150,7 @@ PT 0002 0000 1111 2222 XX 13,80 kVA Sem ciclo`;
 // Repsol (como nas capturas de uma fatura real): período com "~", tarifa simples mas quadro de leituras por horário,
 // "Saldo My Repsol utilizado" a abater no total, várias linhas com "total".
 const REPSOL = `Documento: Dt.Emissão:
-26100760109043799 2026-10-22
+76543210987654321 2026-10-22
 Resumo de faturação
 Eletricidade Gás Taxas e Impostos Débitos / Créditos Outros Poupança Valor a Pagar
 133,75€ 0,00€ 29,39€ 0,00€ 5,68€ -39,84€ 128,98€
@@ -159,7 +159,7 @@ Comunique as suas leituras entre dia 2026-11-18 e 2026-11-20
 Valor a enviar ao banco:
 128,98€
 Fatura Tipo de Cliente Tipo de Leitura 2/3
-FAC 0210762026/0049567916 Domésticos Empresa
+FAC 0000002026/0000000001 Domésticos Empresa
 Data Fim Período Tarifa
 2026-10-20 Leve Luz Simples 2601
 Resumo Período Faturação: 2026-08-26 ~ 2026-10-20
@@ -173,8 +173,8 @@ Desc. FE Energia Simples Real 26/08 a 20/10 56d/56d x (111,93 € x 2,00%) -2,24
 Potência Contratada (13.80 kVA) 26/08 a 20/10 56 dias x 0,240000 €/dia 13,44 (c)
 Financ. T. Social (Dir. ERSE 3-4/2024) Real 26/08 a 20/10 605 kWh x 0,002067 €/kWh 1,25 (c)
 Financ. T. Social (Dir. ERSE 3-4/2024) 26/08 a 20/10 0 kWh x 0,002067 €/kWh 0,00 (b)
-Saldo My Repsol utilizado Operação: 1787829815 -39,84 (c)
-Saldo My Repsol utilizado Operação: 1787829815 0,00 (b)
+Saldo My Repsol utilizado Operação: 1000000001 -39,84 (c)
+Saldo My Repsol utilizado Operação: 1000000001 0,00 (b)
 Imposto Especial Consumo Real 26/08 a 20/10 605 kWh x 0,001000 €/kWh 0,61 (c)
 Total sem IVA 105,58€
 TOTAL 128,98€
