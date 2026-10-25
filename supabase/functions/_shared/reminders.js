@@ -25,6 +25,7 @@ export const NOTIFY_TYPES = {
   docs: 'Documentos a expirar',
   bills: 'Contas da casa (pais)',
   fecho: 'Fecho do mês (último dia às 19h, pais)',
+  extratos: 'Extratos por importar (dia 3 às 19h, pais)',
   orcamento: 'Orçamento: 80 % e 100 % de uma categoria (às 20h, pais)',
   money: 'Mesada recebida',
   shopping: '"Vou às compras" (na hora)',
