@@ -177,6 +177,7 @@ window.FinancasElectricidade = function ({ render }) {
         <input type="file" name="file" multiple accept=".pdf,application/pdf" required></label>
         <p class="small muted">Na área de cliente do fornecedor: Faturas → Descarregar PDF. A seguir confirmam os números de cada uma.</p>` }],
       submitLabel: 'Ler as faturas',
+      extra: savedPass() ? [{ label: '🔒 Esquecer a palavra-passe', onClick: () => { keepPass(''); toast('🔒 A palavra-passe das faturas foi apagada deste aparelho.'); } }] : [],
       onSubmit: () => {
         const files = [...(document.querySelector('#dialog [name=file]')?.files || [])];
         if (!files.length) { toast('Escolham a fatura em PDF.'); return; }
@@ -186,22 +187,49 @@ window.FinancasElectricidade = function ({ render }) {
   }
 
   /** Lê uma fatura de cada vez e abre o formulário para confirmar (o seguinte abre depois de guardar). */
-  async function readNext(files, i, saved) {
+  // Palavra-passe das faturas em PDF (ex.: Repsol): fica só neste aparelho, e só se pedirem para a lembrar.
+  const PASS_KEY = 'portal-luz-pdf-pass';
+  const savedPass = () => { try { return localStorage.getItem(PASS_KEY) || ''; } catch (e) { return ''; } };
+  const keepPass = (v) => { try { if (v) localStorage.setItem(PASS_KEY, v); else localStorage.removeItem(PASS_KEY); } catch (e) { /* sem localStorage */ } };
+
+  async function readNext(files, i, saved, password = savedPass(), keep = false) {
     if (i >= files.length) {
       if (files.length > 1) toast(`⚡ ${saved} de ${files.length} faturas guardadas.`);
       return;
     }
+    const step = files.length > 1 ? `${i + 1} de ${files.length}` : '';
+    const next = (ok, pass = password) => setTimeout(() => readNext(files, i + 1, saved + (ok ? 1 : 0), pass), 0);
     let found = null;
     let error = '';
     try {
-      const text = await ExtratoPDF.readText(new Uint8Array(await files[i].arrayBuffer()));
+      const text = await ExtratoPDF.readText(new Uint8Array(await files[i].arrayBuffer()), null, password || undefined);
+      if (keep && password) keepPass(password); // só fica guardada depois de abrir a fatura
       found = E.parseInvoice(text);
     } catch (e) {
+      if (e.password) { passwordForm(files, i, saved, { wrong: e.password === 'wrong', fromSaved: !!password && password === savedPass(), step }); return; }
       error = e.message || 'Não consegui ler este PDF.';
     }
-    billForm(null, found || {}, {
-      file: files[i].name, error, step: files.length > 1 ? `${i + 1} de ${files.length}` : '',
-      after: (ok) => setTimeout(() => readNext(files, i + 1, saved + (ok ? 1 : 0)), 0),
+    billForm(null, found || {}, { file: files[i].name, error, step, after: (ok) => next(ok) });
+  }
+
+  /** PDF protegido: pede a palavra-passe (e volta a tentar), ou deixa escrever os números à mão. */
+  function passwordForm(files, i, saved, { wrong = false, fromSaved = false, step = '' } = {}) {
+    openForm({
+      title: `🔒 Fatura protegida${step ? ` (${step})` : ''}`,
+      fields: [
+        { name: 'info', type: 'note', html: `<p class="small">📄 <b>${esc(files[i].name)}</b></p>
+          <p class="small bud-note">${wrong ? (fromSaved ? '⚠️ A palavra-passe guardada neste aparelho não abre esta fatura. Escrevam a desta.' : '⚠️ Essa palavra-passe não abre o PDF. Experimentem outra vez.')
+            : 'Esta fatura está protegida com palavra-passe. Sem ela o portal não consegue ler os números.'}</p>
+          <p class="small muted">Costuma vir indicada no email que traz a fatura (muitas vezes é o NIF do titular).</p>` },
+        { name: 'pass', label: 'Palavra-passe do PDF', type: 'password', required: true },
+        { name: 'remember', label: 'Lembrar neste aparelho?', type: 'select', options: [['1', 'Sim (só neste telemóvel / computador)'], ['', 'Não']] },
+      ],
+      values: { remember: '1' },
+      submitLabel: 'Abrir a fatura',
+      extra: [{ label: 'Escrever à mão', onClick: () => { setTimeout(() => billForm(null, {}, { file: files[i].name, step, after: (ok) => setTimeout(() => readNext(files, i + 1, saved + (ok ? 1 : 0)), 0) }), 0); } }],
+      onSubmit: (d) => {
+        setTimeout(() => readNext(files, i, saved, d.pass, !!d.remember), 0);
+      },
     });
   }
 
