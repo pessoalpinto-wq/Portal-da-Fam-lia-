@@ -2,7 +2,7 @@
  * Electricidade: ler uma fatura em PDF (texto tirado pelo pdf.js, em js/extrato-pdf.js), repartir o consumo e o
  * valor de cada fatura pelos meses do calendário e calcular o resumo (kWh por dia, €/kWh, ano contra ano anterior).
  * Colecção (só pais): energia — { id, kind: 'luz', from, to, kwh, total, credit, periods: { vazio, fora, cheias, ponta, simples },
- *   power, supplier, cpe, estimated, notes }. total = custo da luz; credit = desconto de saldo (ex.: My Repsol, com IVA);
+ *   power, supplier, cpe, estimated, notes, prices: { vazio, fora, cheias, ponta, simples } (€/kWh sem IVA), powerDay (€/dia sem IVA) }. total = custo da luz; credit = desconto de saldo (ex.: My Repsol, com IVA);
  *   o que se pagou = total − credit.
  * Script "clássico": define globalThis.Electricidade. Testado em tests/electricidade.test.mjs.
  */
@@ -99,7 +99,7 @@
    * kWh: a soma das linhas de energia com preço por kWh ("Termo de Energia 92 kWh x 0,177 €/kWh", "Energia Vazio 120 kWh
    * x …"); senão o kWh do Imposto Especial de Consumo (vem em todas as faturas). Por horário: só se somarem o total
    * (assim as leituras do contador, "Cheia: 7.233 kWh", nunca passam por consumo).
-   * @returns {{ supplier, cpe, from, to, kwh, total, paid, credit, periods, power, estimated, gas }}
+   * @returns {{ supplier, cpe, from, to, kwh, total, paid, credit, periods, power, estimated, gas, prices, powerDay }}
    */
   function parseInvoice(text) {
     const lines = String(text || '').split(/\n/).map((l) => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
@@ -112,6 +112,7 @@
     let energy = 0;
     let iec = 0;
     let loose = null; // "Consumo 300 kWh" sem horário (só se não houver mais nada)
+    const priced = {}; // preço unitário por horário (sem IVA): { k: { kwh, eur } }, média pelos kWh se o preço mudar a meio
     lines.forEach((l) => {
       const s = strip(l);
       const all = [...s.matchAll(KWH)].map((m) => ({ m, v: kwhNum(m) })).filter((x) => x.v != null && x.v <= 100000);
@@ -127,6 +128,13 @@
         energy += v;
         const k = labelIn(s.slice(0, all[0].m.index));
         if (k) detail[k] = r2((detail[k] || 0) + v);
+        // Preço de tabela: o primeiro €/kWh depois dos kWh (a Endesa põe a seguir, entre [ ], o preço com desconto).
+        const pm = s.slice(all[0].m.index + all[0].m[0].length).match(/(\d+[.,]\d+)\s*€\s*\/\s*kwh/);
+        const price = pm ? num(pm[1]) : null;
+        if (price != null && price > 0 && price < 2 && v > 0) {
+          const o = (priced[k || 'simples'] ||= { kwh: 0, eur: 0 });
+          o.kwh += v; o.eur += v * price;
+        }
         return;
       }
       let prev = 0;
@@ -144,6 +152,13 @@
     const gas = /gas natural/.test(plain) && /\bm3\b|m³/.test(plain);
     const elec = amountOf(lines, /total (?:da |de )?ele(?:c)?tricidade|subtotal ele(?:c)?tricidade/);
     const pay = amountOf(lines, /total a pagar|valor a pagar|montante a pagar|total a debitar|valor a debitar|valor a enviar ao banco|total (?:da )?fa(?:c)?tura|^total\b(?!\s*(?:sem|s\/|de |do |da |luz|taxas|iva|gas|valor|com))/);
+    const prices = Object.fromEntries(Object.entries(priced).map(([k, o]) => [k, Math.round((o.eur / o.kwh) * 1e6) / 1e6]));
+    // Termo de potência em €/dia ("Potência Contratada (13.80 kVA) 26/08 a 20/10 56 dias x 0,240000 €/dia 13,44").
+    const powerDay = (() => {
+      const l = lines.map(strip).find((x) => /potencia/.test(x) && /€\s*\/\s*dia/.test(x));
+      const m = l && l.match(/(\d+[.,]\d+)\s*€\s*\/\s*dia/);
+      return m ? num(m[1]) : null;
+    })();
     const power = (() => { const m = plain.match(/(\d+(?:[.,]\d+)?)\s*kva\b/); return m ? num(m[1]) : null; })();
     const cpe = (lines.join(' ').match(/PT\s?0002\s?(?:\d\s?){12}[A-Z]{2}/) || [''])[0].replace(/\s/g, '') || null;
     const SUPPLIERS = ['EDP', 'Endesa', 'Iberdrola', 'Goldenergy', 'Galp', 'Repsol', 'Luzboa', 'Coopérnico', 'SU Eletricidade', 'MEO Energia',
@@ -161,6 +176,7 @@
       // total = o custo da luz (o que se pagou + o desconto de saldo); paid = o que se pagou.
       kwh, total: paid == null ? null : r2(paid + credit), paid, credit,
       periods, power, estimated: /estimad|estimativa/.test(plain), gas,
+      prices, powerDay,
     };
   }
 
@@ -323,7 +339,7 @@
       if (miss.length) { out.review.push({ file, found, why: `faltam ${miss.join(', ').replace(/, ([^,]*)$/, ' e $1')}` }); return; }
       const data = {
         kind: 'luz', from: found.from, to: found.to, kwh: Number(found.kwh), total: Number(found.total), credit: Math.max(0, Number(found.credit) || 0),
-        periods: found.periods || {}, power: found.power ?? null, supplier: found.supplier || '', estimated: !!found.estimated, ...(found.cpe ? { cpe: found.cpe } : {}),
+        periods: found.periods || {}, prices: found.prices || {}, powerDay: found.powerDay ?? null, power: found.power ?? null, supplier: found.supplier || '', estimated: !!found.estimated, ...(found.cpe ? { cpe: found.cpe } : {}),
       };
       // O mesmo período duas vezes nesta leva (o mesmo PDF escolhido duas vezes): fica a primeira.
       if (sameBill(out.save.map((x) => x.data), { id: '', ...data })) { out.repeated.push({ file, data }); return; }
