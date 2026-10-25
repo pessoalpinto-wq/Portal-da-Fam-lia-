@@ -144,10 +144,27 @@
     return lib;
   }
 
+  /**
+   * Abre o PDF. Com palavra-passe (ex.: faturas da Repsol), sem ela ou com a errada dá um erro com
+   * e.password = 'need' | 'wrong', para a página a pedir.
+   */
+  async function open(bytes, impl, password) {
+    const L = impl || await pdfjs();
+    // Cópia: o pdf.js fica com os bytes (e com uma palavra-passe errada é preciso tentar outra vez).
+    const data = new Uint8Array(bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes));
+    try {
+      return await L.getDocument({ data, isEvalSupported: false, ...(password ? { password } : {}) }).promise;
+    } catch (e) {
+      if (e?.name !== 'PasswordException') throw e;
+      const err = new Error(password ? 'A palavra-passe do PDF não está certa.' : 'Este PDF está protegido com palavra-passe.');
+      err.password = password ? 'wrong' : 'need';
+      throw err;
+    }
+  }
+
   /** PDF (bytes) → tabela para a importação. */
   async function read(bytes, impl) {
-    const L = impl || await pdfjs();
-    const doc = await L.getDocument({ data: bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes), isEvalSupported: false }).promise;
+    const doc = await open(bytes, impl);
     const pages = [];
     for (let n = 1; n <= doc.numPages; n++) {
       const page = await doc.getPage(n);
@@ -162,5 +179,17 @@
     return rows;
   }
 
-  root.ExtratoPDF = { linesFromItems, toRows, period, isoDate, read };
+  /** PDF (bytes) → o texto, linha a linha (para outras leituras, ex.: faturas da luz em js/electricidade.js). */
+  async function readText(bytes, impl, password) {
+    const doc = await open(bytes, impl, password);
+    const out = [];
+    for (let n = 1; n <= doc.numPages; n++) {
+      const page = await doc.getPage(n);
+      linesFromItems((await page.getTextContent()).items).forEach((l) => out.push(l.cells.map((c) => c.str).join(' ')));
+    }
+    if (!out.length) throw new Error('Este PDF é uma imagem (digitalizado): não tem texto para ler. Descarreguem a fatura em PDF na área de cliente do fornecedor.');
+    return out.join('\n');
+  }
+
+  root.ExtratoPDF = { linesFromItems, toRows, period, isoDate, read, readText };
 })(globalThis);
