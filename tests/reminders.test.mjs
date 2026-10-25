@@ -215,3 +215,22 @@ test('horário só de um dia: o lembrete usa a hora desse dia', () => {
   // Na semana seguinte volta à hora normal.
   assert.equal(run({ events: [ev] }, addDays(T, 7), '17:35').filter((x) => x.type === 'events').length, 1);
 });
+
+test('extratos por importar: dia 3 às 19h, só para os pais, só as contas que faltam', () => {
+  const state = {
+    faccounts: [
+      { id: 'a', name: 'Santander', kind: 'ordem', lastImport: '2026-09-29' },
+      { id: 'b', name: 'Wizink', kind: 'cartao' },
+      { id: 'c', name: 'CGD', kind: 'ordem', lastImport: '2026-10-02' },
+    ],
+    ftx: [{ id: 't1', account: 'b', src: 'import', date: '2026-09-15', amount: -10 }],
+  };
+  const r = run(state, '2026-10-03', '19:05').filter((x) => x.type === 'extratos');
+  assert.deepEqual(who(r), ['U-mae', 'U-pai']);
+  assert.equal(r[0].title, '📥 Extratos de setembro');
+  assert.match(r[0].body, /^Faltam Santander, Wizink\./);
+  assert.equal(run(state, '2026-10-04', '19:05').filter((x) => x.type === 'extratos').length, 0);
+  // Tudo importado: não avisa.
+  const done = { ...state, faccounts: state.faccounts.map((a) => ({ ...a, lastImport: '2026-10-01' })) };
+  assert.equal(run(done, '2026-10-03', '19:05').filter((x) => x.type === 'extratos').length, 0);
+});

@@ -86,9 +86,11 @@
     let amountX = null; // coluna do valor (pelo cabeçalho)
     let saldoX = null;
     let credits = false; // secção "Pagamentos efetuados", "Créditos"…
+    const intro = []; // o texto antes do 1.º movimento (titular, conta, "Nº cartão ****1234"…)
     pages.forEach((lines) => {
       lines.forEach((l) => {
         const cells = l.cells;
+        if (!out.length) intro.push(cells.map((c) => c.str).join(' '));
         const lineTxt = strip(cells.map((c) => c.str).join(' '));
         // Cabeçalho da tabela: guarda a posição das colunas.
         // (com várias colunas de valor, ex.: "Montante na moeda de origem" e "Montante em euros", vale a da direita)
@@ -126,7 +128,9 @@
         out.push([date, desc, String(Math.round(v * 100) / 100)]);
       });
     });
-    const top = [`Extrato PDF${card ? ' · Cartão de crédito' : ''}${bank ? ` · ${bank}` : ''}`];
+    // Os números da conta / cartão (os 4 últimos), para o portal saber de que conta é o extrato.
+    const refs = root.Orcamento?.accountRefs ? root.Orcamento.accountRefs(intro.join('\n')) : [];
+    const top = [`Extrato PDF${card ? ' · Cartão de crédito' : ''}${bank ? ` · ${bank}` : ''}${refs.length ? ` · Nº ${refs.map((r) => `…${r}`).join(' ')}` : ''}`];
     return out.length ? [top, ['Data', 'Descrição', 'Montante'], ...out] : [top];
   }
 

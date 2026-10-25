@@ -25,7 +25,7 @@ test('cartão de crédito em PDF (tipo Wizink): datas sem ano, coluna em euros, 
   ];
   const rows = X.toRows([p1, p2]);
   assert.deepEqual(rows, [
-    ['Extrato PDF · Cartão de crédito · Wizink'],
+    ['Extrato PDF · Cartão de crédito · Wizink · Nº …0000'], // o nº do cartão (para reconhecer a conta)
     ['Data', 'Descrição', 'Montante'],
     ['2025-12-20', 'LOJA TESTE PORTO', '-45.9'], // dezembro → ano anterior ao fim do período
     ['2026-01-03', 'AMAZON EU', '-27.8'], // em euros, não os 30 USD

@@ -303,6 +303,74 @@
     return movements.length >= 5 && buys / movements.length >= 0.4;
   }
 
+  /* ---------- De que conta é o extrato ---------- */
+  /**
+   * Números que identificam a conta no topo do extrato (IBAN, nº de conta, cartão "**** 1234"):
+   * os 4 últimos algarismos de cada um (ex.: ['0123', '9876']).
+   */
+  function accountRefs(text) {
+    const s = String(text || '');
+    const out = new Set();
+    const tail = (x) => { const d = String(x).replace(/\D/g, ''); if (d.length >= 4) out.add(d.slice(-4)); };
+    // IBAN: PT50 0018 0000 1234 5678 9012 3
+    for (const m of s.matchAll(/\b[A-Z]{2}\d{2}(?: ?\d){12,30}/g)) tail(m[0]);
+    // Cartão / conta escondidos: "**** **** **** 1234", "XXXX1234", "…1234"
+    for (const m of s.matchAll(/(?:[*•…]|\b[xX]{2,})[*•…xX\s-]*(\d{4})\b/g)) tail(m[1]);
+    // "Conta: 0003 12345678 001", "Nº Cartão 4567 1234 5678 9012", "NIB 0018…" (mas não uma data: "Cartão 01-09-2026")
+    for (const m of s.matchAll(/\b(?:iban|nib|conta|account|cart[aã]o|card)\b[^\d\n]{0,20}((?:\d[ -]?){8,})/gi)) {
+      if (!/\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}/.test(m[1])) tail(m[1]);
+    }
+    return [...out];
+  }
+
+  /** Os 4 algarismos guardados numa conta (campo "refs": "0123, 9876"). */
+  const refsOf = (a) => String(a?.refs || '').split(/\D+/).filter((x) => x.length === 4);
+  /** O que se escreve no formulário da conta ("PT50 0018 0000 1234 5678 9012 3; 5678") → "0123, 5678". */
+  const cleanRefs = (text) => [...new Set(String(text || '').split(/[,;/|\n]+/).map((x) => x.replace(/\D/g, ''))
+    .filter((d) => d.length >= 4).map((d) => d.slice(-4)))].join(', ');
+
+  /**
+   * Adivinha a conta de um extrato: 1.º pelos números da conta (aprendidos nas importações anteriores);
+   * 2.º pelo banco no texto ou no nome do ficheiro, entre as contas do mesmo tipo (cartão de crédito ou não);
+   * 3.º se é de um cartão e só há um cartão.
+   * @returns {{ id: string, by: 'ref'|'bank'|'card'|'' }}
+   */
+  function guessAccount(accounts = [], { refs = [], text = '', card = false } = {}) {
+    const live = accounts.filter((a) => !a.archived);
+    if (refs.length) {
+      const hits = live.filter((a) => refsOf(a).some((r) => refs.includes(r)));
+      if (hits.length === 1) return { id: hits[0].id, by: 'ref' };
+    }
+    const t = ` ${norm(text)} `;
+    const same = live.filter((a) => (card ? a.kind === 'cartao' : a.kind !== 'cartao' && a.kind !== 'dinheiro'));
+    const byBank = same.filter((a) => norm(a.bank) && t.includes(` ${norm(a.bank)}`));
+    if (byBank.length === 1) return { id: byBank[0].id, by: 'bank' };
+    if (card && same.length === 1) return { id: same[0].id, by: 'card' };
+    return { id: '', by: '' };
+  }
+
+  /** Depois de importar: os números do extrato ficam na conta escolhida (e saem das outras, se lá estavam por engano). */
+  function learnRefs(accounts = [], accountId, refs = []) {
+    if (!refs.length) return;
+    accounts.forEach((a) => {
+      const mine = refsOf(a);
+      const next = a.id === accountId ? [...new Set([...refs, ...mine])].slice(0, 6) : mine.filter((r) => !refs.includes(r));
+      if (next.join(', ') !== mine.join(', ')) a.refs = next.join(', ');
+    });
+  }
+
+  /**
+   * Contas com extratos por importar: já tiveram extratos importados, mas nenhum desde o fim do mês passado.
+   * (lastImport = dia da última importação; nas importações antigas, a data do último movimento importado.)
+   */
+  function staleAccounts(accounts = [], txs = [], today) {
+    const monthStart = `${String(today).slice(0, 7)}-01`;
+    return accounts.filter((a) => !a.archived && a.kind !== 'dinheiro').filter((a) => {
+      const last = a.lastImport || txs.reduce((m, t) => (t.account === a.id && t.src === 'import' && t.date > m ? t.date : m), '');
+      return last && last < monthStart;
+    });
+  }
+
   /* ---------- O mês ---------- */
   const r2 = (n) => Math.round(n * 100) / 100;
   /** Resumo de um mês: entrou, saiu, poupado, por categoria (despesas: positivo = gasto), por classificar. */
@@ -357,7 +425,7 @@
   }
 
   root.Orcamento = {
-    looksLikeCard,
+    looksLikeCard, accountRefs, refsOf, cleanRefs, guessAccount, learnRefs, staleAccounts,
     CATS, CAT, kindOf, DEFAULT_RULES, norm, categorize, merchantKey, matchesRule, parseMoney, parseDate, mapHeader, findHeader, toMovements,
     hash, prepareImport, findTransfers, monthSummary, budgetRows, budgetAlerts, addMonths,
   };

@@ -19,6 +19,7 @@
     ['money', '💰 Mesada recebida', 'no dia'],
     ['bills', '💶 Contas da casa', '3 dias antes (pais)'],
     ['fecho', '📅 Fecho do mês', 'último dia do mês às 19h (pais)'],
+    ['extratos', '📥 Extratos por importar', 'dia 3 de cada mês às 19h, se faltar alguma conta (pais)'],
     ['orcamento', '🎯 Orçamento', '80 % e 100 % de uma categoria, às 20h (pais)'],
     ['shopping', '🛒 "Vou às compras"', 'na hora'],
     ['pantry', '🧺 Validades da despensa', 'na véspera às 19h'],
@@ -187,6 +188,10 @@
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
+
+  // O service worker fica sempre registado (não só com os lembretes ligados): é ele que recebe o que se
+  // partilha a partir de outras apps (extratos do banco, receitas).
+  if ('serviceWorker' in navigator && window.isSecureContext) navigator.serviceWorker.register('sw.js').catch(() => {});
 
   // Clique numa notificação com o portal já aberto: ir para a secção certa.
   if ('serviceWorker' in navigator) {

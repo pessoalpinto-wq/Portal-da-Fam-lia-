@@ -25,6 +25,7 @@ export const NOTIFY_TYPES = {
   docs: 'Documentos a expirar',
   bills: 'Contas da casa (pais)',
   fecho: 'Fecho do mês (último dia às 19h, pais)',
+  extratos: 'Extratos por importar (dia 3 às 19h, pais)',
   orcamento: 'Orçamento: 80 % e 100 % de uma categoria (às 20h, pais)',
   money: 'Mesada recebida',
   shopping: '"Vou às compras" (na hora)',
@@ -343,6 +344,22 @@ export function computeReminders({ state, profiles, now }) {
       const nome = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'][Number(month.slice(5)) - 1];
       parents.forEach((p) => push(p, 'fecho', `fecho:${month}`, `📅 Fecho de ${nome}`,
         'Hoje é o último dia do mês: ponham o saldo de cada conta para ver a evolução do vosso dinheiro.', '#/financas'));
+    }
+  }
+
+  // Extratos: no dia 3 de cada mês às 19h, para os pais, as contas que já tiveram extratos importados mas nenhum
+  // desde o fim do mês passado (como Orcamento.staleAccounts em js/orcamento.js).
+  if (today.slice(8, 10) === '03' && due(today, 19 * 60)) {
+    const monthStart = `${today.slice(0, 7)}-01`;
+    const stale = s.faccounts.filter((a) => !a.archived && a.kind !== 'dinheiro').filter((a) => {
+      const last = a.lastImport || s.ftx.reduce((m, t) => (t.account === a.id && t.src === 'import' && t.date > m ? t.date : m), '');
+      return last && last < monthStart;
+    });
+    if (stale.length) {
+      const prev = addDays(monthStart, -1);
+      const nome = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'][Number(prev.slice(5, 7)) - 1];
+      parents.forEach((p) => push(p, 'extratos', `extratos:${today.slice(0, 7)}`, `📥 Extratos de ${nome}`,
+        `Falta${stale.length === 1 ? '' : 'm'} ${list(stale.map((a) => a.name))}. Exportem os movimentos no homebanking e importem-nos no Orçamento.`, '#/financas'));
     }
   }
 

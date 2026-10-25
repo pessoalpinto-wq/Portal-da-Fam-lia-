@@ -253,3 +253,59 @@ test('trabalhos extra: entrada separada do ordenado; a regra não apanha pagamen
   assert.equal(s.byCat.extras, 75);
   assert.equal(s.expense, 40);
 });
+
+test('de que conta é o extrato: números da conta e do cartão no topo', () => {
+  assert.deepEqual(O.accountRefs('Titular: Luís\nIBAN PT50 0018 0000 1234 5678 9012 3\nPeríodo de 01-09-2026 a 30-09-2026'), ['0123']);
+  assert.deepEqual(O.accountRefs('Nº cartão – ************4321'), ['4321']);
+  assert.deepEqual(O.accountRefs('Cartão XXXX XXXX XXXX 8765 · Wizink'), ['8765']);
+  assert.deepEqual(O.accountRefs('Conta;0003 12345678 001'), ['8001']);
+  assert.deepEqual(O.accountRefs('Extrato PDF · Santander · Nº …1111 …2222'), ['1111', '2222']);
+  // Datas, telefones e períodos não são números de conta.
+  assert.deepEqual(O.accountRefs('Cartão de crédito 01-09-2026 a 30-09-2026\nLinha de apoio 707 200 500'), []);
+  // CGD (o exemplo de cima): "Conta;0000 000000 000".
+  const rows = F.parseCSV(CGD);
+  const h = O.findHeader(rows);
+  assert.deepEqual(O.accountRefs(rows.slice(0, h.index).map((r) => r.join(' ')).join('\n')), ['0000']);
+});
+
+test('adivinhar a conta: pelo número, pelo banco, pelo único cartão', () => {
+  const accs = [
+    { id: 'cgd', name: 'Conta conjunta', bank: 'CGD', kind: 'ordem', refs: '0000' },
+    { id: 'st', name: 'Ordenado', bank: 'Santander', kind: 'ordem' },
+    { id: 'stp', name: 'Poupança', bank: 'Santander', kind: 'poupanca' },
+    { id: 'wz', name: 'Wizink', bank: 'Wizink', kind: 'cartao' },
+    { id: 'old', name: 'Antiga', bank: 'BPI', kind: 'ordem', refs: '9999', archived: '1' },
+  ];
+  assert.deepEqual(O.guessAccount(accs, { refs: ['0000'] }), { id: 'cgd', by: 'ref' });
+  // Arquivada não conta.
+  assert.deepEqual(O.guessAccount(accs, { refs: ['9999'], text: 'BPI' }), { id: '', by: '' });
+  // Pelo banco (no texto ou no nome do ficheiro): só se houver uma conta desse banco do mesmo tipo.
+  assert.deepEqual(O.guessAccount(accs, { text: 'movimentos_cgd_setembro.csv' }), { id: 'cgd', by: 'bank' });
+  assert.deepEqual(O.guessAccount(accs, { text: 'Extrato Santander' }), { id: '', by: '' }); // à ordem e poupança: não sabe
+  assert.deepEqual(O.guessAccount(accs, { text: 'Extrato Santander', card: true }), { id: 'wz', by: 'card' }); // só há um cartão
+  assert.deepEqual(O.guessAccount(accs, { text: 'Extrato PDF · Cartão de crédito · Wizink', card: true }), { id: 'wz', by: 'bank' });
+});
+
+test('aprender os números da conta ao importar (e tirá-los de outra conta onde estavam por engano)', () => {
+  const accs = [{ id: 'a', refs: '1234' }, { id: 'b' }];
+  O.learnRefs(accs, 'b', ['1234', '5678']);
+  assert.equal(accs[0].refs, '');
+  assert.equal(accs[1].refs, '1234, 5678');
+  O.learnRefs(accs, 'b', []);
+  assert.equal(accs[1].refs, '1234, 5678');
+  assert.equal(O.cleanRefs('PT50 0018 0000 1234 5678 9012 3; 4321'), '0123, 4321');
+  assert.equal(O.cleanRefs('12'), '');
+});
+
+test('contas com extratos por importar (desde o fim do mês passado)', () => {
+  const accs = [
+    { id: 'a', name: 'A', kind: 'ordem', lastImport: '2026-10-02' },
+    { id: 'b', name: 'B', kind: 'cartao', lastImport: '2026-09-05' },
+    { id: 'c', name: 'C', kind: 'ordem' }, // importações antigas: a data do último movimento importado
+    { id: 'd', name: 'D', kind: 'poupanca' }, // nunca teve extratos: não conta
+    { id: 'e', name: 'E', kind: 'ordem', lastImport: '2026-08-01', archived: '1' },
+  ];
+  const txs = [{ account: 'c', src: 'import', date: '2026-09-28' }, { account: 'd', src: 'manual', date: '2026-09-10' }];
+  assert.deepEqual(O.staleAccounts(accs, txs, '2026-10-03').map((a) => a.id), ['b', 'c']);
+  assert.deepEqual(O.staleAccounts(accs, txs, '2026-09-20').map((a) => a.id), []);
+});

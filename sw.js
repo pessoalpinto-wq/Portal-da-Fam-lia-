@@ -1,6 +1,31 @@
-/* Service worker: mostra as notificações (lembretes) mesmo com o portal fechado. */
+/*
+ * Service worker: mostra as notificações (lembretes) mesmo com o portal fechado, e recebe o que se partilha
+ * a partir de outras apps (Android: Partilhar → Família): extratos do banco (ficheiros) e links de receitas.
+ */
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
+
+// Partilha (manifest.webmanifest → share_target, POST para "partilhar"): os ficheiros ficam na cache até a
+// página os ler (js/financas-orcamento.js); o texto / link segue para a página como antes (?title=&text=&url=).
+self.addEventListener('fetch', (event) => {
+  const req = event.request;
+  if (req.method !== 'POST' || new URL(req.url).pathname !== new URL('partilhar', self.registration.scope).pathname) return;
+  event.respondWith((async () => {
+    const form = await req.formData();
+    const files = form.getAll('extratos').filter((f) => f && typeof f !== 'string' && f.size);
+    const page = (q) => Response.redirect(new URL(`index.html${q}`, self.registration.scope).href, 303);
+    if (files.length) {
+      const cache = await caches.open('portal-partilha');
+      await Promise.all((await cache.keys()).map((k) => cache.delete(k)));
+      await Promise.all(files.map((f, i) => cache.put(new URL(`partilha/${i}`, self.registration.scope).href,
+        new Response(f, { headers: { 'Content-Type': f.type || 'application/octet-stream', 'X-Nome': encodeURIComponent(f.name || `extrato-${i + 1}`) } }))));
+      return page('?extratos=1#/financas');
+    }
+    const q = new URLSearchParams();
+    ['title', 'text', 'url'].forEach((k) => { const v = form.get(k); if (typeof v === 'string' && v) q.set(k, v); });
+    return page(`?${q}`);
+  })());
+});
 
 self.addEventListener('push', (event) => {
   let data = {};
