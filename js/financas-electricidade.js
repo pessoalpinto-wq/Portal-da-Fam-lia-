@@ -55,23 +55,30 @@ window.FinancasElectricidade = function ({ render }) {
     const fmt = (v) => (metric === 'eur' ? `${v.toLocaleString('pt-PT')} €` : v.toLocaleString('pt-PT'));
     const grid = tk.map((v) => `<line class="pc-grid${v === 0 ? ' zero' : ''}" x1="${M.l}" x2="${W - M.r}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}"/>
       <text class="pc-tick" x="${M.l - 8}" y="${(y(v) + 4).toFixed(1)}" text-anchor="end">${esc(fmt(v))}</text>`).join('');
-    // Barra com os cantos de cima arredondados (4px), assente no zero.
-    const bar = (i, v, cls) => {
+    // Pedaço de barra entre dois valores (em píxeis); o de cima tem os cantos arredondados (4px).
+    const seg = (i, base, top, cls, round) => {
       const x0 = cx(i) - bw / 2;
-      const top = y(v);
-      const base = y(0);
-      const rr = Math.min(4, bw / 2, base - top);
+      const rr = round ? Math.min(4, bw / 2, base - top) : 0;
       return `<path class="luz-bar ${cls}" d="M${x0.toFixed(1)},${base.toFixed(1)}V${(top + rr).toFixed(1)}Q${x0.toFixed(1)},${top.toFixed(1)} ${(x0 + rr).toFixed(1)},${top.toFixed(1)}H${(x0 + bw - rr).toFixed(1)}Q${(x0 + bw).toFixed(1)},${top.toFixed(1)} ${(x0 + bw).toFixed(1)},${(top + rr).toFixed(1)}V${base.toFixed(1)}Z"/>`;
     };
-    const bars = ser.map((r, i) => (val(r) ? bar(i, val(r), r.partial ? 'partial' : '') : '')).join('');
+    // Em euros, com desconto de saldo: em baixo o que se pagou, em cima o desconto (2px de folga entre os dois).
+    const credited = metric === 'eur' && ser.some((r) => r.credit > 0);
+    const bars = ser.map((r, i) => {
+      if (!val(r)) return '';
+      const part = r.partial ? ' partial' : '';
+      const c = credited ? r.credit || 0 : 0;
+      if (!c || y(val(r) - c) - y(val(r)) < 4) return seg(i, y(0), y(val(r)), part, true);
+      return seg(i, y(0), y(val(r) - c), part, false) + seg(i, y(val(r) - c) - 2, y(val(r)), `credit${part}`, true);
+    }).join('');
     const marks = ser.map((r, i) => (prev(r) != null ? `<line class="luz-prev" x1="${(cx(i) - bw / 2 - 2).toFixed(1)}" x2="${(cx(i) + bw / 2 + 2).toFixed(1)}" y1="${y(prev(r)).toFixed(1)}" y2="${y(prev(r)).toFixed(1)}"/>` : '')).join('');
     const every = Math.max(1, Math.ceil(ser.length / 6));
     const xl = ser.map((r, i) => ((i % every === 0 || i === ser.length - 1) && !(i !== ser.length - 1 && ser.length - 1 - i < every)
       ? `<text class="pc-tick" x="${cx(i).toFixed(1)}" y="${H - 8}" text-anchor="middle">${esc(monthShort(r.month))}</text>` : '')).join('');
-    const legend = hasPrev ? `<div class="pc-legend" aria-hidden="true"><span><i class="k luz"></i>${metric === 'eur' ? 'Valor' : 'Consumo'} do mês</span><span><i class="k debt"></i>Mesmo mês do ano anterior</span></div>` : '';
-    const data = esc(JSON.stringify(ser.map((r, i) => ({ m: r.month, x: cx(i), v: val(r), p: prev(r), part: r.partial }))));
+    const keys = [credited ? ['luz', 'Pago'] : ['luz', `${metric === 'eur' ? 'Custo' : 'Consumo'} do mês`], ...(credited ? [['credit', 'Desconto de saldo']] : []), ...(hasPrev ? [['debt', 'Mesmo mês do ano anterior']] : [])];
+    const legend = keys.length > 1 ? `<div class="pc-legend" aria-hidden="true">${keys.map(([k, t]) => `<span><i class="k ${k}"></i>${t}</span>`).join('')}</div>` : '';
+    const data = esc(JSON.stringify(ser.map((r, i) => ({ m: r.month, x: cx(i), v: val(r), p: prev(r), c: metric === 'eur' ? r.credit || 0 : 0, part: r.partial }))));
     return `${legend}<div class="luz-chart" data-points="${data}" data-w="${W}" data-metric="${metric}">
-      <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${metric === 'eur' ? 'Valor' : 'Consumo em kWh'} da electricidade, mês a mês${hasPrev ? ', com o mesmo mês do ano anterior' : ''}">
+      <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${metric === 'eur' ? 'Custo' : 'Consumo em kWh'} da electricidade, mês a mês${credited ? ', com o que se pagou e o desconto de saldo' : ''}${hasPrev ? ', com o mesmo mês do ano anterior' : ''}">
         ${grid}${bars}${marks}${xl}
       </svg><div class="pc-tip" hidden></div></div>`;
   }
@@ -96,7 +103,8 @@ window.FinancasElectricidade = function ({ render }) {
       tip.append(d);
     };
     line('pc-tip-h', `${monthName(p.m)}${p.part ? ' (só parte do mês)' : ''}`);
-    line('pc-tip-r', '', p.v != null ? f(p.v) : 'sem fatura');
+    line('pc-tip-r', p.c ? 'custo da luz' : '', p.v != null ? f(p.v) : 'sem fatura');
+    if (p.c) { line('pc-tip-r', 'pago', money(Math.round((p.v - p.c) * 100) / 100)); line('pc-tip-r', 'desconto de saldo', money(p.c)); }
     if (p.p != null) line('pc-tip-r', `no ano anterior${p.v != null && p.p ? ` (${pct(p.v, p.p) > 0 ? '+' : ''}${pct(p.v, p.p)}%)` : ''}`, f(p.p));
     tip.hidden = false;
     const left = (p.x / Number(box.dataset.w)) * r.width;
@@ -124,30 +132,35 @@ window.FinancasElectricidade = function ({ render }) {
     const ser = E.series(list, 12);
     const L = s.last;
     const tiles = `<div class="fin-summary pat-stats">
-      <div class="fin-tile"><small>Última fatura · ${esc(dm(L.from))} a ${esc(dm(L.to))}</small><b>${esc(kwhTxt(L.kwh))}</b><small>${money(L.total)} · ${L.days} dias${L.estimated ? ' · estimada' : ''}</small></div>
+      <div class="fin-tile"><small>Última fatura · ${esc(dm(L.from))} a ${esc(dm(L.to))}</small><b>${esc(kwhTxt(L.kwh))}</b><small>${money(L.total)}${L.credit ? ` (pago ${money(Math.round((L.total - L.credit) * 100) / 100)})` : ''} · ${L.days} dias${L.estimated ? ' · estimada' : ''}</small></div>
       <div class="fin-tile"><small>Por dia</small><b>${esc(kwhTxt(L.perDay))}</b><small>${s.perDay != null && s.coveredDays >= 60 ? `média ${s.coveredDays >= 330 ? 'de 12 meses' : `de ${s.coveredDays} dias`}: ${esc(kwhTxt(s.perDay))}` : 'na última fatura'}</small></div>
       <div class="fin-tile"><small>Preço médio (com taxas)</small><b>${s.perKwh != null ? `${esc(comma(s.perKwh.toFixed(3)))} €/kWh` : '—'}</b><small>${L.perKwh != null ? `última fatura: ${esc(comma(L.perKwh.toFixed(3)))} €/kWh` : ''}</small></div>
       <div class="fin-tile"><small>${s.coveredDays >= 330 ? 'Últimos 12 meses' : `Últimos ${s.coveredDays} dias com faturas`}</small><b>${money(s.year.total)}</b><small>${esc(kwhTxt(s.year.kwh))}</small>
         ${s.prevYear ? deltaHtml(pct(s.year.kwh, s.prevYear.kwh), 'kWh que no ano anterior') : ''}</div>
       ${s.perYear != null ? `<div class="fin-tile"><small>Por ano (ao ritmo actual)</small><b>${money(s.perYear)}</b><small>≈ ${money(Math.round(s.perYear / 12))} por mês</small></div>` : ''}
+      ${s.year.credit > 0 ? `<div class="fin-tile"><small>💳 Descontos de saldo${s.coveredDays >= 330 ? ' (12 meses)' : ''}</small><b>${money(s.year.credit)}</b><small>a luz custou ${money(s.year.total)}, pagaram ${money(Math.round((s.year.total - s.year.credit) * 100) / 100)}</small></div>` : ''}
       ${s.vazioPct != null ? `<div class="fin-tile"><small>Em vazio${s.coveredDays >= 330 ? ' (12 meses)' : ''}</small><b>${s.vazioPct}%</b><small>do consumo, quando a luz é mais barata</small></div>` : ''}
     </div>`;
     const toggle = `<div class="tabs luz-metric" role="tablist" aria-label="Ver em">
       <button role="tab" class="filter ${metric === 'kwh' ? 'active' : ''}" aria-selected="${metric === 'kwh'}" data-action="luz-metric" data-id="kwh">kWh</button>
       <button role="tab" class="filter ${metric === 'eur' ? 'active' : ''}" aria-selected="${metric === 'eur'}" data-action="luz-metric" data-id="eur">Euros</button></div>`;
+    const anyCredit = ser.some((r) => r.credit > 0);
     const table = `<details class="pat-table"><summary class="small">Ver em tabela</summary><div class="table-wrap"><table>
-      <thead><tr><th>Mês</th><th>kWh</th><th>Valor</th><th>Ano anterior</th></tr></thead>
+      <thead><tr><th>Mês</th><th>kWh</th><th>Custo</th>${anyCredit ? '<th>Desconto</th><th>Pago</th>' : ''}<th>Ano anterior</th></tr></thead>
       <tbody>${[...ser].reverse().map((r) => `<tr><td>${esc(monthName(r.month))}${r.partial ? ' <small class="muted">(parte)</small>' : ''}</td>
         <td>${r.kwh != null ? esc(r.kwh.toLocaleString('pt-PT')) : '—'}</td><td>${r.total != null ? money(r.total) : '—'}</td>
+        ${anyCredit ? `<td>${r.credit ? money(r.credit) : '—'}</td><td>${r.total != null ? money(Math.round((r.total - (r.credit || 0)) * 100) / 100) : '—'}</td>` : ''}
         <td>${r.prevKwh != null ? `${esc(r.prevKwh.toLocaleString('pt-PT'))} kWh · ${money(r.prevTotal)}` : '—'}</td></tr>`).join('')}</tbody></table></div></details>`;
-    const chartCard = card(`📊 ${metric === 'eur' ? 'Valor' : 'Consumo'} por mês`, `${toggle}${chart(ser, metric)}
+    const chartCard = card(`📊 ${metric === 'eur' ? 'Custo' : 'Consumo'} por mês`, `${toggle}${chart(ser, metric)}
       ${ser.some((r) => r.partial) ? '<p class="small muted">Barras mais claras: meses só em parte cobertos pelas faturas (falta a fatura seguinte).</p>' : ''}
+      ${metric === 'eur' && anyCredit ? '<p class="small muted">Em euros, cada barra é o custo da luz: em baixo o que pagaram, em cima o desconto de saldo (ex.: My Repsol).</p>' : ''}
       <p class="small muted">Cada fatura é repartida pelos meses, pelos dias (ex.: de 15/08 a 14/09 conta 17 dias em agosto e 14 em setembro).</p>${table}`);
     const row = (b) => {
       const per = PERIODS.filter(([k]) => b.periods?.[k] != null && k !== 'simples').map(([k, n]) => `${n.toLowerCase()} ${b.periods[k].toLocaleString('pt-PT')}`).join(' · ');
       return `<li class="tx"><button class="tx-main" data-action="luz-edit" data-id="${esc(b.id)}">
           <span class="tx-desc">${esc(dmy(b.from))} a ${esc(dmy(b.to))}${b.estimated ? ' <small class="muted">· estimada</small>' : ''}</span>
-          <small class="muted">${esc([b.supplier, `${E.daysOf(b.from, b.to)} dias`, per ? `${per} kWh` : '', b.power ? `${comma(b.power)} kVA` : ''].filter(Boolean).join(' · '))}</small></button>
+          <small class="muted">${esc([b.supplier, `${E.daysOf(b.from, b.to)} dias`, per ? `${per} kWh` : '', b.power ? `${comma(b.power)} kVA` : ''].filter(Boolean).join(' · '))}</small>
+          ${b.credit ? `<small class="luz-credit">💳 desconto de saldo ${money(b.credit)} · pago ${money(Math.round((b.total - b.credit) * 100) / 100)}</small>` : ''}</button>
         <span class="luz-val"><b>${esc(kwhTxt(b.kwh))}</b><small class="muted">${money(b.total)}</small></span></li>`;
     };
     const listCard = card(`🧾 Faturas <small class="muted">(${list.length})</small>`, `<ul class="tx-list">${list.slice(0, VS.luzShow || 12).map(row).join('')}</ul>
@@ -246,8 +259,8 @@ window.FinancasElectricidade = function ({ render }) {
       miss.length ? `🔎 Não encontrei ${miss.join(', ').replace(/, ([^,]*)$/, ' nem $1')}: escrevam-no${miss.length > 1 ? 's' : ''} abaixo (vem na 1.ª página da fatura).` : '',
       file && !error && !miss.length ? '✔ Li a fatura: confirmem os números antes de guardar.' : '',
       b.gas ? '🔥 Esta fatura também tem gás: o valor é só o da electricidade (confirmem).' : '',
-      // Saldo / pontos usados a pagar (ex.: My Repsol): pagou-se menos do que a luz custou (o saldo leva IVA a 23 %).
-      !cur && b.credit > 0 && b.total != null ? `💳 Esta fatura usou ${money(b.credit)} de saldo (${money(Math.round(b.credit * 123) / 100)} com IVA): pagaram ${money(b.total)}, mas a luz custou ${money(Math.round((b.total + b.credit * 1.23) * 100) / 100)}. Para o gráfico mostrar o custo real, ponham esse valor abaixo.` : '',
+      // Saldo / pontos usados a pagar (ex.: My Repsol): o custo da luz é o que se pagou + o desconto (com IVA).
+      !cur && b.credit > 0 && b.paid != null ? `💳 Esta fatura usou saldo: desconto de ${money(b.credit)} (com IVA). Pagaram ${money(b.paid)}; a luz custou ${money(b.total)} — é o custo que conta nos gráficos, e o desconto fica registado à parte.` : '',
       b.estimated ? '📏 Leitura estimada: o consumo real acerta-se numa próxima fatura.' : '',
     ].filter(Boolean);
     openForm({
@@ -257,7 +270,8 @@ window.FinancasElectricidade = function ({ render }) {
         { name: 'from', label: 'De', type: 'date', required: true, half: true },
         { name: 'to', label: 'A', type: 'date', required: true, half: true },
         { name: 'kwh', label: 'Consumo (kWh)', inputmode: 'decimal', required: true, half: true, placeholder: 'Ex.: 280' },
-        { name: 'total', label: 'Valor da fatura (€)', inputmode: 'decimal', required: true, half: true, placeholder: '0,00' },
+        { name: 'total', label: 'Custo da luz (€)', inputmode: 'decimal', required: true, half: true, placeholder: '0,00' },
+        { name: 'credit', label: 'Desconto de saldo (€, com IVA)', inputmode: 'decimal', half: true, placeholder: 'Ex.: saldo My Repsol' },
         ...show.map((k) => ({ name: `p_${k}`, label: `kWh em ${PERIODS.find((x) => x[0] === k)[1].toLowerCase()}`, inputmode: 'decimal', half: true, placeholder: 'Opcional' })),
         { name: 'power', label: 'Potência (kVA)', inputmode: 'decimal', half: true, placeholder: 'Ex.: 6,9' },
         { name: 'supplier', label: 'Fornecedor', half: true, suggest: [...new Set(bills().map((x) => x.supplier).filter(Boolean))] },
@@ -265,7 +279,7 @@ window.FinancasElectricidade = function ({ render }) {
         { name: 'notes', label: 'Notas', placeholder: 'Opcional' },
       ],
       values: {
-        from: b.from || '', to: b.to || '', kwh: comma(b.kwh), total: b.total == null || b.total === '' ? '' : comma(Number(b.total).toFixed(2)), power: comma(b.power), supplier: b.supplier || '',
+        from: b.from || '', to: b.to || '', kwh: comma(b.kwh), total: b.total == null || b.total === '' ? '' : comma(Number(b.total).toFixed(2)), credit: Number(b.credit) > 0 ? comma(Number(b.credit).toFixed(2)) : '', power: comma(b.power), supplier: b.supplier || '',
         estimated: b.estimated ? '1' : '', notes: b.notes || '', ...Object.fromEntries(show.map((k) => [`p_${k}`, comma(per[k])])),
       },
       submitLabel: '⚡ Guardar',
@@ -280,11 +294,12 @@ window.FinancasElectricidade = function ({ render }) {
         PERIODS.forEach(([k]) => { const v = E.num(d[`p_${k}`]); if (v != null) periods[k] = v; });
         if (!show.length && per.simples != null) periods.simples = per.simples;
         // Algo errado: volta a abrir o formulário com o que escreveram.
-        const again = (msg) => { toast(msg); setTimeout(() => billForm(id, { ...b, ...d, kwh, total, periods, power: E.num(d.power), estimated: !!d.estimated }, { file, error, step, after }), 0); };
+        const again = (msg) => { toast(msg); setTimeout(() => billForm(id, { ...b, ...d, kwh, total, periods, credit: E.num(d.credit), power: E.num(d.power), estimated: !!d.estimated }, { file, error, step, after }), 0); };
         if (!d.from || !d.to || d.to < d.from) { again('As datas da fatura não batem certo (a data final é antes da inicial).'); return; }
         if (kwh == null || kwh < 0 || total == null) { again('Falta o consumo (kWh) ou o valor.'); return; }
+        if ((E.num(d.credit) || 0) > total) { again('O desconto não pode ser maior do que o custo da luz.'); return; }
         const data = {
-          kind: 'luz', from: d.from, to: d.to, kwh, total, periods, power: E.num(d.power), supplier: d.supplier.trim(),
+          kind: 'luz', from: d.from, to: d.to, kwh, total, credit: Math.max(0, E.num(d.credit) || 0), periods, power: E.num(d.power), supplier: d.supplier.trim(),
           estimated: !!d.estimated, notes: d.notes.trim(), ...(b.cpe ? { cpe: b.cpe } : {}),
         };
         let replaced = false;
@@ -296,7 +311,8 @@ window.FinancasElectricidade = function ({ render }) {
         });
         VS.finTab = 'luz';
         render();
-        toast(`⚡ ${dm(d.from)} a ${dm(d.to)}: ${kwhTxt(kwh)} · ${money(total)}${replaced ? ' (substituiu a que já existia com as mesmas datas)' : ''}`);
+        const cr = Math.max(0, E.num(d.credit) || 0);
+        toast(`⚡ ${dm(d.from)} a ${dm(d.to)}: ${kwhTxt(kwh)} · ${money(total)}${cr ? ` (desconto ${money(cr)}, pago ${money(Math.round((total - cr) * 100) / 100)})` : ''}${replaced ? ' (substituiu a que já existia com as mesmas datas)' : ''}`);
         after?.(true);
       },
     });

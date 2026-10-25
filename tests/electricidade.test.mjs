@@ -79,9 +79,9 @@ test('sem nada reconhecível: tudo vazio (o formulário pede os valores)', () =>
 });
 
 test('repartir pelos meses, pelos dias de cada fatura', () => {
-  const bm = E.byMonth([{ from: '2026-08-15', to: '2026-09-14', kwh: 310, total: 62 }]);
-  assert.deepEqual(bm['2026-08'], { kwh: 170, total: 34, days: 17 });
-  assert.deepEqual(bm['2026-09'], { kwh: 140, total: 28, days: 14 });
+  const bm = E.byMonth([{ from: '2026-08-15', to: '2026-09-14', kwh: 310, total: 62, credit: 15.5 }]);
+  assert.deepEqual(bm['2026-08'], { kwh: 170, total: 34, credit: 8.5, days: 17 });
+  assert.deepEqual(bm['2026-09'], { kwh: 140, total: 28, credit: 7, days: 14 });
   assert.equal(E.daysOf('2026-08-15', '2026-09-14'), 31);
 });
 
@@ -187,6 +187,7 @@ test('Endesa: consumo das linhas de energia (não as leituras do contador), tota
   assert.equal(f.kwh, 123);
   assert.deepEqual(f.periods, {}); // 7.233 + 3.590 + 5.902 são leituras, não somam 123
   assert.equal(f.total, 29.2);
+  assert.equal(f.paid, 29.2);
   assert.equal(f.power, 13.8);
   assert.equal(f.cpe, 'PT0002000011112222XX');
   assert.equal(f.credit, 0);
@@ -198,8 +199,9 @@ test('Repsol: período com "~", horários do quadro de leituras (somam o total),
   assert.deepEqual([f.from, f.to], ['2026-08-26', '2026-10-20']);
   assert.equal(f.kwh, 605);
   assert.deepEqual(f.periods, { cheias: 263, ponta: 135, vazio: 207 });
-  assert.equal(f.total, 128.98); // não 133,75 (luz sem impostos) nem 75,20 (acesso às redes)
+  assert.equal(f.paid, 128.98); // não 133,75 (luz sem impostos) nem 75,20 (acesso às redes)
+  assert.equal(f.credit, 49); // 39,84 € de saldo + IVA a 23 %
+  assert.equal(f.total, 177.98); // o custo real da luz
   assert.equal(f.power, 13.8);
-  assert.equal(f.credit, 39.84);
   assert.equal(f.estimated, false);
 });

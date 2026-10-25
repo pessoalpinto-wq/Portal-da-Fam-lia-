@@ -1,8 +1,9 @@
 /*
  * Electricidade: ler uma fatura em PDF (texto tirado pelo pdf.js, em js/extrato-pdf.js), repartir o consumo e o
  * valor de cada fatura pelos meses do calendário e calcular o resumo (kWh por dia, €/kWh, ano contra ano anterior).
- * Colecção (só pais): energia — { id, kind: 'luz', from, to, kwh, total, periods: { vazio, fora, cheias, ponta, simples },
- *   power, supplier, cpe, estimated, notes }.
+ * Colecção (só pais): energia — { id, kind: 'luz', from, to, kwh, total, credit, periods: { vazio, fora, cheias, ponta, simples },
+ *   power, supplier, cpe, estimated, notes }. total = custo da luz; credit = desconto de saldo (ex.: My Repsol, com IVA);
+ *   o que se pagou = total − credit.
  * Script "clássico": define globalThis.Electricidade. Testado em tests/electricidade.test.mjs.
  */
 (function (root) {
@@ -98,7 +99,7 @@
    * kWh: a soma das linhas de energia com preço por kWh ("Termo de Energia 92 kWh x 0,177 €/kWh", "Energia Vazio 120 kWh
    * x …"); senão o kWh do Imposto Especial de Consumo (vem em todas as faturas). Por horário: só se somarem o total
    * (assim as leituras do contador, "Cheia: 7.233 kWh", nunca passam por consumo).
-   * @returns {{ supplier, cpe, from, to, kwh, total, periods, power, estimated, gas, credit }}
+   * @returns {{ supplier, cpe, from, to, kwh, total, paid, credit, periods, power, estimated, gas }}
    */
   function parseInvoice(text) {
     const lines = String(text || '').split(/\n/).map((l) => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
@@ -149,13 +150,17 @@
       'Ylce', 'Plenitude', 'Muon', 'G9', 'EZU', 'Audax', 'Lusiadaenergia', 'YesEnergy', 'Enat', 'Alfa Energia'];
     // O fornecedor é o que aparece primeiro (a fatura pode falar de outros: distribuidora, concorrentes…).
     const supplier = SUPPLIERS.map((x) => ({ x, at: plain.search(new RegExp(`\\b${strip(x)}\\b`)) })).filter((o) => o.at >= 0).sort((a, b) => a.at - b.at)[0]?.x || null;
+    const paid = gas && elec != null ? elec : pay ?? elec;
     // Saldo / pontos usados para pagar (ex.: "Saldo My Repsol utilizado -39,84"): a luz custou mais do que se pagou.
-    const credit = r2(lines.filter((l) => /saldo .*utiliza|saldo descontado/.test(strip(l))).reduce((n, l) => n + Math.abs(moneyIn(l).find((x) => x < 0) || 0), 0));
+    // Vem sem IVA (o IVA da fatura já é calculado depois do desconto): com IVA a 23 %, é o que se deixou de pagar.
+    const used = lines.filter((l) => /saldo .*utiliza|saldo descontado/.test(strip(l))).reduce((n, l) => n + Math.abs(moneyIn(l).find((x) => x < 0) || 0), 0);
+    const credit = r2(used * 1.23);
     return {
       supplier, cpe,
       from: per?.from || null, to: per?.to || null,
-      kwh, total: gas && elec != null ? elec : pay ?? elec,
-      periods, power, estimated: /estimad|estimativa/.test(plain), gas, credit,
+      // total = o custo da luz (o que se pagou + o desconto de saldo); paid = o que se pagou.
+      kwh, total: paid == null ? null : r2(paid + credit), paid, credit,
+      periods, power, estimated: /estimad|estimativa/.test(plain), gas,
     };
   }
 
@@ -177,13 +182,14 @@
       const days = daysOf(b.from, b.to);
       for (let d = dayNum(b.from); d <= dayNum(b.to); d++) {
         const m = monthOf(fromDay(d));
-        const o = (out[m] ||= { kwh: 0, total: 0, days: 0 });
+        const o = (out[m] ||= { kwh: 0, total: 0, credit: 0, days: 0 });
         o.kwh += (Number(b.kwh) || 0) / days;
         o.total += (Number(b.total) || 0) / days;
+        o.credit += (Number(b.credit) || 0) / days;
         o.days += 1;
       }
     });
-    Object.values(out).forEach((o) => { o.kwh = r1(o.kwh); o.total = r2(o.total); });
+    Object.values(out).forEach((o) => { o.kwh = r1(o.kwh); o.total = r2(o.total); o.credit = r2(o.credit); });
     return out;
   }
 
@@ -203,7 +209,7 @@
       const prev = bm[addMonths(m, -12)];
       return {
         month: m,
-        kwh: cur ? cur.kwh : null, total: cur ? cur.total : null,
+        kwh: cur ? cur.kwh : null, total: cur ? cur.total : null, credit: cur ? cur.credit : 0,
         partial: !!cur && cur.days < daysInMonth(m),
         prevKwh: prev && prev.days >= daysInMonth(addMonths(m, -12)) ? prev.kwh : null,
         prevTotal: prev && prev.days >= daysInMonth(addMonths(m, -12)) ? prev.total : null,
@@ -219,15 +225,15 @@
     const end = dayNum(last.to);
     // Soma de kWh e € entre dois dias (pela proporção de cada fatura).
     const window = (fromN, toN) => {
-      let kwh = 0; let total = 0; let days = 0;
+      let kwh = 0; let total = 0; let credit = 0; let days = 0;
       list.forEach((b) => {
         const a = Math.max(dayNum(b.from), fromN);
         const z = Math.min(dayNum(b.to), toN);
         if (z < a) return;
         const f = (z - a + 1) / daysOf(b.from, b.to);
-        kwh += (Number(b.kwh) || 0) * f; total += (Number(b.total) || 0) * f; days += z - a + 1;
+        kwh += (Number(b.kwh) || 0) * f; total += (Number(b.total) || 0) * f; credit += (Number(b.credit) || 0) * f; days += z - a + 1;
       });
-      return { kwh: r1(kwh), total: r2(total), days };
+      return { kwh: r1(kwh), total: r2(total), credit: r2(credit), days };
     };
     const y1 = window(end - 364, end);
     const y0 = window(end - 729, end - 365);
