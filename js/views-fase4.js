@@ -601,6 +601,11 @@
       if (close && (s.faccounts || []).some((a) => !a.archived)) {
         alerts.push([0, `<a href="#/financas" data-action="goto-patrimonio">📅 Fecho de <b>${esc(Patrimonio.monthName(close))}</b> por fazer</a>`]);
       }
+      // Extratos do mês passado por importar (do dia 3 ao dia 15).
+      const stale = Number(t.slice(8, 10)) >= 3 && Number(t.slice(8, 10)) <= 15 ? Orcamento.staleAccounts(s.faccounts || [], s.ftx || [], t) : [];
+      if (stale.length) {
+        alerts.push([2, `<a href="#/financas" data-action="goto-orcamento">📥 Extratos de <b>${esc(Patrimonio.monthName(Patrimonio.addMonths(t.slice(0, 7), -1)))}</b> por importar: ${esc(stale.map((a) => a.name).join(', '))}</a>`]);
+      }
       s.bills.filter((b) => b.due && !b.archived && daysBetween(t, b.due) <= 7).forEach((b) => {
         alerts.push([daysBetween(t, b.due), `<a href="#/financas">💶 ${esc(b.title)} · ${money(b.amount)} · ${daysBetween(t, b.due) < 0 ? '<b>atrasada</b>' : relDay(b.due)}</a>`]);
       });

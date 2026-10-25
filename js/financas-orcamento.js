@@ -64,13 +64,14 @@ window.FinancasOrcamento = function ({ render }) {
         <b>${esc(P.monthName(m))}</b>
         <button class="icon-btn" data-action="bud-month" data-id="1" aria-label="Mês seguinte" ${m >= P.monthOf(today()) ? 'disabled' : ''}>›</button>
         <span class="spacer"></span>
-        <button class="btn small primary" data-action="bud-import">📥 Importar extrato</button>
+        <button class="btn small primary" data-action="bud-import" title="Podem escolher vários ficheiros, ou arrastá-los para aqui">📥 Importar extratos</button>
         <button class="btn small" data-action="bud-add">＋ Movimento</button></div>`;
 
     if (!txs.length) {
       return `${nav}${card('🎯 Orçamento por categoria', `<p>Para ver em quê gastam, importem os extratos das vossas contas.</p>
         <ol class="small bud-how"><li>No homebanking (site ou app do banco), abram os <b>movimentos</b> da conta e escolham <b>Exportar</b> / <b>Descarregar</b> em <b>Excel</b> ou <b>CSV</b>.</li>
-        <li>Aqui, toquem em <b>📥 Importar extrato</b>, escolham a conta e o ficheiro.</li>
+        <li>Aqui, toquem em <b>📥 Importar extrato</b> e escolham os ficheiros (podem ser vários de uma vez, de contas diferentes). O portal descobre de que conta é cada um.</li>
+        <li class="muted">No Android, com o portal instalado, também podem fazer <b>Partilhar → Família</b> na app do banco. No computador, basta arrastar os ficheiros para esta página.</li>
         <li>O portal classifica sozinho (Continente → Supermercado, Galp → Carro…). Quando corrigirem um, aprende para a próxima.</li></ol>
         <p class="small muted">Podem importar o mesmo período duas vezes: os movimentos repetidos não entram. ${s.faccounts.length ? '' : 'Antes, juntem as contas em <b>📈 Património</b>.'}</p>`)}`;
     }
@@ -162,121 +163,223 @@ window.FinancasOrcamento = function ({ render }) {
       <p class="small muted">🔒 Só os pais vêem os movimentos. O portal não liga ao banco: os dados vêm dos extratos que importam.</p>`;
   }
 
-  /* ---------- Importar extrato ---------- */
+  /* ---------- Importar extratos (um ou vários ficheiros de uma vez) ---------- */
+  const ACCEPT = '.csv,.txt,.xlsx,.xls,.htm,.html,.pdf,application/pdf,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel';
+  const liveAccounts = () => S().faccounts.filter((a) => !a.archived);
+  const kindOfAcc = (id) => S().faccounts.find((a) => a.id === id)?.kind;
+  const accLabel = (a) => `${a.kind === 'cartao' ? '💳 ' : ''}${a.name}${a.bank ? ` · ${a.bank}` : ''}`;
+  const fmtDate = (iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
+
   function importForm() {
-    const accs = S().faccounts.filter((a) => !a.archived);
+    const accs = liveAccounts();
     if (!accs.length) { toast('Primeiro juntem as vossas contas em 📈 Património.'); VS.finTab = 'patrimonio'; render(); return; }
     openForm({
-      title: '📥 Importar extrato',
+      title: '📥 Importar extratos',
       fields: [
-        { name: 'account', label: 'De que conta é o extrato?', type: 'select', options: accs.map((a) => [a.id, `${a.name}${a.bank ? ` · ${a.bank}` : ''}`]) },
-        { name: 'filebox', type: 'note', html: `<label class="field"><span>Ficheiro do banco (Excel .xls/.xlsx, CSV ou PDF)</span>
-          <input type="file" name="file" accept=".csv,.txt,.xlsx,.xls,.htm,.html,.pdf,application/pdf,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" required></label>
+        { name: 'filebox', type: 'note', html: `<label class="field"><span>Ficheiros do banco (Excel .xls/.xlsx, CSV ou PDF) — podem escolher vários</span>
+          <input type="file" name="file" multiple accept="${ACCEPT}" required></label>
           <p class="small muted">No homebanking: movimentos da conta → Exportar / Descarregar (Excel, CSV ou o extrato em PDF). Os movimentos que já tiverem importado não se repetem.</p>` },
+        { name: 'account', label: 'De que conta?', type: 'select', options: [['', '🔎 Descobrir sozinho (pelo nº da conta ou pelo banco)'], ...accs.map((a) => [a.id, accLabel(a)])] },
       ],
-      values: { account: VS.budAccount || accs[0].id },
-      submitLabel: 'Ler o ficheiro',
+      values: { account: '' },
+      submitLabel: 'Ler os ficheiros',
       onSubmit: (d) => {
-        const file = document.querySelector('#dialog [name=file]')?.files?.[0];
-        if (!file) { toast('Escolham o ficheiro do extrato.'); return; }
-        VS.budAccount = d.account;
-        setTimeout(() => readFile(file, d.account), 0);
+        const files = [...(document.querySelector('#dialog [name=file]')?.files || [])];
+        if (!files.length) { toast('Escolham o ficheiro do extrato.'); return; }
+        setTimeout(() => readFiles(files, d.account), 0);
       },
     });
   }
 
-  async function readFile(file, account, chosen = false) {
-    let rows;
-    try {
-      rows = await Folhas.readTable(await file.arrayBuffer());
-    } catch (e) {
-      toast(e.message || 'Não consegui ler este ficheiro.');
+  /** Lê os ficheiros e descobre de que conta é cada um. `chosen` = conta escolhida (vazio: descobrir sozinho). */
+  async function readFiles(files, chosen = '') {
+    const accs = liveAccounts();
+    if (!accs.length) { toast('Primeiro juntem as vossas contas em 📈 Património.'); VS.finTab = 'patrimonio'; render(); return; }
+    if (files.length > 1) toast(`📥 A ler ${files.length} ficheiros…`);
+    const items = [];
+    for (const file of files) {
+      try {
+        const rows = await Folhas.readTable(await file.arrayBuffer());
+        const header = O.findHeader(rows);
+        if (!header) { items.push({ file, error: 'não encontrei as colunas de data, descrição e valor (experimentem exportar em CSV)' }); continue; }
+        const mv = O.toMovements(rows, header);
+        if (!mv.length) { items.push({ file, error: 'não tem movimentos' }); continue; }
+        // O topo do extrato (antes da tabela): titular, nº da conta ou do cartão, banco.
+        const intro = rows.slice(0, header.index).map((r) => r.join(' ')).join('\n');
+        const refs = O.accountRefs(intro);
+        const card = O.looksLikeCard(rows, mv);
+        const guess = O.guessAccount(accs, { refs, text: `${intro}\n${file.name}`, card });
+        const fits = (a) => (card ? a.kind === 'cartao' : a.kind !== 'cartao');
+        const last = accs.find((a) => a.id === VS.budAccount);
+        const account = chosen || guess.id || (last && fits(last) ? last.id : (accs.find(fits) || accs[0]).id);
+        items.push({ file, mv, refs, card, account, picked: !!chosen, guess: guess.id, by: guess.by });
+      } catch (e) {
+        items.push({ file, error: e.message || 'não consegui ler este ficheiro' });
+      }
+    }
+    if (items.every((it) => it.error)) {
+      toast(items.length === 1 ? `Não consegui ler o ficheiro: ${items[0].error}.` : 'Não consegui ler nenhum dos ficheiros.');
       return;
     }
-    const header = O.findHeader(rows);
-    if (!header) {
-      toast('Não encontrei as colunas de data, descrição e valor neste ficheiro. Experimentem exportar em CSV.');
-      return;
-    }
-    const mv = O.toMovements(rows, header);
-    if (!mv.length) { toast('O ficheiro não tem movimentos.'); return; }
-    const rules = S().frules;
-    // Extrato do cartão de crédito escolhido na conta errada (ou ao contrário): sugere a conta certa.
-    const accs = S().faccounts.filter((a) => !a.archived);
-    const isCard = O.looksLikeCard(rows, mv);
-    const kindOfAcc = (id) => accs.find((a) => a.id === id)?.kind;
-    let note = '';
-    if (chosen) note = '';
-    else if (isCard && kindOfAcc(account) !== 'cartao') {
-      // Com vários cartões (ex.: Santander e Wizink), escolhe o do mesmo banco da conta escolhida; senão, só se houver um.
-      const cards = accs.filter((a) => a.kind === 'cartao');
-      const bankOf = (a) => Orcamento.norm(a?.bank || a?.name || '').split(' ')[0];
-      const sel = accs.find((a) => a.id === account);
-      // 1.º o banco que vem no próprio extrato (ex.: "Wizink"); 2.º o banco da conta escolhida; 3.º o único cartão.
-      const topTxt = ` ${Orcamento.norm(rows.slice(0, 15).map((r) => r.join(' ')).join(' '))} `;
-      const card = cards.find((a) => a.bank && topTxt.includes(` ${Orcamento.norm(a.bank)}`))
-        || (cards.length === 1 ? cards[0] : cards.find((a) => bankOf(a) && bankOf(a) === bankOf(sel)));
-      if (card) { account = card.id; note = `💳 Este é o extrato do <b>cartão de crédito</b>: vai para «${esc(card.name)}${card.bank ? ` · ${esc(card.bank)}` : ''}». Se não for este cartão, mudem a conta abaixo.`; }
-      else if (cards.length > 1) note = '💳 Este é o extrato de um <b>cartão de crédito</b>: escolham abaixo qual dos cartões.';
-      else note = '💳 Parece o extrato de um <b>cartão de crédito</b>. Juntem o cartão em 📈 Património (tipo «Cartão de crédito») para ficar separado da conta à ordem.';
-    } else if (!isCard && kindOfAcc(account) === 'cartao') {
-      note = '⚠️ Escolheram um cartão de crédito, mas este extrato parece ser de uma conta à ordem. Confirmem a conta abaixo.';
-    }
-    const { fresh, dup } = O.prepareImport(S().ftx, mv, account, rules, { card: kindOfAcc(account) === 'cartao', meal: kindOfAcc(account) === 'refeicao' });
-    const cardPays = fresh.filter((t) => t.cat === 'transferencias').length;
-    const dates = mv.map((x) => x.date).sort();
-    const counts = {};
-    fresh.forEach((t) => { counts[t.cat] = (counts[t.cat] || 0) + 1; });
-    const top = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 6);
-    const unsorted = fresh.filter((t) => t.rule === 'none' && O.kindOf(t.cat) === 'expense').length;
-    const fmt = (iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
-    openForm({
-      title: `📥 ${accountName(account)}`,
-      fields: [{ name: 'info', type: 'note', html: `${note ? `<p class="small bud-note">${note}</p>` : ''}<p><b>${mv.length} movimentos</b> de ${esc(fmt(dates[0]))} a ${esc(fmt(dates.at(-1)))}.</p>
-        ${dup ? `<p class="small">🔁 ${dup} já estavam importados — não se repetem.</p>` : ''}
-        ${cardPays ? `<p class="small">🔁 ${cardPays} pagamento${cardPays === 1 ? '' : 's'} do cartão de crédito: contam como transferência entre as vossas contas (não são despesa nem entrada).</p>` : ''}
-        ${fresh.length ? `<p>Entram <b>${fresh.length}</b>:</p><ul class="small bud-preview">${top.map(([c, n]) => `<li>${esc(catLabel(c))} · ${n}</li>`).join('')}</ul>
-          ${unsorted ? `<p class="small muted">🏷️ ${unsorted} ficam por classificar (lojas que o portal ainda não conhece).</p>` : ''}
-          <div class="table-wrap"><table class="bud-sample"><tbody>${fresh.slice(0, 6).map((t) => `<tr><td>${esc(fmt(t.date).slice(0, 5))}</td><td>${esc(t.desc)}</td><td class="num">${esc(signedMoney(t.amount))}</td></tr>`).join('')}</tbody></table></div>`
-          : '<p>Não há movimentos novos.</p>'}` },
-      { name: 'account', label: 'Conta', type: 'select', options: accs.map((a) => [a.id, `${a.kind === 'cartao' ? '💳 ' : ''}${a.name}${a.bank ? ` · ${a.bank}` : ''}`]) }],
-      values: { account },
-      submitLabel: fresh.length ? `Importar ${fresh.length}` : 'Fechar',
-      onSubmit: (d) => {
-        if (d.account && d.account !== account) { VS.budAccount = d.account; setTimeout(() => readFile(file, d.account, true), 0); return; }
-        if (!fresh.length) return;
-        let paidFixed = [];
-        let debtLinked = 0;
-        Store.update((s) => {
-          s.ftx.push(...fresh);
-          // Transferências entre as vossas contas (o mesmo valor a sair de uma e a entrar noutra).
-          const ids = new Set(O.findTransfers(s.ftx.filter((t) => t.rule !== 'family')));
-          s.ftx.forEach((t) => { if (ids.has(t.id) && !t.manualCat) { t.cat = 'transferencias'; t.rule = 'transfer'; } });
-          // Pagamentos que abatem numa dívida de família (regras criadas em "🚗 Abater numa dívida").
-          debtLinked = autoLinkDebts(s, fresh);
-          // Despesas fixas pagas neste extrato: risca-as nas Contas da casa (e actualiza o valor, se mudou).
-          paidFixed = Fixas.autoPay(s.bills, fresh);
-          paidFixed.forEach((p) => {
-            const b = s.bills.find((x) => x.id === p.billId);
-            if (!b) return;
-            p.old = b.amount;
-            b.history = [...(b.history || []), { date: p.date, amount: p.amount, forDue: p.forDue, tx: p.txId }].slice(-24);
-            b.due = p.nextDue;
-            if (p.changed) b.amount = p.amount;
-          });
-        });
-        // Abre o mês mais recente do extrato.
-        VS.budMonth = dates.at(-1).slice(0, 7) > P.monthOf(today()) ? P.monthOf(today()) : dates.at(-1).slice(0, 7);
-        VS.budFilter = '';
-        render();
-        const names = paidFixed.map((p) => {
-          const b = S().bills.find((x) => x.id === p.billId);
-          return `${b?.title || ''}${p.changed ? ` (agora ${money(p.amount)}, antes ${money(p.old)})` : ''}`;
-        });
-        toast(`📥 ${fresh.length} movimentos importados.${unsorted ? ` ${unsorted} por classificar.` : ''}${names.length ? ` 📌 Pagas: ${names.join(', ')}.` : ''}${debtLinked ? ` 🚗 ${debtLinked} abatido${debtLinked === 1 ? '' : 's'} na dívida.` : ''}`);
-      },
+    review(items);
+  }
+
+  /** Movimentos novos de cada ficheiro (sem repetir os já importados, nem os que vêm em dois ficheiros da mesma conta). */
+  function plan(items) {
+    const s = S();
+    let existing = s.ftx;
+    return items.map((it) => {
+      if (it.error) return it;
+      const kind = kindOfAcc(it.account);
+      const { fresh, dup } = O.prepareImport(existing, it.mv, it.account, s.frules, { card: kind === 'cartao', meal: kind === 'refeicao' });
+      existing = existing.concat(fresh);
+      return { ...it, fresh, dup };
     });
   }
+
+  /** O que entra de um ficheiro (com um só ficheiro, mostra também as categorias e alguns movimentos). */
+  function itemHTML(it, single) {
+    if (it.error) return `<p class="small">❌ <b>${esc(it.file.name)}</b>: ${esc(it.error)}.</p>`;
+    const dates = it.mv.map((x) => x.date).sort();
+    const kind = kindOfAcc(it.account);
+    const cardPays = it.fresh.filter((t) => t.cat === 'transferencias').length;
+    const unsorted = it.fresh.filter((t) => t.rule === 'none' && O.kindOf(t.cat) === 'expense').length;
+    const nums = it.refs.length ? ` (nº …${it.refs.map(esc).join(', …')})` : '';
+    const where = { ref: `pelo número${nums}`, bank: 'pelo banco', card: 'por ser o único cartão de crédito' }[it.by];
+    const how = it.card && kind !== 'cartao' ? '⚠️ Parece o extrato de um <b>cartão de crédito</b>, mas a conta não é um cartão. Confirmem a conta (ou juntem o cartão em 📈 Património, tipo «Cartão de crédito»).'
+      : !it.card && kind === 'cartao' ? '⚠️ Escolheram um cartão de crédito, mas este extrato parece ser de uma conta à ordem. Confirmem a conta.'
+      : it.guess && it.account === it.guess ? `✔ Conta reconhecida ${where}.`
+      : it.guess ? `⚠️ ${where[0].toUpperCase()}${where.slice(1)}, parece ser de «${esc(accountName(it.guess))}». Confirmem a conta.`
+      : it.picked ? ''
+      : it.refs.length ? '🔎 Não reconheci a conta: confirmem abaixo. Da próxima vez já a reconheço pelo número.'
+      : '🔎 Este ficheiro não traz o nº da conta nem o banco: confirmem a conta abaixo.';
+    const counts = {};
+    it.fresh.forEach((t) => { counts[t.cat] = (counts[t.cat] || 0) + 1; });
+    const top = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 6);
+    return `<p>${single ? '' : `📄 <b>${esc(it.file.name)}</b><br>`}<b>${it.mv.length} movimentos</b> de ${esc(fmtDate(dates[0]))} a ${esc(fmtDate(dates.at(-1)))}
+        · ${it.fresh.length ? `entram <b>${it.fresh.length}</b>` : 'nenhum novo'}${it.dup ? ` · 🔁 ${it.dup} já estavam importados` : ''}.</p>
+      ${how ? `<p class="small bud-note">${how}</p>` : ''}
+      ${cardPays ? `<p class="small">🔁 ${cardPays} pagamento${cardPays === 1 ? '' : 's'} do cartão de crédito: contam como transferência entre as vossas contas (não são despesa nem entrada).</p>` : ''}
+      ${single && it.fresh.length ? `<ul class="small bud-preview">${top.map(([c, n]) => `<li>${esc(catLabel(c))} · ${n}</li>`).join('')}</ul>
+        <div class="table-wrap"><table class="bud-sample"><tbody>${it.fresh.slice(0, 6).map((t) => `<tr><td>${esc(fmtDate(t.date).slice(0, 5))}</td><td>${esc(t.desc)}</td><td class="num">${esc(signedMoney(t.amount))}</td></tr>`).join('')}</tbody></table></div>` : ''}
+      ${unsorted ? `<p class="small muted">🏷️ ${unsorted} ficam por classificar (lojas que o portal ainda não conhece).</p>` : ''}`;
+  }
+
+  /** Resumo de todos os ficheiros, com a conta de cada um (pode mudar-se antes de importar). */
+  function review(items) {
+    const accs = liveAccounts();
+    const single = items.length === 1;
+    let planned = plan(items);
+    const total = () => planned.reduce((n, it) => n + (it.fresh?.length || 0), 0);
+    const label = () => (total() ? `Importar ${total()}` : 'Fechar');
+    openForm({
+      title: single && !items[0].error ? `📥 ${items[0].file.name}` : `📥 ${items.length} extratos`,
+      fields: items.flatMap((it, i) => [
+        { name: `info_${i}`, type: 'note', html: `<div data-imp="${i}">${itemHTML(planned[i], single)}</div>` },
+        ...(it.error ? [] : [{ name: `acc_${i}`, label: single ? 'Conta' : `Conta de «${it.file.name}»`, type: 'select', options: accs.map((a) => [a.id, accLabel(a)]) }]),
+      ]),
+      values: Object.fromEntries(items.map((it, i) => [`acc_${i}`, it.account])),
+      submitLabel: label(),
+      onSubmit: (d) => {
+        items.forEach((it, i) => { if (!it.error && d[`acc_${i}`]) it.account = d[`acc_${i}`]; });
+        planned = plan(items);
+        commit(planned.filter((it) => !it.error));
+      },
+    });
+    // Mudar a conta de um ficheiro: volta a contar o que entra (os repetidos dependem da conta).
+    const dlg = document.getElementById('dialog');
+    dlg.querySelectorAll('select[name^=acc_]').forEach((sel) => sel.addEventListener('change', () => {
+      items.forEach((it, i) => { const v = dlg.querySelector(`[name=acc_${i}]`)?.value; if (v && v !== it.account) Object.assign(it, { account: v, picked: true }); });
+      planned = plan(items);
+      planned.forEach((it, i) => { const box = dlg.querySelector(`[data-imp="${i}"]`); if (box) box.innerHTML = itemHTML(it, single); });
+      const btn = dlg.querySelector('button[type=submit]');
+      if (btn) btn.textContent = label();
+    }));
+  }
+
+  /** Grava os movimentos novos e trata do resto: transferências, dívidas, despesas fixas, números da conta. */
+  function commit(planned) {
+    const fresh = planned.flatMap((it) => it.fresh);
+    let paidFixed = [];
+    let debtLinked = 0;
+    Store.update((s) => {
+      s.ftx.push(...fresh);
+      // Os números do extrato ficam na conta (para a próxima vez a reconhecer sozinho) e a data da importação.
+      planned.forEach((it) => {
+        O.learnRefs(s.faccounts, it.account, it.refs);
+        const a = s.faccounts.find((x) => x.id === it.account);
+        if (a) a.lastImport = today();
+      });
+      if (!fresh.length) return;
+      // Transferências entre as vossas contas (o mesmo valor a sair de uma e a entrar noutra).
+      const ids = new Set(O.findTransfers(s.ftx.filter((t) => t.rule !== 'family')));
+      s.ftx.forEach((t) => { if (ids.has(t.id) && !t.manualCat) { t.cat = 'transferencias'; t.rule = 'transfer'; } });
+      // Pagamentos que abatem numa dívida de família (regras criadas em "🚗 Abater numa dívida").
+      debtLinked = autoLinkDebts(s, fresh);
+      // Despesas fixas pagas neste extrato: risca-as nas Contas da casa (e actualiza o valor, se mudou).
+      paidFixed = Fixas.autoPay(s.bills, fresh);
+      paidFixed.forEach((p) => {
+        const b = s.bills.find((x) => x.id === p.billId);
+        if (!b) return;
+        p.old = b.amount;
+        b.history = [...(b.history || []), { date: p.date, amount: p.amount, forDue: p.forDue, tx: p.txId }].slice(-24);
+        b.due = p.nextDue;
+        if (p.changed) b.amount = p.amount;
+      });
+    });
+    if (planned.length) VS.budAccount = planned.at(-1).account;
+    if (!fresh.length) { toast('Não há movimentos novos.'); return; }
+    // Abre o mês mais recente dos extratos.
+    const lastDate = planned.flatMap((it) => it.mv.map((x) => x.date)).sort().at(-1);
+    VS.budMonth = lastDate.slice(0, 7) > P.monthOf(today()) ? P.monthOf(today()) : lastDate.slice(0, 7);
+    VS.budFilter = '';
+    VS.finTab = 'orcamento';
+    render();
+    const unsorted = fresh.filter((t) => t.rule === 'none' && O.kindOf(t.cat) === 'expense').length;
+    const names = paidFixed.map((p) => {
+      const b = S().bills.find((x) => x.id === p.billId);
+      return `${b?.title || ''}${p.changed ? ` (agora ${money(p.amount)}, antes ${money(p.old)})` : ''}`;
+    });
+    const files = planned.filter((it) => it.fresh.length).length;
+    toast(`📥 ${fresh.length} movimentos importados${files > 1 ? ` de ${files} extratos` : ''}.${unsorted ? ` ${unsorted} por classificar.` : ''}${names.length ? ` 📌 Pagas: ${names.join(', ')}.` : ''}${debtLinked ? ` 🚗 ${debtLinked} abatido${debtLinked === 1 ? '' : 's'} na dívida.` : ''}`);
+  }
+
+  /* ---------- Extratos partilhados de outra app (Android: Partilhar → Família) ou largados na página ---------- */
+  const SHARE_CACHE = 'portal-partilha';
+  let shareChecked = false;
+  async function takeShared() {
+    if (shareChecked || !new URLSearchParams(location.search).has('extratos')) return;
+    shareChecked = true;
+    history.replaceState(null, '', `${location.pathname}#/financas`);
+    if (!Store.isParent()) { toast('Só os pais podem importar extratos.'); return; }
+    let files = [];
+    try {
+      const cache = await caches.open(SHARE_CACHE);
+      const reqs = await cache.keys();
+      files = await Promise.all(reqs.map(async (r) => {
+        const res = await cache.match(r);
+        const name = decodeURIComponent(res.headers.get('X-Nome') || 'extrato');
+        return new File([await res.blob()], name, { type: res.headers.get('Content-Type') || '' });
+      }));
+      await Promise.all(reqs.map((r) => cache.delete(r)));
+    } catch (e) { /* sem Cache API */ }
+    if (!files.length) { toast('Não recebi nenhum ficheiro. Experimentem outra vez, ou usem 📥 Importar extrato.'); return; }
+    VS.finTab = 'orcamento';
+    render();
+    readFiles(files);
+  }
+
+  const onBudget = () => location.hash.startsWith('#/financas') && VS.finTab === 'orcamento' && Store.isParent();
+  document.addEventListener('dragover', (e) => {
+    if (!onBudget() || !e.dataTransfer?.types?.includes('Files')) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  });
+  document.addEventListener('drop', (e) => {
+    if (!onBudget() || !e.dataTransfer?.files?.length || document.getElementById('dialog')?.open) return;
+    e.preventDefault();
+    readFiles([...e.dataTransfer.files]);
+  });
 
   /* ---------- Classificar ---------- */
   function catForm(id) {
@@ -646,5 +749,11 @@ window.FinancasOrcamento = function ({ render }) {
   };
 
   Views.orcamentoView = view;
-  return { actions };
+  /** Extratos partilhados a partir de outra app: espera pelos dados da família (as contas) antes de os ler. */
+  function afterRender() {
+    if (shareChecked || !new URLSearchParams(location.search).has('extratos')) return;
+    if (Store.isRemote && Store.syncStatus !== 'ok' && !S().faccounts.length) return;
+    takeShared();
+  }
+  return { actions, afterRender };
 };

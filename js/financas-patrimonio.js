@@ -351,8 +351,10 @@ window.FinancasPatrimonio = function ({ render }) {
     { name: 'bank', label: 'Banco / entidade', half: true, placeholder: 'Ex.: CGD, Millennium, Revolut' },
     { name: 'kind', label: 'Tipo', type: 'select', half: true, options: P.KINDS },
     { name: 'kindNote', type: 'note', html: '<p class="small muted">💳 Cartão de crédito: no fecho do mês põem o valor <b>em dívida</b> no cartão (o que vem no extrato para pagar). Conta a menos no total.</p>' },
+    { name: 'refs', label: 'Nº da conta / cartão (4 últimos algarismos)', half: true, inputmode: 'numeric', placeholder: 'Opcional — aprende-se ao importar' },
     { name: 'archived', label: 'Estado', type: 'select', half: true, options: [['', 'Em uso'], ['1', 'Arquivada (fechada)']] },
   ];
+  const accData = (d) => ({ ...d, refs: Orcamento.cleanRefs(d.refs) });
   const DEBT_FIELDS = () => [
     { name: 'kind', label: 'Tipo', type: 'select', options: [['', '🏦 Crédito (banco / financeira, prestação fixa)'], ['familiar', '👪 Empréstimo de família ou amigos (pagamentos livres)']] },
     { name: 'kindNote', type: 'note', html: '<p class="small muted">👪 Família ou amigos: registam cada pagamento (data, valor e nota) e o portal soma o que já pagaram e o que falta. A prestação e a taxa não são precisas.</p>' },
@@ -370,9 +372,9 @@ window.FinancasPatrimonio = function ({ render }) {
   const actions = {
     'pat-close': (el) => closeForm(el.dataset.id),
     'pat-close-old': oldMonthForm,
-    'pat-acc-add': () => editItem('faccounts', null, { title: 'conta', fields: ACC_FIELDS(), defaults: () => ({ kind: 'ordem', bank: '', archived: '' }) }),
+    'pat-acc-add': () => editItem('faccounts', null, { title: 'conta', fields: ACC_FIELDS(), defaults: () => ({ kind: 'ordem', bank: '', archived: '' }), transform: accData }),
     'pat-acc-edit': (el) => editItem('faccounts', el.dataset.id, {
-      title: 'conta', fields: ACC_FIELDS(),
+      title: 'conta', fields: ACC_FIELDS(), transform: accData,
       deleteConfirm: 'Apagar esta conta? Os fechos antigos mantêm o valor dela. Se a conta foi fechada, é melhor "Arquivar".',
     }),
     'pat-debt-add': () => editItem('debts', null, { title: 'dívida', fields: DEBT_FIELDS(), defaults: () => ({ archived: '', start: P.monthOf(today()) }) }),
