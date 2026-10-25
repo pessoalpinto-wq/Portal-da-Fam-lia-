@@ -125,12 +125,12 @@ window.FinancasElectricidade = function ({ render }) {
     const L = s.last;
     const tiles = `<div class="fin-summary pat-stats">
       <div class="fin-tile"><small>Última fatura · ${esc(dm(L.from))} a ${esc(dm(L.to))}</small><b>${esc(kwhTxt(L.kwh))}</b><small>${money(L.total)} · ${L.days} dias${L.estimated ? ' · estimada' : ''}</small></div>
-      <div class="fin-tile"><small>Por dia</small><b>${esc(kwhTxt(L.perDay))}</b><small>${s.perDay != null && s.coveredDays >= 60 ? `média de 12 meses: ${esc(kwhTxt(s.perDay))}` : 'na última fatura'}</small></div>
+      <div class="fin-tile"><small>Por dia</small><b>${esc(kwhTxt(L.perDay))}</b><small>${s.perDay != null && s.coveredDays >= 60 ? `média ${s.coveredDays >= 330 ? 'de 12 meses' : `de ${s.coveredDays} dias`}: ${esc(kwhTxt(s.perDay))}` : 'na última fatura'}</small></div>
       <div class="fin-tile"><small>Preço médio (com taxas)</small><b>${s.perKwh != null ? `${esc(comma(s.perKwh.toFixed(3)))} €/kWh` : '—'}</b><small>${L.perKwh != null ? `última fatura: ${esc(comma(L.perKwh.toFixed(3)))} €/kWh` : ''}</small></div>
       <div class="fin-tile"><small>${s.coveredDays >= 330 ? 'Últimos 12 meses' : `Últimos ${s.coveredDays} dias com faturas`}</small><b>${money(s.year.total)}</b><small>${esc(kwhTxt(s.year.kwh))}</small>
         ${s.prevYear ? deltaHtml(pct(s.year.kwh, s.prevYear.kwh), 'kWh que no ano anterior') : ''}</div>
       ${s.perYear != null ? `<div class="fin-tile"><small>Por ano (ao ritmo actual)</small><b>${money(s.perYear)}</b><small>≈ ${money(Math.round(s.perYear / 12))} por mês</small></div>` : ''}
-      ${s.vazioPct != null ? `<div class="fin-tile"><small>Em vazio (12 meses)</small><b>${s.vazioPct}%</b><small>do consumo, quando a luz é mais barata</small></div>` : ''}
+      ${s.vazioPct != null ? `<div class="fin-tile"><small>Em vazio${s.coveredDays >= 330 ? ' (12 meses)' : ''}</small><b>${s.vazioPct}%</b><small>do consumo, quando a luz é mais barata</small></div>` : ''}
     </div>`;
     const toggle = `<div class="tabs luz-metric" role="tablist" aria-label="Ver em">
       <button role="tab" class="filter ${metric === 'kwh' ? 'active' : ''}" aria-selected="${metric === 'kwh'}" data-action="luz-metric" data-id="kwh">kWh</button>
@@ -246,6 +246,8 @@ window.FinancasElectricidade = function ({ render }) {
       miss.length ? `🔎 Não encontrei ${miss.join(', ').replace(/, ([^,]*)$/, ' nem $1')}: escrevam-no${miss.length > 1 ? 's' : ''} abaixo (vem na 1.ª página da fatura).` : '',
       file && !error && !miss.length ? '✔ Li a fatura: confirmem os números antes de guardar.' : '',
       b.gas ? '🔥 Esta fatura também tem gás: o valor é só o da electricidade (confirmem).' : '',
+      // Saldo / pontos usados a pagar (ex.: My Repsol): pagou-se menos do que a luz custou (o saldo leva IVA a 23 %).
+      !cur && b.credit > 0 && b.total != null ? `💳 Esta fatura usou ${money(b.credit)} de saldo (${money(Math.round(b.credit * 123) / 100)} com IVA): pagaram ${money(b.total)}, mas a luz custou ${money(Math.round((b.total + b.credit * 1.23) * 100) / 100)}. Para o gráfico mostrar o custo real, ponham esse valor abaixo.` : '',
       b.estimated ? '📏 Leitura estimada: o consumo real acerta-se numa próxima fatura.' : '',
     ].filter(Boolean);
     openForm({

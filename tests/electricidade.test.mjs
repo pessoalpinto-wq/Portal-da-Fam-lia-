@@ -120,3 +120,86 @@ test('não guardar duas vezes a mesma fatura', () => {
   assert.equal(E.sameBill(bills, { id: 'b', from: '2026-09-01', to: '2026-09-30' })?.id, 'a');
   assert.equal(E.sameBill(bills, { id: 'a', from: '2026-09-01', to: '2026-09-30' }), undefined);
 });
+
+// Endesa (texto como o pdf.js o tira de uma fatura real; dados pessoais trocados): leituras do contador acumuladas
+// ("Cheia: 7.233 kWh") que não são consumo, energia em duas linhas sem horário, total antes do texto.
+const ENDESA = `Nº Documento: 26080310156268999 Luz Data de Emissão: 27 ago 2026
+TOTAL A DEBITAR 29,20 €
+Débito a partir de 11 Setembro 2026
+CONSUMOS
+CPE (Código Ponto Entrega) Nº contador
+000001234567890 PT 0002 0000 1111 2222 XX
+A sua leitura: 25 ago 2026
+Cheia Ponta Vazio
+007233 kWh 003590 kWh 005902 kWh
+Última leitura real comunicada: 25 ago 2026 - distribuidora
+Cheia: 7.233 kWh | Ponta: 3.590 kWh | Vazio: 5.902 kWh
+Emitido por ENDESA Energia S.A. – Sucursal Portugal
+LUZ Data: 27 ago 2026 Período de Faturação: 22 ago 2026 a 25 ago 2026
+Termo de Energia (Real) 92 kWh 0,177154 €/kWh [0,148809 €/kWh] 16,30 € -2,61 € 13,69 € 23% (c)
+22 ago 2026 a 24 ago 2026
+Termo de Potência (13.80 kVA) 3 dias 0,827600 €/dia [0,695184 €/dia] 2,48 € -0,38 € 2,10 € 23% (c)
+Termo de Energia (Real) 31 kWh 0,177154 €/kWh [0,145266 €/kWh] 5,49 € -0,97 € 4,52 € 23% (c)
+TOTAL Luz (Consumo) 23,29 €
+Imposto Especial Consumo (Real) 123 kWh 0,001000 €/kWh 0,12 € 0,12 € 23% (c)
+TOTAL Taxas e Impostos 5,91 €
+HHm9 - Processado por programa certificado n.º2516 TOTAL DA FATURA DE LUZ 29,20 €
+Variável de 0.0607 €/kWh), onde se inclui o valor dos Custos de Interesse Económico Geral (CIEG) no valor de 3.44 €.
+PT 0002 0000 1111 2222 XX 13,80 kVA Sem ciclo`;
+
+// Repsol (como nas capturas de uma fatura real): período com "~", tarifa simples mas quadro de leituras por horário,
+// "Saldo My Repsol utilizado" a abater no total, várias linhas com "total".
+const REPSOL = `Documento: Dt.Emissão:
+26100760109043799 2026-10-22
+Resumo de faturação
+Eletricidade Gás Taxas e Impostos Débitos / Créditos Outros Poupança Valor a Pagar
+133,75€ 0,00€ 29,39€ 0,00€ 5,68€ -39,84€ 128,98€
+Média mensal de eletricidade: 328,50 kWh~ 69,96€
+Comunique as suas leituras entre dia 2026-11-18 e 2026-11-20
+Valor a enviar ao banco:
+128,98€
+Fatura Tipo de Cliente Tipo de Leitura 2/3
+FAC 0210762026/0049567916 Domésticos Empresa
+Data Fim Período Tarifa
+2026-10-20 Leve Luz Simples 2601
+Resumo Período Faturação: 2026-08-26 ~ 2026-10-20
+Contador Nº Potência Tipo de Consumo Data Leitura Fator Multipl. Consumo
+000001234567890 13,80kVA Cheia 2026-10-20 7.496 1,00000 Real 263,00 kWh
+Ponta 2026-10-20 3.725 1,00000 Real 135,00 kWh
+Vazio 2026-10-20 6.109 1,00000 Real 207,00 kWh
+Descrição Explicação de valores Valor(€) IVA
+Energia Simples Real 26/08 a 20/10 605 kWh x 0,185000 €/kWh 111,93 (c)
+Desc. FE Energia Simples Real 26/08 a 20/10 56d/56d x (111,93 € x 2,00%) -2,24 (c)
+Potência Contratada (13.80 kVA) 26/08 a 20/10 56 dias x 0,240000 €/dia 13,44 (c)
+Financ. T. Social (Dir. ERSE 3-4/2024) Real 26/08 a 20/10 605 kWh x 0,002067 €/kWh 1,25 (c)
+Financ. T. Social (Dir. ERSE 3-4/2024) 26/08 a 20/10 0 kWh x 0,002067 €/kWh 0,00 (b)
+Saldo My Repsol utilizado Operação: 1787829815 -39,84 (c)
+Saldo My Repsol utilizado Operação: 1787829815 0,00 (b)
+Imposto Especial Consumo Real 26/08 a 20/10 605 kWh x 0,001000 €/kWh 0,61 (c)
+Total sem IVA 105,58€
+TOTAL 128,98€
+O total da fatura inclui os encargos relativos ao acesso às redes no valor de 75.20 € (sem IVA)`;
+
+test('Endesa: consumo das linhas de energia (não as leituras do contador), total antes do texto, potência 13.80 kVA', () => {
+  const f = E.parseInvoice(ENDESA);
+  assert.equal(f.supplier, 'Endesa');
+  assert.deepEqual([f.from, f.to], ['2026-08-22', '2026-08-25']);
+  assert.equal(f.kwh, 123);
+  assert.deepEqual(f.periods, {}); // 7.233 + 3.590 + 5.902 são leituras, não somam 123
+  assert.equal(f.total, 29.2);
+  assert.equal(f.power, 13.8);
+  assert.equal(f.cpe, 'PT0002000011112222XX');
+  assert.equal(f.credit, 0);
+});
+
+test('Repsol: período com "~", horários do quadro de leituras (somam o total), saldo My Repsol usado', () => {
+  const f = E.parseInvoice(REPSOL);
+  assert.equal(f.supplier, 'Repsol');
+  assert.deepEqual([f.from, f.to], ['2026-08-26', '2026-10-20']);
+  assert.equal(f.kwh, 605);
+  assert.deepEqual(f.periods, { cheias: 263, ponta: 135, vazio: 207 });
+  assert.equal(f.total, 128.98); // não 133,75 (luz sem impostos) nem 75,20 (acesso às redes)
+  assert.equal(f.power, 13.8);
+  assert.equal(f.credit, 39.84);
+  assert.equal(f.estimated, false);
+});
