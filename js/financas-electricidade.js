@@ -155,11 +155,18 @@ window.FinancasElectricidade = function ({ render }) {
       ${ser.some((r) => r.partial) ? '<p class="small muted">Barras mais claras: meses só em parte cobertos pelas faturas (falta a fatura seguinte).</p>' : ''}
       ${metric === 'eur' && anyCredit ? '<p class="small muted">Em euros, cada barra é o custo da luz: em baixo o que pagaram, em cima o desconto de saldo (ex.: My Repsol).</p>' : ''}
       <p class="small muted">Cada fatura é repartida pelos meses, pelos dias (ex.: de 15/08 a 14/09 conta 17 dias em agosto e 14 em setembro).</p>${table}`);
+    // Preços da fatura, sem IVA (para comparar tarifários): "vazio 0,1012 · fora de vazio 0,1865 €/kWh · potência 0,2400 €/dia".
+    const priceTxt = (b) => {
+      const p = PERIODS.filter(([k]) => b.prices?.[k] != null).map(([k, n]) => `${k === 'simples' ? 'energia' : n.toLowerCase()} ${comma(Number(b.prices[k]).toFixed(4))}`);
+      const parts = [p.length ? `${p.join(' · ')} €/kWh` : '', b.powerDay != null ? `potência ${comma(Number(b.powerDay).toFixed(4))} €/dia` : ''].filter(Boolean);
+      return parts.length ? `Preços sem IVA: ${parts.join(' · ')}` : '';
+    };
     const row = (b) => {
       const per = PERIODS.filter(([k]) => b.periods?.[k] != null && k !== 'simples').map(([k, n]) => `${n.toLowerCase()} ${b.periods[k].toLocaleString('pt-PT')}`).join(' · ');
       return `<li class="tx"><button class="tx-main" data-action="luz-edit" data-id="${esc(b.id)}">
           <span class="tx-desc">${esc(dmy(b.from))} a ${esc(dmy(b.to))}${b.estimated ? ' <small class="muted">· estimada</small>' : ''}</span>
           <small class="muted">${esc([b.supplier, `${E.daysOf(b.from, b.to)} dias`, per ? `${per} kWh` : '', b.power ? `${comma(b.power)} kVA` : '', E.perKwhOf(b) != null ? `${comma(E.perKwhOf(b).toFixed(3))} €/kWh` : ''].filter(Boolean).join(' · '))}</small>
+          ${priceTxt(b) ? `<small class="muted">${esc(priceTxt(b))}</small>` : ''}
           ${b.credit ? `<small class="luz-credit">💳 desconto de saldo ${money(b.credit)} · pago ${money(Math.round((b.total - b.credit) * 100) / 100)}</small>` : ''}</button>
         <span class="luz-val"><b>${esc(kwhTxt(b.kwh))}</b><small class="muted">${money(b.total)}</small></span></li>`;
     };
@@ -349,6 +356,10 @@ window.FinancasElectricidade = function ({ render }) {
     // Horários: os que vêm na fatura; à mão, vazio e fora de vazio (bi-horário, o mais comum).
     const keys = PERIODS.map(([k]) => k).filter((k) => k !== 'simples' && per[k] != null);
     const show = keys.length ? keys : (!file ? ['vazio', 'fora'] : []);
+    // Preços unitários (sem IVA): os horários com preço na fatura; sem preços, os horários mostrados (ou simples).
+    const pr = b.prices || {};
+    const priceKeys = PERIODS.map(([k]) => k).filter((k) => (Object.keys(pr).length ? pr[k] != null : show.includes(k)));
+    if (!priceKeys.length) priceKeys.push('simples');
     const miss = file && !error ? [!b.from || !b.to ? 'o período' : '', b.kwh == null ? 'os kWh' : '', b.total == null ? 'o valor' : ''].filter(Boolean) : [];
     const notes = [
       error ? `❌ ${esc(error)} Podem escrever os números à mão.` : '',
@@ -370,6 +381,8 @@ window.FinancasElectricidade = function ({ render }) {
         { name: 'credit', label: 'Desconto de saldo (€, com IVA)', inputmode: 'decimal', half: true, placeholder: 'Ex.: saldo My Repsol' },
         ...show.map((k) => ({ name: `p_${k}`, label: `kWh em ${PERIODS.find((x) => x[0] === k)[1].toLowerCase()}`, inputmode: 'decimal', half: true, placeholder: 'Opcional' })),
         { name: 'power', label: 'Potência (kVA)', inputmode: 'decimal', half: true, placeholder: 'Ex.: 6,9' },
+        ...priceKeys.map((k) => ({ name: `pr_${k}`, label: `Preço ${PERIODS.find((x) => x[0] === k)[1].toLowerCase()} (€/kWh, sem IVA)`, inputmode: 'decimal', half: true, placeholder: 'Opcional' })),
+        { name: 'powerDay', label: 'Termo de potência (€/dia, sem IVA)', inputmode: 'decimal', half: true, placeholder: 'Opcional' },
         { name: 'supplier', label: 'Fornecedor', half: true, suggest: [...new Set(bills().map((x) => x.supplier).filter(Boolean))] },
         { name: 'estimated', label: 'Leitura', type: 'select', half: true, options: [['', 'Real'], ['1', 'Estimada']] },
         { name: 'notes', label: 'Notas', placeholder: 'Opcional' },
@@ -377,6 +390,7 @@ window.FinancasElectricidade = function ({ render }) {
       values: {
         from: b.from || '', to: b.to || '', kwh: comma(b.kwh), total: b.total == null || b.total === '' ? '' : comma(Number(b.total).toFixed(2)), credit: Number(b.credit) > 0 ? comma(Number(b.credit).toFixed(2)) : '', power: comma(b.power), supplier: b.supplier || '',
         estimated: b.estimated ? '1' : '', notes: b.notes || '', ...Object.fromEntries(show.map((k) => [`p_${k}`, comma(per[k])])),
+        ...Object.fromEntries(priceKeys.map((k) => [`pr_${k}`, comma(pr[k])])), powerDay: comma(b.powerDay),
       },
       submitLabel: '⚡ Guardar',
       extra: after && step ? [{ label: 'Saltar esta', onClick: () => { after(false); } }] : [],
@@ -389,13 +403,15 @@ window.FinancasElectricidade = function ({ render }) {
         const periods = {};
         PERIODS.forEach(([k]) => { const v = E.num(d[`p_${k}`]); if (v != null) periods[k] = v; });
         if (!show.length && per.simples != null) periods.simples = per.simples;
+        const prices = {};
+        priceKeys.forEach((k) => { const v = E.num(d[`pr_${k}`]); if (v != null && v > 0) prices[k] = v; });
         // Algo errado: volta a abrir o formulário com o que escreveram.
-        const again = (msg) => { toast(msg); setTimeout(() => billForm(id, { ...b, ...d, kwh, total, periods, credit: E.num(d.credit), power: E.num(d.power), estimated: !!d.estimated }, { file, error, step, after }), 0); };
+        const again = (msg) => { toast(msg); setTimeout(() => billForm(id, { ...b, ...d, kwh, total, periods, prices, powerDay: E.num(d.powerDay), credit: E.num(d.credit), power: E.num(d.power), estimated: !!d.estimated }, { file, error, step, after }), 0); };
         if (!d.from || !d.to || d.to < d.from) { again('As datas da fatura não batem certo (a data final é antes da inicial).'); return; }
         if (kwh == null || kwh < 0 || total == null) { again('Falta o consumo (kWh) ou o valor.'); return; }
         if ((E.num(d.credit) || 0) > total) { again('O desconto não pode ser maior do que o custo da luz.'); return; }
         const data = {
-          kind: 'luz', from: d.from, to: d.to, kwh, total, credit: Math.max(0, E.num(d.credit) || 0), periods, power: E.num(d.power), supplier: d.supplier.trim(),
+          kind: 'luz', from: d.from, to: d.to, kwh, total, credit: Math.max(0, E.num(d.credit) || 0), periods, prices, powerDay: E.num(d.powerDay), power: E.num(d.power), supplier: d.supplier.trim(),
           estimated: !!d.estimated, notes: d.notes.trim(), ...(b.cpe ? { cpe: b.cpe } : {}),
         };
         let replaced = false;

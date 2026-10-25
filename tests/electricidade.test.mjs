@@ -262,3 +262,17 @@ test('preço médio de cada fatura', () => {
   assert.equal(E.perKwhOf({ kwh: 300, total: 52.5 }), 0.175);
   assert.equal(E.perKwhOf({ kwh: 0, total: 10 }), null);
 });
+
+test('preços unitários sem IVA por horário e termo de potência em €/dia', () => {
+  const bi = E.parseInvoice(BI);
+  assert.deepEqual(bi.prices, { vazio: 0.1012, fora: 0.186517 }); // fora de vazio: média pelos kWh (150 a 0,1858 e 30 a 0,1901)
+  assert.equal(bi.powerDay, null);
+  const en = E.parseInvoice(ENDESA);
+  assert.deepEqual(en.prices, { simples: 0.177154 }); // o preço de tabela, não o com desconto entre [ ]
+  assert.equal(en.powerDay, 0.8276);
+  const re = E.parseInvoice(REPSOL);
+  assert.deepEqual(re.prices, { simples: 0.185 }); // a tarifa social e o IEC não contam
+  assert.equal(re.powerDay, 0.24);
+  const plan = E.planImport([], [{ file: 'r.pdf', found: re }]);
+  assert.deepEqual([plan.save[0].data.prices, plan.save[0].data.powerDay], [{ simples: 0.185 }, 0.24]);
+});
