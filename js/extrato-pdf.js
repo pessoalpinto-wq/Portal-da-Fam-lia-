@@ -162,5 +162,18 @@
     return rows;
   }
 
-  root.ExtratoPDF = { linesFromItems, toRows, period, isoDate, read };
+  /** PDF (bytes) → o texto, linha a linha (para outras leituras, ex.: faturas da luz em js/electricidade.js). */
+  async function readText(bytes, impl) {
+    const L = impl || await pdfjs();
+    const doc = await L.getDocument({ data: bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes), isEvalSupported: false }).promise;
+    const out = [];
+    for (let n = 1; n <= doc.numPages; n++) {
+      const page = await doc.getPage(n);
+      linesFromItems((await page.getTextContent()).items).forEach((l) => out.push(l.cells.map((c) => c.str).join(' ')));
+    }
+    if (!out.length) throw new Error('Este PDF é uma imagem (digitalizado): não tem texto para ler. Descarreguem a fatura em PDF na área de cliente do fornecedor.');
+    return out.join('\n');
+  }
+
+  root.ExtratoPDF = { linesFromItems, toRows, period, isoDate, read, readText };
 })(globalThis);
