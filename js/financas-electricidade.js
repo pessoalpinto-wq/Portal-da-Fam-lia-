@@ -186,25 +186,37 @@ window.FinancasElectricidade = function ({ render }) {
   function importForm() {
     openForm({
       title: '📄 Juntar faturas da luz',
-      fields: [{ name: 'filebox', type: 'note', html: `<label class="field"><span>Faturas em PDF (podem escolher várias)</span>
-        <input type="file" name="file" multiple accept=".pdf,application/pdf" required></label>
-        <p class="small muted">Na área de cliente do fornecedor: Faturas → Descarregar PDF. A seguir confirmam os números de cada uma.</p>` }],
+      fields: [
+        { name: 'filebox', type: 'note', html: `<label class="field"><span>Faturas em PDF (podem escolher várias)</span>
+          <input type="file" name="file" multiple accept=".pdf,application/pdf" required></label>
+          <p class="small muted">Na área de cliente do fornecedor: Faturas → Descarregar PDF.</p>` },
+        { name: 'mode', label: 'Com várias faturas', type: 'select', options: [['auto', 'Guardar logo as que forem bem lidas e mostrar um resumo'], ['one', 'Confirmar os números de cada uma']] },
+      ],
+      values: { mode: 'auto' },
       submitLabel: 'Ler as faturas',
       extra: savedPass() ? [{ label: '🔒 Esquecer a palavra-passe', onClick: () => { keepPass(''); toast('🔒 A palavra-passe das faturas foi apagada deste aparelho.'); } }] : [],
-      onSubmit: () => {
+      onSubmit: (d) => {
         const files = [...(document.querySelector('#dialog [name=file]')?.files || [])];
         if (!files.length) { toast('Escolham a fatura em PDF.'); return; }
-        setTimeout(() => readNext(files, 0, 0), 0);
+        if (files.length > 1 && d.mode !== 'one') setTimeout(() => readAll(files, 0, []), 0);
+        else setTimeout(() => readNext(files, 0, 0), 0);
       },
     });
   }
 
-  /** Lê uma fatura de cada vez e abre o formulário para confirmar (o seguinte abre depois de guardar). */
   // Palavra-passe das faturas em PDF (ex.: Repsol): fica só neste aparelho, e só se pedirem para a lembrar.
   const PASS_KEY = 'portal-luz-pdf-pass';
   const savedPass = () => { try { return localStorage.getItem(PASS_KEY) || ''; } catch (e) { return ''; } };
   const keepPass = (v) => { try { if (v) localStorage.setItem(PASS_KEY, v); else localStorage.removeItem(PASS_KEY); } catch (e) { /* sem localStorage */ } };
 
+  /** Abre o PDF e lê a fatura. Se precisar de palavra-passe, lança o erro do ExtratoPDF (com e.password). */
+  async function readFile(file, password, keep) {
+    const text = await ExtratoPDF.readText(new Uint8Array(await file.arrayBuffer()), null, password || undefined);
+    if (keep && password) keepPass(password); // só fica guardada depois de abrir a fatura
+    return E.parseInvoice(text);
+  }
+
+  /** Lê uma fatura de cada vez e abre o formulário para confirmar (o seguinte abre depois de guardar). */
   async function readNext(files, i, saved, password = savedPass(), keep = false) {
     if (i >= files.length) {
       if (files.length > 1) toast(`⚡ ${saved} de ${files.length} faturas guardadas.`);
@@ -215,22 +227,94 @@ window.FinancasElectricidade = function ({ render }) {
     let found = null;
     let error = '';
     try {
-      const text = await ExtratoPDF.readText(new Uint8Array(await files[i].arrayBuffer()), null, password || undefined);
-      if (keep && password) keepPass(password); // só fica guardada depois de abrir a fatura
-      found = E.parseInvoice(text);
+      found = await readFile(files[i], password, keep);
     } catch (e) {
-      if (e.password) { passwordForm(files, i, saved, { wrong: e.password === 'wrong', fromSaved: !!password && password === savedPass(), step }); return; }
+      if (e.password) {
+        passwordForm(files[i].name, { wrong: e.password === 'wrong', fromSaved: !!password && password === savedPass(), step }, {
+          retry: (pass, remember) => readNext(files, i, saved, pass, remember),
+          manual: () => billForm(null, {}, { file: files[i].name, step, after: (ok) => next(ok) }),
+        });
+        return;
+      }
       error = e.message || 'Não consegui ler este PDF.';
     }
     billForm(null, found || {}, { file: files[i].name, error, step, after: (ok) => next(ok) });
   }
 
-  /** PDF protegido: pede a palavra-passe (e volta a tentar), ou deixa escrever os números à mão. */
-  function passwordForm(files, i, saved, { wrong = false, fromSaved = false, step = '' } = {}) {
+  /** Várias faturas de uma vez: lê-as todas, guarda as completas e no fim mostra o resumo. */
+  async function readAll(files, i, results, password = savedPass(), keep = false) {
+    for (; i < files.length; i++) {
+      toast(`📄 A ler a fatura ${i + 1} de ${files.length}…`);
+      try {
+        results.push({ file: files[i].name, found: await readFile(files[i], password, keep) });
+        keep = false;
+      } catch (e) {
+        if (e.password) {
+          const at = i;
+          passwordForm(files[at].name, { wrong: e.password === 'wrong', fromSaved: !!password && password === savedPass(), step: `${at + 1} de ${files.length}` }, {
+            retry: (pass, remember) => readAll(files, at, results, pass, remember),
+            manual: () => readAll(files, at + 1, [...results, { file: files[at].name, error: 'Está protegida com palavra-passe e foi saltada.' }], password),
+            skipLabel: 'Saltar esta',
+          });
+          return;
+        }
+        results.push({ file: files[i].name, error: e.message || 'Não consegui ler este PDF.' });
+      }
+    }
+    saveAll(results);
+  }
+
+  function saveAll(results) {
+    const plan = E.planImport(S().energia || [], results);
+    if (plan.save.length) {
+      Store.update((s) => {
+        s.energia = s.energia || [];
+        plan.save.forEach(({ data, replaceId }) => {
+          const x = replaceId && s.energia.find((y) => y.id === replaceId);
+          if (x) Object.assign(x, data); else s.energia.push({ id: Store.uid(), notes: '', ...data });
+        });
+      });
+      VS.finTab = 'luz';
+      render();
+    }
+    importSummary(plan);
+  }
+
+  function importSummary(plan) {
+    const toFix = [...plan.review, ...plan.errors];
+    const line = ({ file, data }) => `<li>${esc(dmy(data.from))} a ${esc(dmy(data.to))} · ${esc(kwhTxt(data.kwh))} · ${money(data.total)} <small class="muted">${esc(file)}</small></li>`;
+    const bad = ({ file, why }) => `<li><b>${esc(file)}</b> <small class="muted">${esc(why)}</small></li>`;
+    const block = (title, list, fn) => (list.length ? `<p class="small"><b>${title} (${list.length})</b></p><ul class="small luz-import-list">${list.map(fn).join('')}</ul>` : '');
+    const html = [
+      `<p class="small bud-note">${plan.save.length ? `✔ Ficaram guardadas ${plan.save.length} fatura${plan.save.length > 1 ? 's' : ''}.` : 'Nenhuma fatura ficou guardada.'}${toFix.length ? ` ${toFix.length === 1 ? 'Uma precisa' : `${toFix.length} precisam`} de ser vista${toFix.length > 1 ? 's' : ''} à mão.` : ''}</p>`,
+      block('✔ Importadas', plan.imported, line),
+      block('↻ Substituídas (já havia uma com as mesmas datas)', plan.replaced, line),
+      block('⧉ Repetidas nesta escolha (ficou só uma)', plan.repeated, line),
+      block('🔎 Para rever (não li tudo)', plan.review, bad),
+      block('❌ Erros (não consegui ler)', plan.errors, bad),
+    ].join('');
+    openForm({
+      title: '⚡ Resumo da importação',
+      fields: [{ name: 'info', type: 'note', html }],
+      submitLabel: toFix.length ? `Rever à mão (${toFix.length})` : 'Fechar',
+      onSubmit: () => { if (toFix.length) setTimeout(() => reviewNext(toFix, 0, 0), 0); },
+    });
+  }
+
+  /** As que não se guardaram sozinhas: abre o formulário de cada uma, com o que se leu. */
+  function reviewNext(list, i, saved) {
+    if (i >= list.length) { if (list.length > 1) toast(`⚡ ${saved} de ${list.length} faturas revistas guardadas.`); return; }
+    const { file, found, why } = list[i];
+    const error = found && Object.keys(found).length ? '' : why;
+    billForm(null, found || {}, { file, error, step: `${i + 1} de ${list.length}`, after: (ok) => setTimeout(() => reviewNext(list, i + 1, saved + (ok ? 1 : 0)), 0) });
+  }
+
+  /** PDF protegido: pede a palavra-passe (e volta a tentar), ou deixa seguir sem ela. */
+  function passwordForm(name, { wrong = false, fromSaved = false, step = '' } = {}, { retry, manual, skipLabel = 'Escrever à mão' }) {
     openForm({
       title: `🔒 Fatura protegida${step ? ` (${step})` : ''}`,
       fields: [
-        { name: 'info', type: 'note', html: `<p class="small">📄 <b>${esc(files[i].name)}</b></p>
+        { name: 'info', type: 'note', html: `<p class="small">📄 <b>${esc(name)}</b></p>
           <p class="small bud-note">${wrong ? (fromSaved ? '⚠️ A palavra-passe guardada neste aparelho não abre esta fatura. Escrevam a desta.' : '⚠️ Essa palavra-passe não abre o PDF. Experimentem outra vez.')
             : 'Esta fatura está protegida com palavra-passe. Sem ela o portal não consegue ler os números.'}</p>
           <p class="small muted">Costuma vir indicada no email que traz a fatura (muitas vezes é o NIF do titular).</p>` },
@@ -239,10 +323,8 @@ window.FinancasElectricidade = function ({ render }) {
       ],
       values: { remember: '1' },
       submitLabel: 'Abrir a fatura',
-      extra: [{ label: 'Escrever à mão', onClick: () => { setTimeout(() => billForm(null, {}, { file: files[i].name, step, after: (ok) => setTimeout(() => readNext(files, i + 1, saved + (ok ? 1 : 0)), 0) }), 0); } }],
-      onSubmit: (d) => {
-        setTimeout(() => readNext(files, i, saved, d.pass, !!d.remember), 0);
-      },
+      extra: [{ label: skipLabel, onClick: () => { setTimeout(manual, 0); } }],
+      onSubmit: (d) => { setTimeout(() => retry(d.pass, !!d.remember), 0); },
     });
   }
 

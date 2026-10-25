@@ -255,5 +255,42 @@
   /** Há já uma fatura com o mesmo período? (para não a guardar duas vezes) */
   const sameBill = (bills = [], b) => bills.find((x) => x.id !== b.id && x.from === b.from && x.to === b.to);
 
-  root.Electricidade = { num, parseInvoice, findPeriod, daysOf, byMonth, series, summary, sameBill, addMonths };
+  /** O que falta numa fatura lida para a poder guardar sem a confirmar à mão ([] = está completa). */
+  function missingOf(b = {}) {
+    const out = [];
+    if (!b.from || !b.to) out.push('o período');
+    else if (b.to < b.from) out.push('datas certas');
+    if (b.kwh == null || !(Number(b.kwh) >= 0)) out.push('os kWh');
+    if (b.total == null || !Number.isFinite(Number(b.total))) out.push('o valor');
+    else if ((Number(b.credit) || 0) > Number(b.total)) out.push('um desconto que bata certo');
+    return out;
+  }
+
+  /**
+   * Várias faturas de uma vez: decide o que se guarda logo e o que fica para rever à mão.
+   * @param existing faturas já guardadas
+   * @param results [{ file, found, error }] (found = parseInvoice; error = não se conseguiu ler)
+   * @returns {{ save: [{ data, replaceId }], imported, replaced, repeated, review, errors }}
+   *   imported / replaced / repeated: [{ file, data }]; review / errors: [{ file, found, why }]
+   */
+  function planImport(existing = [], results = []) {
+    const out = { save: [], imported: [], replaced: [], repeated: [], review: [], errors: [] };
+    results.forEach(({ file, found, error }) => {
+      if (error || !found) { out.errors.push({ file, found: found || {}, why: error || 'Não consegui ler este PDF.' }); return; }
+      const miss = missingOf(found);
+      if (miss.length) { out.review.push({ file, found, why: `faltam ${miss.join(', ').replace(/, ([^,]*)$/, ' e $1')}` }); return; }
+      const data = {
+        kind: 'luz', from: found.from, to: found.to, kwh: Number(found.kwh), total: Number(found.total), credit: Math.max(0, Number(found.credit) || 0),
+        periods: found.periods || {}, power: found.power ?? null, supplier: found.supplier || '', estimated: !!found.estimated, ...(found.cpe ? { cpe: found.cpe } : {}),
+      };
+      // O mesmo período duas vezes nesta leva (o mesmo PDF escolhido duas vezes): fica a primeira.
+      if (sameBill(out.save.map((x) => x.data), { id: '', ...data })) { out.repeated.push({ file, data }); return; }
+      const twin = sameBill(existing, { id: '', ...data });
+      out.save.push({ data, replaceId: twin ? twin.id : null });
+      (twin ? out.replaced : out.imported).push({ file, data });
+    });
+    return out;
+  }
+
+  root.Electricidade = { num, parseInvoice, findPeriod, daysOf, byMonth, series, summary, sameBill, addMonths, missingOf, planImport };
 })(globalThis);
