@@ -77,6 +77,8 @@
     const f16 = { id: uid(), name: 'Mariana', role: 'filha', emoji: '👱‍♀️', color: '#8b5cf6', birthday: '', points: 0 };
     const f12 = { id: uid(), name: 'Luísa', role: 'filha', emoji: '👧', color: '#f59e0b', birthday: '', points: 0 };
     s.members = [pai, mae, f16, f12];
+    // Dados de exemplo (família inventada): uma família nova não os leva para a nuvem. Sai ao primeiro uso real.
+    s.example = true;
     s.currentUser = mae.id;
 
     const t = today();
@@ -422,6 +424,7 @@
     update(fn) {
       const before = remote ? snapshot(state) : null;
       fn(state);
+      delete state.example; // mudaram alguma coisa: já não são só os dados de exemplo
       if (remote) {
         state.currentUser = remote.memberId;
         const after = snapshot(state);

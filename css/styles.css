@@ -1319,3 +1319,11 @@ button.fin-tile.active { border-color: var(--primary); box-shadow: 0 0 0 2px var
 .ext-err { color: var(--danger, #b91c1c); }
 .ext-how { padding-left: 1.2rem; margin: 0 0 .4rem; display: grid; gap: .25rem; }
 .ext-note { margin: .5rem 0 0; }
+
+/* Criar a família: uma linha por pessoa (nome, papel, "sou eu") */
+.fam-people { border: 0; padding: 0; margin: 0; display: grid; gap: .4rem; }
+.fam-people legend { font-weight: 600; margin-bottom: .3rem; }
+#fam-rows { display: grid; gap: .4rem; }
+.fam-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: .4rem; align-items: center; }
+.fam-row input[name=fn], .fam-row select { min-width: 0; }
+.fam-me { display: inline-flex; align-items: center; gap: .25rem; font-size: .8rem; white-space: nowrap; color: var(--muted); }

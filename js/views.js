@@ -705,7 +705,7 @@
         ${card('👪 A família', `<ul class="list">${s.members.map((m) => `<li class="member-row">${avatar(m.id)}
           <div><b>${esc(m.name)}</b><br><small class="muted">${m.birthday ? `🎂 ${esc(fmtDate(m.birthday))}` : 'Sem data de nascimento'} · ⭐ ${m.points}</small></div>
           ${parent ? `<button class="btn small ghost" data-action="edit-member" data-id="${m.id}">Editar</button>` : ''}</li>`).join('')}</ul>
-          ${parent ? '' : '<p class="small muted">Só os pais podem alterar os membros.</p>'}`)}
+          ${parent ? '<div class="btn-row"><button class="btn small" data-action="add-member">＋ Pessoa</button></div><p class="small muted">Para entrar no seu telemóvel, cada pessoa usa um código de convite (em cima). Só se pode tirar da família quem ainda não tem conta.</p>' : '<p class="small muted">Só os pais podem alterar os membros.</p>'}`)}
         ${card('💾 Cópia de segurança', `${!Store.isRemote || parent ? (() => {
             const days = Copia.daysSince(Views.lastBackup?.());
             return `<p class="small">Um ficheiro com <b>todos os dados da família</b> (tarefas, agenda, finanças, saúde, receitas, compras…).

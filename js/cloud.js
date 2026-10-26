@@ -88,8 +88,19 @@
     throw new Error(msg);
   }
 
+  // Família nova: as pessoas escrevem-se aqui (não se leva a família de exemplo deste aparelho).
+  const ROLES = [['pai', 'Pai'], ['mae', 'Mãe'], ['filha', 'Filha'], ['filho', 'Filho'], ['outro', 'Outro']];
+  const ROLE_EMOJI = { pai: '👨', mae: '👩', filha: '👧', filho: '👦', outro: '🙂' };
+  const COLORS = ['#3b82f6', '#ec4899', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444', '#0ea5e9', '#84cc16'];
+  const famRow = (i, role = 'filha') => `<div class="fam-row">
+      <input name="fn" placeholder="${i ? 'Nome' : 'O teu nome'}" autocomplete="off" aria-label="Nome">
+      <select name="fr" aria-label="Papel">${ROLES.map(([v, l]) => `<option value="${v}" ${v === role ? 'selected' : ''}>${l}</option>`).join('')}</select>
+      <label class="fam-me"><input type="radio" name="me" ${i ? '' : 'checked'}> sou eu</label></div>`;
+
   function onboardingScreen() {
     const local = Store.localSnapshot();
+    // Neste aparelho só há a família de exemplo: começam do zero, com as pessoas que escreverem.
+    const fresh = !!local.example;
     const parents = local.members.filter((m) => ['pai', 'mae'].includes(m.role));
     const candidates = parents.length ? parents : local.members;
     gate(`<p>Olá! Falta ligar esta conta à vossa família.</p>
@@ -104,12 +115,17 @@
         <details class="gate-opt"><summary><b>🏠 Sou pai/mãe e quero criar a família</b></summary>
           <form id="create-form" class="gate-form">
             <label class="field"><span>Nome da família</span><input name="name" value="Família" required></label>
-            <label class="field"><span>Quem és tu?</span><select name="member">
+            ${fresh ? `<fieldset class="field fam-people"><legend>Quem é a família?</legend>
+              <div id="fam-rows">${famRow(0, 'pai')}${famRow(1, 'mae')}${famRow(2)}${famRow(3)}</div>
+              <button type="button" class="btn small" id="fam-add">＋ Mais uma pessoa</button>
+              <p class="small muted">Linhas sem nome não contam. Datas de nascimento, cores e mais pessoas: depois, em Definições.
+                Cada pessoa entra com o seu telemóvel e um código de convite: o dos <b>pais</b> dá acesso a tudo (também a um filho maior de idade, se quiserem); o dos <b>filhos</b> pede aprovação para pontos e não mostra as finanças.</p></fieldset>`
+            : `<label class="field"><span>Quem és tu?</span><select name="member">
               ${candidates.map((m) => `<option value="${esc(m.id)}">${esc(m.emoji)} ${esc(m.name)}</option>`).join('')}</select></label>
             <label class="check-line"><input type="checkbox" name="bring" checked>
               <span>Levar os dados que já estão neste dispositivo (${local.tasks.length} tarefas, ${local.events.length} compromissos, horários…)</span></label>
             <p class="small muted">Se desmarcares, começam só com os membros da família e as recompensas.
-              Depois podes mudar nomes e aniversários em Definições.</p>
+              Depois podes mudar nomes e aniversários em Definições.</p>`}
             <button class="btn primary block">Criar a família</button>
           </form></details>
       </div>
@@ -150,14 +166,37 @@
     join.code.addEventListener('input', () => { preview = null; $('#join-members').innerHTML = ''; $('#join-next').textContent = 'Continuar'; });
 
     const create = $('#create-form');
+    $('#fam-add')?.addEventListener('click', () => {
+      const rows = $('#fam-rows');
+      rows.insertAdjacentHTML('beforeend', famRow(rows.children.length));
+      rows.lastElementChild.querySelector('input').focus();
+    });
+    /** Família nova: as pessoas escritas no formulário (e quem está a criar). */
+    function people() {
+      const rows = [...create.querySelectorAll('.fam-row')].map((r) => ({
+        name: r.querySelector('[name=fn]').value.trim(), role: r.querySelector('[name=fr]').value, me: r.querySelector('[name=me]').checked,
+      })).filter((r) => r.name);
+      if (!rows.length) throw new Error('Escreve pelo menos o teu nome.');
+      const meAt = rows.findIndex((r) => r.me);
+      if (meAt < 0) throw new Error('Marca "sou eu" ao lado do teu nome.');
+      const members = rows.map((r, i) => ({ id: Store.uid(), name: r.name.slice(0, 40), role: r.role, emoji: ROLE_EMOJI[r.role], color: COLORS[i % COLORS.length], birthday: '', points: 0 }));
+      return { members, me: members[meAt].id };
+    }
     create.addEventListener('submit', async (e) => {
       e.preventDefault();
       showError('');
+      let src;
+      let me;
+      try {
+        if (fresh) { const p = people(); src = { members: p.members, rewards: local.rewards }; me = p.me; } else {
+          src = create.bring.checked ? local : { members: local.members.map((m) => ({ ...m, points: 0 })), rewards: local.rewards, contacts: local.contacts };
+          me = create.member.value;
+        }
+      } catch (err) { showError(err.message); return; }
       busy(create, true);
-      const src = create.bring.checked ? local : { members: local.members.map((m) => ({ ...m, points: 0 })), rewards: local.rewards, contacts: local.contacts };
       try {
         const { error } = await client.rpc('create_family', {
-          p_name: create.name.value.trim(), p_member_id: create.member.value, p_items: Store.toItems(src),
+          p_name: create.name.value.trim(), p_member_id: me, p_items: Store.toItems(src),
         });
         if (error) throw error;
         await afterLogin();
@@ -227,11 +266,21 @@
     return data;
   }
 
+  /** Que pessoas da família já têm conta (ids). Null sem nuvem ou sem ligação. */
+  async function membersWithAccount() {
+    const codes = await inviteCodes();
+    if (!codes?.parent_code) return null;
+    const { data, error } = await client.rpc('preview_family', { p_code: codes.parent_code });
+    if (error || !data) return null;
+    return new Set((data.members || []).filter((m) => m.taken).map((m) => m.id));
+  }
+
   window.Cloud = {
     configured,
     boot,
     signOut,
     inviteCodes,
+    membersWithAccount,
     /** Sai do modo "só neste dispositivo" e mostra o ecrã de entrada. */
     goToLogin() { setLS(MODE_KEY, null); loginScreen(); },
     info: () => ({ email: session?.user?.email, accounts, role: profile?.role }),

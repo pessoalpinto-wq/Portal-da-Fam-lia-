@@ -7,8 +7,10 @@ compras, refeições e recados.
 ## Como usar
 
 1. Abre o `index.html` no navegador (ou o endereço do GitHub Pages, ver abaixo).
-2. **Pai ou mãe:** carrega em "Criar conta", depois em **"Sou pai/mãe e quero criar a família"**.
-   Podes levar os dados que já tinhas neste dispositivo.
+2. **Pai ou mãe:** carrega em "Criar conta", depois em **"Sou pai/mãe e quero criar a família"** e escreve
+   quem é a família (nome e papel de cada pessoa; marca "sou eu" ao teu lado). Uma família nova começa vazia,
+   sem os dados de exemplo. Se já usavas o portal neste dispositivo sem conta, podes levar esses dados.
+   Mais tarde, em **Definições → A família**, juntam-se pessoas (＋ Pessoa) ou tira-se quem ainda não tem conta.
 3. Em **Definições** aparecem dois **códigos de convite**:
    - código dos **pais** → para o outro pai/mãe (acesso total);
    - código das **filhas** → para as filhas (acesso com aprovação).

@@ -460,6 +460,16 @@
     memberId: !Store.isParent() ? S().currentUser : VS.schoolMember, every: 1, day: 1, start: '08:30', end: '10:00', room: '', teacher: '',
   }));
 
+  /** Tira uma pessoa da família (sem conta): sai dos compromissos e das tarefas; horários, testes e mesada saem com ela. */
+  function removeMember(m) {
+    Store.update((s) => {
+      s.members = s.members.filter((x) => x.id !== m.id);
+      s.events.forEach((e) => { if (Array.isArray(e.members)) e.members = e.members.filter((id) => id !== m.id); if (e.driver === m.id) e.driver = ''; });
+      s.tasks.forEach((t) => { if (t.assignee === m.id) t.assignee = ''; });
+      ['classes', 'exams', 'allowances'].forEach((c) => { s[c] = (s[c] || []).filter((x) => x.memberId !== m.id); });
+    });
+  }
+
   const actions = {
     'add-event': eventForm,
     'edit-event': eventForm,
@@ -607,15 +617,39 @@
     'add-contact': edit('contacts', 'contact', 'contacto', () => ({ category: 'Escola', phone: '', email: '', notes: '' })),
     'edit-contact': edit('contacts', 'contact', 'contacto', () => ({})),
 
-    'edit-member': (el) => {
+    'edit-member': async (el) => {
       if (!Store.isParent()) return;
       const m = S().members.find((x) => x.id === el.dataset.id);
       if (!m) return;
+      // Tirar alguém da família: nunca a própria pessoa, nem quem já tem conta (deixava de conseguir entrar).
+      let canRemove = m.id !== S().currentUser && S().members.length > 1;
+      if (canRemove && Store.isRemote) {
+        const withAccount = await Cloud.membersWithAccount().catch(() => null); // sem resposta (sem rede): não deixa tirar
+        canRemove = !!withAccount && !withAccount.has(m.id);
+      }
       UI.openForm({
         title: `Editar: ${m.name}`,
         fields: Forms.member(),
         values: m,
         onSubmit: (data) => Store.update((s) => Object.assign(s.members.find((x) => x.id === m.id), data)),
+        ...(canRemove ? { onDelete: () => removeMember(m), deleteLabel: 'Tirar da família',
+          deleteConfirm: `Tirar ${m.name} da família? Saem também os horários, os testes e a mesada; as tarefas e os compromissos ficam, sem esta pessoa.`,
+          deleteToast: `${m.name} saiu da família.` } : {}),
+      });
+    },
+    'add-member': () => {
+      if (!Store.isParent()) return;
+      const n = S().members.length;
+      const COLORS = ['#3b82f6', '#ec4899', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444', '#0ea5e9', '#84cc16'];
+      UI.openForm({
+        title: '＋ Pessoa na família',
+        fields: Forms.member(),
+        values: { role: 'filha', emoji: '🙂', color: COLORS[n % COLORS.length] },
+        onSubmit: (data) => {
+          if (!data.emoji) data.emoji = { pai: '👨', mae: '👩', filha: '👧', filho: '👦' }[data.role] || '🙂';
+          Store.update((s) => { s.members.push({ id: Store.uid(), points: 0, ...data }); });
+          toast(`👋 ${data.name} juntou-se à família. Para entrar no telemóvel, usa o código de convite (Definições).`);
+        },
       });
     },
     'push-on': (el) => withButton(el, Notify.enable, '🔔 Lembretes ligados neste aparelho!'),
