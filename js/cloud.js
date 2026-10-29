@@ -193,6 +193,7 @@
     await Store.connect({ client, familyId: data.family_id, memberId: data.member_id, role: data.role });
     onReady();
     loadAccounts();
+    window.Notify?.resync().catch((e) => console.warn('lembretes', e));
   }
 
   async function loadAccounts() {

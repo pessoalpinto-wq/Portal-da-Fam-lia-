@@ -58,12 +58,28 @@
     await navigator.serviceWorker.ready;
     const sub = await reg.pushManager.getSubscription()
       || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64uToBytes(cfg.vapidPublicKey) });
+    await save(ctx, sub);
+  }
+
+  async function save(ctx, sub) {
     const { endpoint, keys } = sub.toJSON();
     const { error } = await ctx.client.from('push_subscriptions').upsert({
       endpoint, p256dh: keys.p256dh, auth: keys.auth, family_id: ctx.profile.family_id,
       user_agent: navigator.userAgent.slice(0, 200),
     }, { onConflict: 'endpoint' });
     if (error) throw error;
+  }
+
+  /**
+   * O telemóvel pode trocar o endereço das notificações sem avisar (ex.: depois de actualizar o iOS):
+   * o aparelho continua "ligado", mas o servidor envia para o endereço antigo e nada chega.
+   * Ao abrir o portal (e antes de um teste) volta a guardar o endereço actual deste aparelho.
+   */
+  async function resync() {
+    const ctx = Cloud.ctx();
+    if (!ctx || !supported() || Notification.permission !== 'granted') return;
+    const sub = await currentSubscription();
+    if (sub) await save(ctx, sub);
   }
 
   async function disable() {
@@ -76,6 +92,7 @@
 
   async function sendTest() {
     const ctx = Cloud.ctx();
+    await resync();
     const { data, error } = await ctx.client.functions.invoke('send-reminders', { body: { test: true } });
     if (error) throw error;
     return data;
@@ -201,6 +218,6 @@
   }
 
   window.Notify = {
-    supported, enable, disable, sendTest, savePref, fillNotifyPanel, fillCalendarPanel, resetCalendar, downloadICS,
+    supported, enable, disable, resync, sendTest, savePref, fillNotifyPanel, fillCalendarPanel, resetCalendar, downloadICS,
   };
 })();
