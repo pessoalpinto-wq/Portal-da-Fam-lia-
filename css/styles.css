@@ -1283,6 +1283,9 @@ body:has(.select-bar) .assist-fab { display: none; }
 .tripdoc-ico { font-size: 1.4rem; line-height: 1; }
 .tripdoc-txt { display: grid; min-width: 0; }
 .tripdoc-txt b, .tripdoc-txt small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tripcontact-acts { display: flex; align-items: center; gap: .1rem; flex-shrink: 0; padding-right: .25rem; }
+.tripcontact-acts a.icon-btn { text-decoration: none; }
+.tripcontacts + p, h3.sub .linkish + .linkish { margin-left: .25rem; }
 
 /* ---------- Orçamento: por conta ---------- */
 .bud-accs { display: flex; gap: .4rem; overflow-x: auto; padding-bottom: .3rem; margin-bottom: .75rem; scrollbar-width: thin; }

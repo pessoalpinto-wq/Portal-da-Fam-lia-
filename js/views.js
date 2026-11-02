@@ -500,6 +500,7 @@
         ${tr.lodging ? `<p>🏨 ${esc(tr.lodging)}</p>` : ''}
         ${tr.notes ? `<p class="muted pre">${esc(tr.notes)}</p>` : ''}
         ${Views.tripDocs ? Views.tripDocs(tr) : ''}
+        ${Views.tripContacts ? Views.tripContacts(tr) : ''}
         <h3 class="sub">🧳 Mala e preparativos <button class="linkish" data-action="copy-pack" data-id="${tr.id}">📋 copiar lista</button>
           ${packDone ? `<button class="linkish" data-action="reset-pack" data-id="${tr.id}">↺ desmarcar tudo</button>` : ''}</h3>
         ${tr.packing.length ? progress(packDone, tr.packing.length) : '<p class="small muted">Copia a lista de outra viagem ou começa por um modelo (praia, neve, avião…) em <b>📋 copiar lista</b>.</p>'}
