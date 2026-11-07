@@ -239,14 +239,16 @@
 
     const notes = [...s.notes].sort((a, b) => (!!b.pinned - !!a.pinned) || b.date.localeCompare(a.date)).slice(0, 3);
     const shopLeft = s.shopping.filter((x) => !x.done).length;
+    const ideasOpen = window.Ideias ? Ideias.visible(s.ideas, s.currentUser).filter((x) => !x.done).length : 0;
     const trip = s.trips.filter((x) => (x.end || x.start) >= t).sort((a, b) => a.start.localeCompare(b.start))[0];
 
     return `<div class="page-head"><div><h1>${hello}${me ? `, ${esc(me.name)}` : ''}! 👋</h1>
       <p class="muted">${esc(fmtLongDate(t))}</p></div>
-      <div class="quick">${addBtn('add-event', 'Compromisso')}${addBtn('add-task', 'Tarefa')}${voiceTaskBtn()}${addBtn('add-note', 'Recado')}</div></div>
+      <div class="quick">${addBtn('add-event', 'Compromisso')}${addBtn('add-task', 'Tarefa')}${voiceTaskBtn()}${addBtn('add-note', 'Recado')}<a class="btn small" href="#/ideias" title="Apontar uma ideia">💭 Ideia</a></div></div>
       ${Guia.card(s, { parent: Store.isParent(), me: s.currentUser, remote: Store.isRemote, esc, onChange: () => Views.rerender?.(), lastBackup: Views.lastBackup?.() })}
       <nav class="tiles" aria-label="Atalhos">
         <a class="tile" href="#/compras"><b>🛒 ${shopLeft}</b><small>por comprar</small></a>
+        ${ideasOpen ? `<a class="tile" href="#/ideias"><b>💭 ${ideasOpen}</b><small>ideia${ideasOpen === 1 ? '' : 's'} por rever</small></a>` : ''}
         ${trip ? `<a class="tile" href="#/viagens" title="${esc(trip.destination)}"><b>✈️ ${trip.start > t ? tripDays(trip) : '🧳'}</b><small>${trip.start > t ? `dia${tripDays(trip) === 1 ? '' : 's'} · ` : 'a decorrer · '}${esc(trip.destination)}</small></a>`
           : '<a class="tile" href="#/viagens"><b>✈️ —</b><small>sem viagem</small></a>'}
         ${me ? `<a class="tile" href="#/tarefas"><b>⭐ ${Number(me.points) || 0}</b><small>os meus pontos</small></a>` : ''}

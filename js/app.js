@@ -713,7 +713,7 @@
     }),
   };
 
-  modules = [window.Fase4, window.Refeicoes, window.TarefasExtra, window.ComprasExtra, window.FinancasPatrimonio, window.FinancasOrcamento, window.FinancasTrabalhos, window.FinancasElectricidade, window.ViagemDocs, window.ViagemContactos, window.Assistente, window.AgendaExterna].filter(Boolean).map((make) => make({ render, withButton }));
+  modules = [window.Fase4, window.Refeicoes, window.TarefasExtra, window.ComprasExtra, window.FinancasPatrimonio, window.FinancasOrcamento, window.FinancasTrabalhos, window.FinancasElectricidade, window.ViagemDocs, window.ViagemContactos, window.Assistente, window.AgendaExterna, window.CaixaIdeias].filter(Boolean).map((make) => make({ render, withButton }));
   modules.forEach((m) => {
     Object.assign(actions, m.actions);
     Object.assign(inlineForms, m.inlineForms || {});

@@ -5,6 +5,33 @@
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
 
+// Sem rede (no carro, na garagem…): o portal abre na mesma com a última versão vista.
+// Com rede vai sempre buscar a versão nova ("rede primeiro"); a cópia só se usa quando a rede falha.
+// Os dados ficam no próprio portal (localStorage) e o que se mudar é enviado quando voltar a rede.
+const APP_CACHE = 'portal-app';
+self.addEventListener('fetch', (event) => {
+  const req = event.request;
+  const url = new URL(req.url);
+  if (req.method !== 'GET' || url.origin !== self.location.origin || url.pathname.includes('/partilha/')) return;
+  event.respondWith((async () => {
+    try {
+      const res = await fetch(req);
+      if (res.ok && res.type === 'basic') {
+        const copy = res.clone();
+        event.waitUntil(caches.open(APP_CACHE).then((c) => c.put(req, copy)).catch(() => {}));
+      }
+      return res;
+    } catch (err) {
+      const cache = await caches.open(APP_CACHE);
+      const hit = await cache.match(req) || await cache.match(req, { ignoreSearch: true })
+        || (req.mode === 'navigate' && (await cache.match(new URL('index.html', self.registration.scope).href, { ignoreSearch: true })
+          || await cache.match(self.registration.scope)));
+      if (hit) return hit;
+      throw err;
+    }
+  })());
+});
+
 // Partilha (manifest.webmanifest → share_target, POST para "partilhar"): os ficheiros ficam na cache até a
 // página os ler (js/financas-orcamento.js); o texto / link segue para a página como antes (?title=&text=&url=).
 self.addEventListener('fetch', (event) => {
