@@ -185,8 +185,55 @@
     return blocks.filter(([, l], i) => i === 0 || l.length).map(([h, l]) => [h, ...l].join('\n')).join('\n\n');
   }
 
+  /* ---------- Frequências (referência) ---------- */
+  const mhz = (n, d = 5) => Number(n.toFixed(d)).toString();
+  /** PMR446 analógico: 16 canais de 12,5 kHz a partir de 446,00625 MHz (os 9 a 16 só desde 2018). */
+  const pmr = (ch) => mhz(446.00625 + (ch - 1) * 0.0125);
+  /** LPD433: 69 canais de 25 kHz a partir de 433,075 MHz. */
+  const lpd = (ch) => mhz(433.075 + (ch - 1) * 0.025, 3);
+  /** CB 27 MHz (40 canais CEPT). Os canais 23 a 25 estão fora de ordem, como em todo o mundo. */
+  const CB = [26.965, 26.975, 26.985, 27.005, 27.015, 27.025, 27.035, 27.055, 27.065, 27.075, 27.085, 27.105, 27.115,
+    27.125, 27.135, 27.155, 27.165, 27.175, 27.185, 27.205, 27.215, 27.225, 27.255, 27.235, 27.245];
+  const cb = (ch) => mhz(ch <= 25 ? CB[ch - 1] : 27.265 + (ch - 26) * 0.01, 3);
+
+  // tx: 'livre' (sem licença) · 'licenca' (só com licença de amador) · 'perigo' (ouvir; emitir só em perigo de vida) · 'ouvir'
+  const FREQS = [
+    { id: 'pmr', title: '📻 PMR446 (sem licença)', radio: true, note: 'Usado pelos walkie-talkies baratos de lojas e de caça. FM estreito (12,5 kHz), 0,5 W. É onde mais gente vos pode ouvir sem licença. Os canais 9 a 16 só existem nos rádios PMR posteriores a 2018.', rows: [
+      { key: true, name: 'PMR 8 (chamada de emergência)', freq: pmr(8), ch: 'PMR 8', mode: 'FM estreito', tx: 'livre', note: 'O mais usado na Europa como canal de emergência e de chamada entre desconhecidos. Sem tom (CTCSS desligado) para ouvir toda a gente. Convenção, não é oficial.' },
+      { key: true, name: 'PMR 1 (chamada geral)', freq: pmr(1), ch: 'PMR 1', mode: 'FM estreito', tx: 'livre', note: 'Canal de origem de quase todos os rádios: é onde fica quem nunca mudou de canal.' },
+      { name: 'PMR 3', freq: pmr(3), ch: 'PMR 3', mode: 'FM estreito', tx: 'livre', note: 'Usado por grupos de preparação ("preppers") em vários países.' },
+      ...[2, 4, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15, 16].map((n) => ({ name: `PMR ${n}`, freq: pmr(n), ch: `PMR ${n}`, mode: 'FM estreito', tx: 'livre', note: '' })),
+    ] },
+    { id: 'amador', title: '📡 Radioamador (precisa de licença)', radio: true, note: 'Frequências de chamada da IARU Região 1 (Europa). Ouvir é livre. Para emitir é precisa licença da ANACOM, excepto em perigo de vida (ver abaixo).', rows: [
+      { key: true, name: '2 m – chamada FM', freq: '145.500', mode: 'FM', tx: 'licenca', note: 'Frequência de chamada em VHF: em emergências é a primeira a escutar. Depois do contacto, mudem para outra frequência.' },
+      { key: true, name: '70 cm – chamada FM', freq: '433.500', mode: 'FM', tx: 'licenca', note: 'Frequência de chamada em UHF.' },
+      { name: '2 m – APRS (dados)', freq: '144.800', mode: 'dados', tx: 'ouvir', note: 'Posições e mensagens curtas por pacotes. Não é para voz.' },
+      { name: 'HF 80 m – emergência', freq: '3.760', mode: 'LSB', tx: 'ouvir', note: 'Centro de actividade de emergência da IARU. Precisa de um rádio de HF (os portáteis de VHF/UHF não chegam lá).' },
+      { name: 'HF 40 m – emergência', freq: '7.110', mode: 'LSB', tx: 'ouvir', note: 'Idem, rádio de HF.' },
+      { name: 'HF 20 m – emergência', freq: '14.300', mode: 'USB', tx: 'ouvir', note: 'Idem, rádio de HF.' },
+    ] },
+    { id: 'lpd', title: '🔑 LPD433 (sem licença, muito pouca potência)', radio: true, note: '69 canais de 433,075 a 434,775 MHz, só 10 mW: alcance de poucas centenas de metros. Fica dentro da banda dos 70 cm de radioamador.', rows: [
+      { name: 'LPD 1', freq: lpd(1), ch: 'LPD 1', mode: 'FM', tx: 'livre', note: '' },
+      { name: 'LPD 69', freq: lpd(69), ch: 'LPD 69', mode: 'FM', tx: 'livre', note: 'Os outros canais vão de 25 em 25 kHz entre estes dois.' },
+    ] },
+    { id: 'cb', title: '🚚 CB 27 MHz (sem licença)', radio: false, note: 'A banda do cidadão (camionistas, rádio nos carros). Precisa de um rádio CB próprio: os portáteis de VHF/UHF não emitem nem recebem nos 27 MHz.', rows: [
+      { key: true, name: 'CB 9 – emergência', freq: cb(9), ch: 'CB 9', mode: 'AM / FM', tx: 'livre', note: 'Canal de emergência internacional da banda do cidadão.' },
+      { key: true, name: 'CB 19 – estrada', freq: cb(19), ch: 'CB 19', mode: 'AM / FM', tx: 'livre', note: 'Camionistas e estrada: boas notícias sobre trânsito e cortes.' },
+      ...Array.from({ length: 40 }, (_, i) => i + 1).filter((n) => n !== 9 && n !== 19).map((n) => ({ name: `CB ${n}`, freq: cb(n), ch: `CB ${n}`, mode: 'AM / FM', tx: 'livre', note: '' })),
+    ] },
+    { id: 'outros', title: '⚓ Outras para ouvir', radio: true, note: 'Serviços com licença própria: ouçam para saber o que se passa. Só emitam em perigo de vida.', rows: [
+      { key: true, name: 'VHF marítimo canal 16', freq: '156.800', ch: 'Mar 16', mode: 'FM', tx: 'perigo', note: 'Socorro e chamada no mar, escutado pela Marinha e pelas capitanias. Útil perto da costa.' },
+      { name: 'VHF marítimo canal 9', freq: '156.450', ch: 'Mar 9', mode: 'FM', tx: 'ouvir', note: 'Chamada entre barcos de recreio.' },
+      { name: 'Rádio FM: Antena 1 e rádios locais', freq: '87.5–108', mode: 'FM largo', tx: 'ouvir', note: 'É por aqui que a Proteção Civil dá os avisos. Muitos portáteis de amador recebem FM: procurem a Antena 1 da vossa zona e escrevam-na nos canais combinados.' },
+    ] },
+  ];
+  /** As mais importantes (vão para a folha impressa). */
+  const keyFreqs = () => FREQS.flatMap((g) => g.rows.filter((r) => r.key));
+  const TX = { livre: '✅ livre', licenca: '🎫 licença', perigo: '🆘 só em perigo', ouvir: '👂 só ouvir' };
+
   root.Emergencia = {
     DAYS, SOON, RECHARGE, CATS, KIT, SPECIES, NUMBERS,
+    FREQS, TX, keyFreqs, pmr, lpd, cb,
     need, recommended, seed, expiry, charge, phoneCharges, summary, planText, speciesIcon, daysBetween, addDays,
   };
 })(globalThis);
