@@ -1345,3 +1345,38 @@ button.fin-tile.active { border-color: var(--primary); box-shadow: 0 0 0 2px var
 .idea-meta { display: flex; align-items: center; gap: .3rem; flex-wrap: wrap; }
 .idea-acts { display: flex; gap: .35rem; flex-wrap: wrap; align-items: center; }
 .idea-acts .icon-btn { margin-left: auto; }
+
+/* ---------- 🆘 Emergência ---------- */
+.emg-sum { display: grid; gap: .4rem; margin-bottom: 1rem; }
+.emg-alerts { margin: 0; font-weight: 600; color: var(--danger); }
+.emg-list { gap: .25rem; }
+.emg-item { display: grid; grid-template-columns: 1fr auto; align-items: start; gap: .1rem .5rem; padding: .35rem .2rem; border-bottom: 1px solid var(--border); }
+.emg-item:last-child { border-bottom: 0; }
+.emg-check { display: flex; gap: .55rem; align-items: flex-start; cursor: pointer; }
+.emg-check input { width: 1.2rem; height: 1.2rem; margin-top: .1rem; flex: none; }
+.emg-item.have .emg-name { color: var(--muted); }
+.emg-meta { grid-column: 1; padding-left: 1.75rem; color: var(--muted); }
+.emg-item.expired .emg-meta { color: var(--danger); font-weight: 600; }
+.emg-item.soon .emg-meta { color: var(--warn); font-weight: 600; }
+.emg-edit { grid-column: 2; grid-row: 1 / span 2; }
+.emg-dev { display: flex; justify-content: space-between; align-items: center; gap: .5rem; flex-wrap: wrap; padding: .35rem 0; }
+.emg-dev.due { border-left: 3px solid var(--warn); padding-left: .5rem; }
+.emg-dev-acts { display: flex; gap: .3rem; align-items: center; }
+.emg-big { font-size: 1.1rem; margin: 0 0 .5rem; }
+.emg-plan { display: grid; gap: .15rem; margin: 0; }
+.emg-plan dt { font-weight: 600; font-size: .85rem; margin-top: .4rem; }
+.emg-plan dd { margin: 0; }
+.emg-numbers li { display: flex; gap: .5rem; align-items: baseline; flex-wrap: wrap; }
+.emg-numbers a { font-weight: 700; }
+.emg-steps { margin: 0; padding-left: 1.2rem; display: grid; gap: .3rem; }
+.emg-chans { width: 100%; border-collapse: collapse; font-size: .9rem; }
+.emg-chans th, .emg-chans td { text-align: left; padding: .3rem .4rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+.emg-wrap { overflow-x: auto; }
+.emg-print { display: none; }
+@media print {
+  body.print-emg * { visibility: hidden; }
+  body.print-emg .emg-print, body.print-emg .emg-print * { visibility: visible; }
+  body.print-emg .emg-print { display: block; position: absolute; inset: 0 auto auto 0; width: 100%; color: #000; background: #fff; font-size: 11pt; }
+  body.print-emg .emg-print pre { white-space: pre-wrap; font-family: inherit; }
+  body.print-emg .emg-print ul { list-style: none; padding-left: 0; }
+}
