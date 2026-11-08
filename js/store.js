@@ -68,6 +68,8 @@
     energia: [],
     // Caixa de ideias: cada um aponta as suas (privadas, a não ser que as partilhe)
     ideas: [],
+    // Emergência: kit de 72 h, plano da família, powerbanks, rádios e animais (a família toda vê)
+    emergencia: [],
     // Finanças: Banco dos Pais (juros dos mealheiros; só os pais alteram)
     savings: [],
   });
@@ -226,7 +228,7 @@
   const COLLS = ['members', 'events', 'tasks', 'rewards', 'redemptions', 'classes', 'exams',
     'projects', 'trips', 'shopping', 'notes', 'contacts',
     'money', 'allowances', 'goals', 'bills', 'dates', 'health', 'healthcards', 'docs', 'polls', 'votes', 'photos',
-    'recipes', 'pantry', 'challenges', 'savings', 'products', 'staples', 'shopstats', 'shoptrip', 'groceries', 'shopstores', 'shopreqs', 'mealhist', 'faccounts', 'debts', 'fsnaps', 'ftx', 'fbudgets', 'frules', 'jobs', 'energia', 'ideas'];
+    'recipes', 'pantry', 'challenges', 'savings', 'products', 'staples', 'shopstats', 'shoptrip', 'groceries', 'shopstores', 'shopreqs', 'mealhist', 'faccounts', 'debts', 'fsnaps', 'ftx', 'fbudgets', 'frules', 'jobs', 'energia', 'ideas', 'emergencia'];
   const keyOf = (r) => `${r.coll}/${r.id}`;
 
   function toItems(s) {
@@ -451,7 +453,7 @@
     wipe() {
       // Mantém o que é "estrutural" da família; apaga o dia-a-dia.
       const keep = new Set(['members', 'rewards', 'contacts', 'allowances', 'goals', 'money', 'bills',
-        'dates', 'health', 'healthcards', 'docs', 'photos', 'recipes', 'pantry', 'savings', 'products', 'staples', 'shopstats', 'groceries', 'shopstores', 'mealhist', 'faccounts', 'debts', 'fsnaps', 'ftx', 'fbudgets', 'frules', 'jobs', 'energia', 'ideas']);
+        'dates', 'health', 'healthcards', 'docs', 'photos', 'recipes', 'pantry', 'savings', 'products', 'staples', 'shopstats', 'groceries', 'shopstores', 'mealhist', 'faccounts', 'debts', 'fsnaps', 'ftx', 'fbudgets', 'frules', 'jobs', 'energia', 'ideas', 'emergencia']);
       Store.update((s) => {
         Object.keys(EMPTY()).forEach((k) => {
           if (Array.isArray(s[k]) && !keep.has(k)) s[k] = [];
