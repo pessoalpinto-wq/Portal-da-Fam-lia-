@@ -1380,3 +1380,8 @@ button.fin-tile.active { border-color: var(--primary); box-shadow: 0 0 0 2px var
   body.print-emg .emg-print pre { white-space: pre-wrap; font-family: inherit; }
   body.print-emg .emg-print ul { list-style: none; padding-left: 0; }
 }
+.emg-freq { border-top: 1px solid var(--border); padding: .4rem 0; }
+.emg-freq summary { cursor: pointer; font-weight: 600; padding: .2rem 0; }
+.emg-mhz { font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 600; }
+.emg-tx { white-space: nowrap; font-size: .8rem; }
+.emg-tx.licenca, .emg-tx.perigo { color: var(--warn); }

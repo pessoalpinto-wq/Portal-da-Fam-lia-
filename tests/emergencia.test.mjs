@@ -91,3 +91,21 @@ test('o plano não mostra blocos vazios', () => {
   assert.doesNotMatch(t, /Em casa|Rádios|Animais/);
   assert.match(t, /📞 Números/);
 });
+
+test('frequências: PMR446, LPD433 e CB 27 MHz', () => {
+  assert.equal(E.pmr(1), '446.00625');
+  assert.equal(E.pmr(8), '446.09375');
+  assert.equal(E.pmr(16), '446.19375');
+  assert.equal(E.lpd(1), '433.075');
+  assert.equal(E.lpd(69), '434.775');
+  assert.equal(E.cb(9), '27.065');
+  assert.equal(E.cb(19), '27.185');
+  assert.deepEqual([22, 23, 24, 25, 26].map(E.cb), ['27.225', '27.255', '27.235', '27.245', '27.265']);
+  assert.equal(E.cb(40), '27.405');
+  const g = Object.fromEntries(E.FREQS.map((x) => [x.id, x.rows]));
+  assert.equal(g.pmr.length, 16);
+  assert.equal(g.cb.length, 40);
+  assert.equal(new Set(g.cb.map((r) => r.freq)).size, 40);
+  assert.deepEqual(E.keyFreqs().map((r) => r.freq), ['446.09375', '446.00625', '145.500', '433.500', '27.065', '27.185', '156.800']);
+  E.FREQS.flatMap((x) => x.rows).forEach((r) => assert.ok(E.TX[r.tx], r.name));
+});

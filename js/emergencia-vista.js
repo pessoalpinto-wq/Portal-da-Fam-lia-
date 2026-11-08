@@ -174,7 +174,27 @@ window.EmergenciaVista = function ({ render }) {
         <li>Falar curto. Só um fala de cada vez: enquanto se carrega no botão não se ouve nada.</li>
         <li>Se ninguém responder, tentar no canal alternativo e à hora de escuta combinada.</li>
         <li>Poupar a bateria: desligar o rádio entre as horas de escuta.</li></ol>
-        <p class="small muted">⚖️ Para emitir nas frequências de radioamador é precisa licença (ANACOM). Para quem não a tem, os canais PMR446 (446 MHz) são de uso livre na Europa.</p>`)}`;
+        <p class="small muted">⚖️ Para emitir nas frequências de radioamador é precisa licença (ANACOM). Para quem não a tem, os canais PMR446 (446 MHz) são de uso livre na Europa.</p>`)}
+      ${freqCard()}`;
+  }
+
+  /* ---------- Frequências de emergência (referência fixa) ---------- */
+  const freqRow = (g) => (r) => `<tr><td><b>${esc(r.name)}</b>${r.note ? `<br><small class="muted">${esc(r.note)}</small>` : ''}</td>
+    <td class="emg-mhz">${esc(r.freq)}</td><td>${esc(r.mode)}</td><td class="emg-tx ${r.tx}">${E.TX[r.tx]}</td>
+    <td>${g.radio ? `<button class="btn small" data-action="emg-use-freq" data-group="${g.id}" data-name="${esc(r.name)}" title="Juntar aos canais combinados">＋</button>` : ''}</td></tr>`;
+  function freqCard() {
+    const open = VS.emgFreqOpen || 'pmr';
+    return card('📡 Frequências de emergência', `<p class="small">Referência para ouvir e pedir ajuda. Os vossos portáteis de VHF/UHF chegam ao PMR446, ao LPD433,
+        às frequências de amador de 2 m e 70 cm, ao marítimo e (quase todos) à rádio FM. A CB e o HF precisam de outros rádios.
+        Com <b>＋</b> juntam uma frequência aos canais combinados.</p>
+      ${E.FREQS.map((g) => `<details class="emg-freq" ${g.id === open ? 'open' : ''}><summary>${esc(g.title)}</summary>
+        <p class="small muted">${esc(g.note)}</p>
+        <div class="emg-wrap"><table class="emg-chans"><thead><tr><th>Nome</th><th>MHz</th><th>Modo</th><th>Emitir</th><th></th></tr></thead>
+        <tbody>${g.rows.map(freqRow(g)).join('')}</tbody></table></div></details>`).join('')}
+      <p class="small muted">🆘 Em perigo de vida, o Regulamento das Radiocomunicações (UIT) permite usar qualquer frequência e qualquer meio para pedir socorro.
+        Digam "<b>Mayday</b>" três vezes (perigo de vida) ou "<b>Pan-pan</b>" (urgência), quem são, onde estão e o que se passa.</p>
+      <p class="small muted">⚖️ Em rigor, no PMR446 a lei pede rádios PMR homologados (antena fixa, 0,5 W). Com um portátil de amador, ponham a potência no mínimo (Low).
+        Ouvir qualquer uma destas frequências é sempre permitido.</p>`);
   }
 
   /* ---------- Animais ---------- */
@@ -230,6 +250,7 @@ window.EmergenciaVista = function ({ render }) {
         const need = E.need(x, { people: people(), pets: pets() });
         return `<li>${x.have ? '☑' : '☐'} ${esc(x.name)}${need ? ` (${esc(need)})` : ''}${x.expires ? ` · validade ${esc(fmtDate(x.expires))}` : ''}</li>`;
       }).join('')}</ul>`).join('')}` : ''}
+      <h2>📡 Frequências de emergência</h2><ul>${E.keyFreqs().map((r) => `<li>${esc(r.freq)} MHz · ${esc(r.name)} · ${esc(r.mode)} · ${E.TX[r.tx]}</li>`).join('')}</ul>
       <p><small>Impresso a ${esc(fmtDate(today()))} · Portal da Família</small></p>`;
   }
 
@@ -268,6 +289,12 @@ window.EmergenciaVista = function ({ render }) {
     ...(kind === 'powerbank' ? { preset: { lastCharge: today() } } : kind === 'radio' ? { preset: { lastCheck: today(), battery: 'cheia' } } : {}),
   });
 
+  // Lembra-se do grupo de frequências aberto entre redesenhos.
+  document.addEventListener('toggle', (e) => {
+    const d = e.target;
+    if (d.classList?.contains('emg-freq') && d.open) VS.emgFreqOpen = E.FREQS[[...document.querySelectorAll('.emg-freq')].indexOf(d)]?.id;
+  }, true);
+
   const actions = {
     'emg-tab': (el) => { VS.emgTab = el.dataset.id; render(); },
     'emg-filter': (el) => { VS.emgFilter = el.dataset.id; render(); },
@@ -284,6 +311,13 @@ window.EmergenciaVista = function ({ render }) {
     'emg-radio': edit('radio'),
     'emg-channel': edit('canal'),
     'emg-pet': edit('animal'),
+    'emg-use-freq': (el) => {
+      const r = E.FREQS.find((g) => g.id === el.dataset.group)?.rows.find((x) => x.name === el.dataset.name);
+      if (!r) return;
+      if (of('canal').some((c) => c.freq === r.freq)) { toast('Essa frequência já está nos canais combinados.'); return; }
+      Store.update((s) => { s.emergencia.push({ id: Store.uid(), kind: 'canal', name: r.name, freq: r.freq, channel: r.ch || '', tone: '', schedule: '', notes: r.note || '' }); });
+      toast(`📡 ${r.name} junto aos canais combinados.`);
+    },
     'emg-charged': (el) => { change(el.dataset.id, (b) => { b.lastCharge = today(); b.level = 100; }); toast('🔋 Carregado. Próximo lembrete daqui a 3 meses.'); },
     'emg-tested': (el) => { change(el.dataset.id, (r) => { r.lastCheck = today(); r.battery = 'cheia'; }); toast('📻 Testado e carregado.'); },
     'emg-copy': async () => {
