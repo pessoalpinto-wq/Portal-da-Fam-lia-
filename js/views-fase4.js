@@ -382,7 +382,9 @@
     const [cls, label] = docStatus(d);
     return `<li class="doc ${cls}"><button class="item-main" data-action="edit-doc" data-id="${d.id}">
       <span class="title">🔐 ${esc(d.type)}${d.ref ? ` <small class="muted">${esc(d.ref)}</small>` : ''}</span>
-      <small class="status">${esc(label)}</small></button>${d.memberId ? avatar(d.memberId, 'sm') : ''}</li>`;
+      <small class="status">${esc(label)}</small></button>
+      ${d.file ? `<button class="icon-btn small" data-action="doc-file-open" data-id="${d.id}" title="Abrir ${esc(d.file.name)}" aria-label="Abrir o documento anexado">📎</button>` : ''}
+      ${d.memberId ? avatar(d.memberId, 'sm') : ''}</li>`;
   };
 
   /** Consultas/doses marcadas ("próxima vez") cuja data já passou sem registo novo. */
