@@ -62,7 +62,10 @@
       </div></fieldset>`;
     }
     let input;
-    if (f.type === 'textarea') {
+    if (f.type === 'file') {
+      // Ficheiro a anexar (readForm devolve o File escolhido, ou null).
+      input = `<input id="${id}" type="file" name="${f.name}" ${f.accept ? `accept="${esc(f.accept)}"` : ''} ${req}>`;
+    } else if (f.type === 'textarea') {
       input = `<textarea id="${id}" name="${f.name}" rows="${f.rows || 3}" ${req} placeholder="${esc(f.placeholder || '')}">${esc(v)}</textarea>`;
     } else if (f.type === 'select') {
       input = `<select id="${id}" name="${f.name}" ${req}>${f.options.map(([ov, ol]) =>
@@ -83,6 +86,8 @@
       if (f.type === 'note') return;
       if (f.type === 'members') {
         out[f.name] = [...form.querySelectorAll(`input[name="${f.name}"]:checked`)].map((i) => i.value);
+      } else if (f.type === 'file') {
+        out[f.name] = form.elements[f.name]?.files?.[0] || null;
       } else {
         const el = form.elements[f.name];
         const raw = el ? el.value.trim() : '';

@@ -745,8 +745,7 @@ window.Fase4 = function ({ render, withButton }) {
     },
     'health-done': healthDone,
     'edit-healthcard': healthcardForm,
-    'add-doc': (el) => editItem('docs', null, { title: 'documento', fields: Forms.doc(), defaults: () => ({ memberId: el.dataset.id || '', type: 'Cartão de Cidadão' }) }),
-    'edit-doc': (el) => editItem('docs', el.dataset.id, { title: 'documento', fields: Forms.doc() }),
+    // 'add-doc' / 'edit-doc': ver docs-anexos.js (o documento pode levar o ficheiro anexado).
 
     'add-poll': pollNew,
     'edit-poll': pollEdit,
