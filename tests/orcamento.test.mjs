@@ -100,6 +100,9 @@ test('categorias: lojas portuguesas, palavra inteira/início de palavra, regras 
   assert.equal(c('Uber'), 'transportes');
   assert.equal(c('PAG SERV NETFLIX'), 'subscricoes');
   assert.equal(c('FIDELIDADE SEGUROS'), 'seguros');
+  assert.equal(c('TRF DONATIVO UNICEF PORTUGAL'), 'donativos');
+  assert.equal(c('DOAÇÃO BANCO ALIMENTAR'), 'donativos');
+  assert.equal(O.kindOf('donativos'), 'expense');
   assert.equal(c('PRENDAS LOJA DO BAIRRO'), 'outros'); // "renda" não apanha "PRENDAS"
   assert.equal(c('TRF BPI JOAO'), 'outros'); // "bp " não apanha "BPI"
   assert.equal(c('TRF VENCIMENTO EMPRESA XPTO', 1850), 'ordenado');

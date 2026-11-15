@@ -152,7 +152,7 @@ export const BUDGET_NAMES = {
   supermercado: 'Supermercado', casa: 'Casa', contas: 'Luz, água, gás e telecom', carro: 'Carro e combustível', transportes: 'Transportes',
   saude: 'Saúde', educacao: 'Escola e educação', restaurantes: 'Restaurantes e cafés', lazer: 'Lazer e férias', roupa: 'Roupa e calçado',
   compras: 'Compras', subscricoes: 'Subscrições', seguros: 'Seguros', impostos: 'Impostos e taxas', credito: 'Créditos', filhas: 'Filhas',
-  animais: 'Animais', levantamentos: 'Levantamentos', outros: 'Outras despesas',
+  animais: 'Animais', donativos: 'Donativos', levantamentos: 'Levantamentos', outros: 'Outras despesas',
 };
 
 const DIAS = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
