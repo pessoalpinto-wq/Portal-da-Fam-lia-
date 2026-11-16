@@ -62,6 +62,25 @@ Em **Definições → Calendário no telemóvel** há um link de subscrição (o
 uma pessoa, com ou sem horário escolar; cada filha tem um **link pessoal** que só mostra o que é dela). Actualiza-se sozinho: o iPhone em cerca de 1 hora, o Google em algumas horas.
 Na **Agenda** há também "⬇️ .ics" para descarregar a agenda num ficheiro (funciona mesmo sem conta).
 
+## 🏦 Movimentos dos bancos automáticos (open banking)
+
+Em **Finanças → 🎯 Orçamento → 🏦 Bancos ligados**, os pais ligam as contas e os movimentos entram sozinhos
+todas as manhãs (6h40 UTC), já classificados com as mesmas regras dos extratos e sem repetir o que já foi importado.
+Usa o open banking (PSD2) através do [Enable Banking](https://enablebanking.com), que é gratuito para ligar as próprias
+contas ("restricted mode"). O portal só **lê** movimentos; a autorização é dada no próprio banco e dura até 180 dias.
+Os bancos que não estiverem no Enable Banking continuam a funcionar com 📥 Importar extratos.
+
+Configurar uma vez:
+
+1. Criar conta em **enablebanking.com** → Control Panel → **Applications → Register new application**:
+   ambiente **Production**, *Redirect URLs* `https://pessoalpinto-wq.github.io/Portal-da-Fam-lia-/`.
+   O site gera a chave privada (ficheiro `.pem`): guardem-na, não a enviem a ninguém.
+2. Na aplicação, **Link accounts**: liguem as vossas contas (é isto que activa o modo gratuito; só estas contas ficam acessíveis).
+3. Supabase → **Edge Functions → Secrets**: `ENABLE_BANKING_APP_ID` (o id da aplicação) e
+   `ENABLE_BANKING_PRIVATE_KEY` (o conteúdo todo do `.pem`).
+4. Aplicar a migração `20261116000000_bancos_open_banking.sql` e publicar a função `bancos`.
+5. No portal: **🏦 Bancos ligados → Ligar um banco**, autorizar no banco e escolher que conta do portal é cada conta do banco.
+
 ## Pais e filhas: quem pode fazer o quê
 
 | | Pais | Filhas |
@@ -152,7 +171,9 @@ js/pasta-fotos.js          fotos de uma viagem para o Drive (nomes, grupos, .zip
 js/patrimonio.js           fecho do mês, evolução e dívidas (cálculos)
 js/financas-patrimonio.js  Finanças → 📈 Património (vista, gráfico e formulários)
 js/folhas.js               ler extratos: CSV, .xlsx (zip + XML) e ".xls" HTML, sem bibliotecas
-js/orcamento.js            categorias, regras, importar sem repetir, transferências, orçamento do mês
+supabase/functions/_shared/orcamento.js  categorias, regras, importar sem repetir, transferências, orçamento do mês (app e servidor)
+js/bancos.js               Orçamento → 🏦 Bancos ligados (ligar, escolher contas, ir buscar)
+supabase/functions/_shared/bancos.js     movimentos do open banking (Enable Banking) → movimentos do Orçamento, sem repetir
 js/financas-orcamento.js   Finanças → 🎯 Orçamento (importar, classificar, orçamentos)
 js/electricidade.js        faturas da luz: ler o PDF, repartir pelos meses, resumo (kWh, €/kWh, ano anterior)
 js/financas-electricidade.js  Finanças → ⚡ Electricidade (juntar faturas, gráfico, lista)
