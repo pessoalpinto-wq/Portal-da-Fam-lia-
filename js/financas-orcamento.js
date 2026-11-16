@@ -1,6 +1,6 @@
 /*
  * Finanças → 🎯 Orçamento: importar extratos, classificar movimentos, orçamento por categoria.
- * Só para os pais (o servidor nem envia estes dados às filhas). Cálculos em js/orcamento.js; ler ficheiros em js/folhas.js.
+ * Só para os pais (o servidor nem envia estes dados às filhas). Cálculos em supabase/functions/_shared/orcamento.js; ler ficheiros em js/folhas.js.
  */
 window.FinancasOrcamento = function ({ render }) {
   const { esc, money, today } = U;
@@ -73,7 +73,7 @@ window.FinancasOrcamento = function ({ render }) {
         <li>Aqui, toquem em <b>📥 Importar extrato</b> e escolham os ficheiros (podem ser vários de uma vez, de contas diferentes). O portal descobre de que conta é cada um.</li>
         <li class="muted">No Android, com o portal instalado, também podem fazer <b>Partilhar → Família</b> na app do banco. No computador, basta arrastar os ficheiros para esta página.</li>
         <li>O portal classifica sozinho (Continente → Supermercado, Galp → Carro…). Quando corrigirem um, aprende para a próxima.</li></ol>
-        <p class="small muted">Podem importar o mesmo período duas vezes: os movimentos repetidos não entram. ${s.faccounts.length ? '' : 'Antes, juntem as contas em <b>📈 Património</b>.'}</p>`)}`;
+        <p class="small muted">Podem importar o mesmo período duas vezes: os movimentos repetidos não entram. ${s.faccounts.length ? '' : 'Antes, juntem as contas em <b>📈 Património</b>.'}</p>`)}${Views.bancosCard?.() || ''}`;
     }
 
     // Por conta, no mês: despesas e entradas (sem transferências entre contas nem poupança).
@@ -159,8 +159,8 @@ window.FinancasOrcamento = function ({ render }) {
       <p class="small muted">São as <button class="linkish" data-action="fin-tab" data-id="contas">🏠 Contas da casa</button> que se repetem. Para juntar uma, toquem num movimento e em <b>📌 Despesa fixa</b>.</p>`
       : `<p class="small">Marquem como fixas as despesas que se repetem (seguros, luz, internet, ginásio…): toquem num movimento e em <b>📌 Despesa fixa</b>. Aqui aparece quanto custam por mês e por ano.</p>`);
 
-    return `${nav}${accBar}${tiles}${unsorted}<div class="grid two">${budgetCard}${txCard}</div>${accCard}${fixedCard}
-      <p class="small muted">🔒 Só os pais vêem os movimentos. O portal não liga ao banco: os dados vêm dos extratos que importam.</p>`;
+    return `${nav}${accBar}${tiles}${unsorted}<div class="grid two">${budgetCard}${txCard}</div>${accCard}${fixedCard}${Views.bancosCard?.() || ''}
+      <p class="small muted">🔒 Só os pais vêem os movimentos. Vêm dos extratos que importam e dos bancos que ligarem (só leitura).</p>`;
   }
 
   /* ---------- Importar extratos (um ou vários ficheiros de uma vez) ---------- */

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import '../js/folhas.js';
-import '../js/orcamento.js';
+import '../supabase/functions/_shared/orcamento.js';
 
 const F = globalThis.Folhas;
 

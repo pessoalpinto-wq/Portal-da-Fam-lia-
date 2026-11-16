@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import '../js/extrato-pdf.js';
-import '../js/orcamento.js';
+import '../supabase/functions/_shared/orcamento.js';
 
 const X = globalThis.ExtratoPDF;
 const line = (y, ...cells) => ({ y, cells: cells.map(([x, str]) => ({ x, str })) });

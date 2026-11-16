@@ -6,7 +6,7 @@
  *  - datas sem ano: o ano vem do período do extrato ("de 16/05/2026 a 15/06/2026", "PERÍODO DE 2026-05-01 A …");
  *  - extrato de cartão de crédito: as compras vêm positivas → passam a despesa (negativo); pagamentos,
  *    reembolsos e devoluções ficam positivos.
- * Devolve uma tabela [Data, Descrição, Montante] para o resto da importação (js/orcamento.js).
+ * Devolve uma tabela [Data, Descrição, Montante] para o resto da importação (supabase/functions/_shared/orcamento.js).
  * Script "clássico": define globalThis.ExtratoPDF. A parte pura (toRows) é testada em tests/extrato-pdf.test.mjs.
  */
 (function (root) {
